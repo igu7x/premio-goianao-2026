@@ -1,0 +1,209 @@
+/** Espelho dos contratos do backend. Mantido manualmente e de proposito:
+ *  sao poucos tipos e revisar cada mudanca a mao evita que o frontend passe a
+ *  depender de campos que a API nunca prometeu. */
+
+export type Papel = 'ADMINISTRADOR' | 'MAGISTRADO' | 'SERVIDOR'
+
+export type Selo = 'BRONZE' | 'PRATA' | 'OURO' | 'DIAMANTE'
+
+export type TipoCertificado = 'MAGISTRADO' | 'SERVIDOR'
+
+export type StatusEdicao = 'RASCUNHO' | 'PUBLICADA'
+
+export type Alinhamento = 'ESQUERDA' | 'CENTRO' | 'DIREITA'
+
+export type OrigemServidor = 'EGESP' | 'MANUAL'
+
+export interface Sessao {
+  token: string
+  expiraEmSegundos: number
+  cpf: string
+  nome: string
+  papeis: Papel[]
+}
+
+export interface Identidade {
+  cpf: string
+  nome: string
+  papeis: Papel[]
+}
+
+export interface UsuarioMock {
+  cpf: string
+  cpfFormatado: string
+  nome: string
+  papeis: Papel[]
+}
+
+export interface Edicao {
+  id: number
+  ano: number
+  descricao: string | null
+  status: StatusEdicao
+  vigente: boolean
+  emitivel: boolean
+  aceitaInclusoes: boolean
+  criadoEm: string
+  atualizadoEm: string | null
+}
+
+export interface AreaTexto {
+  x: number
+  y: number
+  largura: number
+  altura: number
+  alinhamento: Alinhamento
+}
+
+export interface AreaQr {
+  x: number
+  y: number
+  tamanho: number
+}
+
+export interface AreaCodigo extends AreaTexto {
+  qr: AreaQr | null
+}
+
+export interface Layout {
+  id: number
+  edicaoId: number
+  selo: Selo
+  tipo: TipoCertificado
+  imagemLargura: number
+  imagemAltura: number
+  imagemUrl: string
+  areaNome: AreaTexto
+  areaUnidade: AreaTexto
+  areaCodigo: AreaCodigo
+  atualizadoEm: string | null
+}
+
+export interface LayoutsDaEdicao {
+  layouts: Layout[]
+  pendencias: string[]
+  editavel: boolean
+  fonteInstitucionalDisponivel: boolean
+}
+
+export interface UnidadeEgesp {
+  nome: string
+  comarca: string
+  unidadeId: number | null
+  jaCadastrada: boolean
+}
+
+export interface Unidade {
+  id: number
+  nome: string
+}
+
+export interface Reconhecimento {
+  id: number
+  unidadeId: number
+  unidadeNome: string
+  selo: Selo
+}
+
+export interface Magistrado {
+  id: number
+  cpf: string
+  cpfFormatado: string
+  nome: string
+  reconhecimentos: Reconhecimento[]
+}
+
+export interface UnidadeReconhecida {
+  unidadeId: number
+  nome: string
+  selos: Selo[]
+  maiorSelo: Selo | null
+  magistrados: number
+  servidoresHabilitados: number
+}
+
+export interface ErroDeLinha {
+  linha: number
+  conteudo: string
+  motivo: string
+}
+
+export interface RelatorioImportacao {
+  linhasLidas: number
+  magistradosCriados: number
+  reconhecimentosCriados: number
+  criados: string[]
+  erros: ErroDeLinha[]
+}
+
+export interface ServidorHabilitado {
+  id: number
+  /** Só vem preenchido para quem pode editar a lista; caso contrário, apenas o mascarado. */
+  cpf: string | null
+  cpfMascarado: string
+  nome: string
+  origem: OrigemServidor
+  ativo: boolean
+  criadoEm: string
+  atualizadoEm: string | null
+}
+
+export interface ListaHabilitados {
+  edicaoId: number
+  edicaoAno: number
+  unidadeId: number
+  unidadeNome: string
+  podeEditar: boolean
+  podeSemear: boolean
+  servidores: ServidorHabilitado[]
+}
+
+export interface Semeadura {
+  retornadosPeloEgesp: number
+  incluidos: number
+  jaExistentes: number
+  preservadosRemovidos: number
+  totalAtivos: number
+}
+
+export interface EdicaoOpcao {
+  id: number
+  ano: number
+  descricao: string | null
+  vigente: boolean
+}
+
+export interface OpcaoEmissao {
+  unidadeId: number
+  unidadeNome: string
+  selo: Selo
+  layoutDisponivel: boolean
+  jaEmitido: boolean
+  codigoValidacao: string | null
+  emitidoEm: string | null
+  totalEmissoes: number
+}
+
+export interface ResumoEdicao {
+  edicaoId: number
+  ano: number
+  status: StatusEdicao
+  vigente: boolean
+  layoutsConfigurados: number
+  layoutsPendentes: string[]
+  magistradosReconhecidos: number
+  unidadesReconhecidas: number
+  servidoresHabilitados: number
+  certificadosEmitidos: number
+}
+
+export interface Verificacao {
+  valido: boolean
+  codigo: string
+  nome: string | null
+  unidade: string | null
+  edicaoAno: number | null
+  selo: Selo | null
+  tipo: TipoCertificado | null
+  emitidoEm: string | null
+}

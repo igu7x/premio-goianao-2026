@@ -1,0 +1,20 @@
+# Perfil padrao de desenvolvimento: H2 em arquivo, em modo de compatibilidade
+# PostgreSQL. Nao exige servidor de banco instalado; as mesmas migracoes Flyway
+# usadas no PostgreSQL sao aplicadas aqui.
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/goianao;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+goianao:
+  dados-demo: true
+  cors:
+    # Qualquer porta local: o Vite cai para 5174, 5175... quando a 5173 esta
+    # ocupada, e sem isto o login volta 403 (Invalid CORS request).
+    origens: http://localhost:[*],http://127.0.0.1:[*]

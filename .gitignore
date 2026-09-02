@@ -1,0 +1,14 @@
+# Build
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# Dados locais: banco H2, artes enviadas e artes de exemplo geradas na carga
+backend/data/
+data/
+
+# Ferramentas
+.idea/
+.vscode/
+*.iml
+.DS_Store

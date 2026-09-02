@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: goianao
+  profiles:
+    active: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: America/Sao_Paulo
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 32MB
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+goianao:
+  jwt:
+    # Sobrescreva em producao (GOIANAO_JWT_SEGREDO). Minimo de 32 bytes para HS256.
+    segredo: ${GOIANAO_JWT_SEGREDO:desenvolvimento-goianao-tjgo-chave-local-nao-use-em-producao}
+    expiracao-horas: 8
+  # Base publica usada para montar a URL do QR de verificacao (feature 007).
+  base-verificacao: ${GOIANAO_BASE_VERIFICACAO:http://localhost:5173}
+  storage:
+    dir: ${GOIANAO_STORAGE_DIR:./data/artes}
+  layout:
+    # A4 paisagem a 300 DPI ~ 3508x2480 px (003/RNF-4).
+    largura-minima: 2400
+    tolerancia-proporcao: 0.05
+  cors:
+    origens: http://localhost:5173,http://127.0.0.1:5173
+  verificacao-publica:
+    consultas-por-minuto: 30
+  dados-demo: false
+
+logging:
+  level:
+    br.jus.tjgo.goianao: INFO

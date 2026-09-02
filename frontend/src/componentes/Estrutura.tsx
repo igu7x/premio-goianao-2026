@@ -1,0 +1,174 @@
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation, useMatch } from 'react-router-dom'
+import { api } from '../api/cliente'
+import type { Edicao } from '../api/tipos'
+import { useSessao } from '../sessao/SessaoContexto'
+import { Icone, type NomeDeIcone } from './Icone'
+
+interface ItemDeMenu {
+  para: string
+  rotulo: string
+  icone: NomeDeIcone
+}
+
+interface GrupoDeMenu {
+  titulo: string
+  itens: ItemDeMenu[]
+}
+
+/** Rótulo do topo: diz em que parte do sistema a pessoa está. */
+function contexto(caminho: string): string {
+  if (caminho.startsWith('/verificar')) return 'Conferência pública'
+  if (caminho.startsWith('/edicoes')) return 'Configuração do prêmio'
+  if (caminho.startsWith('/minhas-unidades')) return 'Servidores da unidade'
+  if (caminho.startsWith('/meus-certificados')) return 'Emissão de certificados'
+  return 'Visão geral'
+}
+
+/**
+ * Casca da aplicacao: navegacao lateral fixa e faixa superior com a identidade.
+ *
+ * O menu e a <b>uniao</b> dos papeis do usuario (001/RF-3): quem acumula
+ * administrador e magistrado ve os dois grupos ao mesmo tempo, sem precisar
+ * trocar de contexto.
+ */
+export function Estrutura({ children }: { children?: React.ReactNode }) {
+  const { identidade, sair, tem } = useSessao()
+  const local = useLocation()
+  // Quando o usuário está dentro de uma edição, a lateral mostra isso: sem essa
+  // pista, "Edições do prêmio" fica aceso e nada diz em qual delas se está.
+  const dentroDaEdicao = useMatch('/edicoes/:edicaoId')
+  const [edicaoAberta, setEdicaoAberta] = useState<Edicao | null>(null)
+
+  useEffect(() => {
+    const id = dentroDaEdicao?.params.edicaoId
+    if (!id) {
+      setEdicaoAberta(null)
+      return
+    }
+    let ativo = true
+    api
+      .get<Edicao>(`/api/edicoes/${id}`)
+      .then((e) => ativo && setEdicaoAberta(e))
+      .catch(() => ativo && setEdicaoAberta(null))
+    return () => {
+      ativo = false
+    }
+  }, [dentroDaEdicao?.params.edicaoId])
+
+  const grupos: GrupoDeMenu[] = []
+
+  if (tem('ADMINISTRADOR')) {
+    grupos.push({
+      titulo: 'Administração',
+      itens: [
+        { para: '/', rotulo: 'Visão geral', icone: 'painel' },
+        { para: '/edicoes', rotulo: 'Edições do prêmio', icone: 'edicoes' },
+      ],
+    })
+  }
+
+  if (tem('MAGISTRADO') || tem('SERVIDOR')) {
+    const itens: ItemDeMenu[] = [
+      { para: '/meus-certificados', rotulo: 'Meus certificados', icone: 'certificado' },
+    ]
+    if (tem('MAGISTRADO')) {
+      itens.push({ para: '/minhas-unidades', rotulo: 'Servidores da unidade', icone: 'equipe' })
+    }
+    grupos.push({ titulo: 'Reconhecimento', itens })
+  }
+
+  grupos.push({
+    titulo: 'Público',
+    itens: [{ para: '/verificar', rotulo: 'Conferir certificado', icone: 'verificar' }],
+  })
+
+  const iniciais = (identidade?.nome ?? '?')
+    .split(' ')
+    .filter((parte) => parte.length > 2)
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join('')
+    .toUpperCase()
+
+  return (
+    <div className="aplicacao">
+      <aside className="lateral">
+        <NavLink to="/" className="marca">
+          <span className="marca-orgao">Tribunal de Justiça de Goiás</span>
+          <span className="marca-nome">Prêmio Goianão</span>
+        </NavLink>
+
+        <nav className="navegacao">
+          {grupos.map((grupo) => (
+            <div className="navegacao-grupo" key={grupo.titulo}>
+              <div className="navegacao-titulo">{grupo.titulo}</div>
+              {grupo.itens.map((item) => (
+                <NavLink
+                  key={item.para}
+                  to={item.para}
+                  end={item.para === '/'}
+                  className={({ isActive }) =>
+                    isActive || (item.para !== '/' && local.pathname.startsWith(item.para))
+                      ? 'navegacao-item ativo'
+                      : 'navegacao-item'
+                  }
+                >
+                  <Icone nome={item.icone} tamanho={17} />
+                  {item.rotulo}
+                </NavLink>
+              ))}
+
+              {grupo.titulo === 'Administração' && edicaoAberta && (
+                <div className="navegacao-sub">
+                  <span className="navegacao-sub-item ativo" aria-current="page">
+                    Edição {edicaoAberta.ano}
+                    {edicaoAberta.vigente && <em>vigente</em>}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        <div className="lateral-rodape">
+          Ambiente de homologação
+          <br />
+          Login e dados de RH mockados
+        </div>
+      </aside>
+
+      <div className="painel">
+        <header className="topo">
+          <div className="topo-contexto">
+            <span className="rotulo">{contexto(local.pathname)}</span>
+          </div>
+
+          <div className="usuario">
+            <div className="usuario-dados">
+              <div className="usuario-nome">{identidade?.nome}</div>
+              <div className="usuario-papeis">
+                {identidade?.papeis.map((papel) => papel.toLowerCase()).join(' + ')}
+              </div>
+            </div>
+            <span className="inicial" aria-hidden="true">
+              {iniciais}
+            </span>
+            <button
+              type="button"
+              className="botao botao-neutro botao-pequeno"
+              onClick={() => void sair()}
+            >
+              <Icone nome="sair" tamanho={15} />
+              Sair
+            </button>
+          </div>
+        </header>
+
+        {/* Quase toda tela chega pelo Outlet; a conferência pública é passada
+            como filha, porque a mesma página também roda fora da casca. */}
+        <main>{children ?? <Outlet />}</main>
+      </div>
+    </div>
+  )
+}
