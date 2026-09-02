@@ -16,7 +16,7 @@ class ValidadorDeArteTest {
     private final ValidadorDeArte validador = new ValidadorDeArte(new GoianaoProperties(
             new GoianaoProperties.Jwt("x".repeat(40), 8),
             "http://localhost",
-            new GoianaoProperties.Storage("./target/artes-teste"),
+            new GoianaoProperties.Storage("banco", "./target/artes-teste"),
             new GoianaoProperties.Layout(2400, 0.05),
             new GoianaoProperties.Cors(List.of("http://localhost")),
             new GoianaoProperties.VerificacaoPublica(30),

@@ -15,13 +15,41 @@ spring:
     multipart:
       max-file-size: 30MB
       max-request-size: 32MB
-  flyway:
+  # As migracoes sao aplicadas na subida da aplicacao, nao por script enviado a
+  # equipe de banco. O Liquibase toma um lock (databasechangeloglock) antes de
+  # comecar, entao varias replicas subindo ao mesmo tempo nao concorrem: a
+  # primeira migra e as demais esperam.
+  liquibase:
     enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
 
 server:
   port: 8080
   error:
     include-message: always
+
+# Saude para as probes do OpenShift. Apenas o grupo health e exposto, e sem
+# detalhes: a resposta e publica (nao passa pelo JWT) e nao deve revelar host de
+# banco nem espaco em disco.
+#
+# A separacao entre liveness e readiness e deliberada. Liveness responde "o
+# processo esta vivo?" e nao inclui o banco -- se o PostgreSQL cair, reiniciar o
+# pod nao resolve nada e ainda cria laco de reinicio. Readiness inclui o banco,
+# porque sem ele a aplicacao nao tem como atender: o pod sai do balanceamento e
+# volta sozinho quando o banco responder.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
 
 goianao:
   jwt:
@@ -30,7 +58,29 @@ goianao:
     expiracao-horas: 8
   # Base publica usada para montar a URL do QR de verificacao (feature 007).
   base-verificacao: ${GOIANAO_BASE_VERIFICACAO:http://localhost:5173}
+
+  # SSO corporativo (Keycloak do TJGO). Vazio ate o client existir: sem as
+  # cinco primeiras propriedades o SSO fica desligado e vale o login mockado.
+  #
+  # ATENCAO na url: o Keycloak do tribunal e anterior a v17, entao o caminho
+  # inclui /auth -- https://<host-do-keycloak>/auth, nao https://<host-do-keycloak>.
+  # Sem o sufixo o login falha com "Resource not found".
+  sso:
+    url: ${OPENSHIFT_SSO_KEYCLOAK_URL:}
+    realm: ${OPENSHIFT_SSO_KEYCLOAK_REALM:}
+    client-id: ${OPENSHIFT_SSO_CLIENT_ID:}
+    client-secret: ${OPENSHIFT_SSO_SECRET:}
+    redirect-uri: ${OPENSHIFT_SSO_KEYCLOAK_REDIRECT_URI:}
+    url-frontend: ${GOIANAO_URL_FRONTEND:http://localhost:5173}
+    # Tentados em ordem ate achar um CPF valido. A infra ainda nao confirmou
+    # em qual claim ele vem; quando confirmar, e so ajustar aqui.
+    claims-cpf: ${GOIANAO_SSO_CLAIMS_CPF:cpf,CPF,preferred_username}
+    claim-nome: ${GOIANAO_SSO_CLAIM_NOME:name}
   storage:
+    # banco (padrao) ou filesystem. No OpenShift o pod nao tem disco que
+    # sobreviva ao restart, e a arte precisa durar tanto quanto o certificado
+    # que ela imprime.
+    tipo: ${GOIANAO_STORAGE_TIPO:banco}
     dir: ${GOIANAO_STORAGE_DIR:./data/artes}
   layout:
     # A4 paisagem a 300 DPI ~ 3508x2480 px (003/RNF-4).

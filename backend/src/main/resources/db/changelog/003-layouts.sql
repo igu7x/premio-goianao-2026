@@ -1,3 +1,8 @@
+--liquibase formatted sql
+
+--changeset goianao:003
+--preconditions onFail:MARK_RAN onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE LOWER(table_name) = 'layout_certificado' AND LOWER(table_schema) = 'public'
 -- Feature 003: layout do certificado por edicao x selo x tipo.
 -- As areas de texto sao guardadas como JSON em VARCHAR (portavel entre
 -- PostgreSQL e H2) e convertidas na camada JPA.

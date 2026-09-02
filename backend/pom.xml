@@ -23,6 +23,16 @@
     <pdfbox.version>3.0.8</pdfbox.version>
     <zxing.version>3.5.3</zxing.version>
     <jjwt.version>0.12.7</jjwt.version>
+
+    <!--
+      Alvo padrao do liquibase-maven-plugin: um H2 em arquivo temporario, para
+      que `mvn liquibase:updateSQL` gere o SQL sem exigir banco algum nem
+      credencial. Para apontar a um ambiente real, sobrescreva na linha de
+      comando: -Dliquibase.url=... -Dliquibase.username=... -Dliquibase.password=...
+    -->
+    <liquibase.url>jdbc:h2:file:./target/liquibase/vazio;MODE=PostgreSQL</liquibase.url>
+    <liquibase.username>sa</liquibase.username>
+    <liquibase.password></liquibase.password>
   </properties>
 
   <dependencies>
@@ -42,14 +52,39 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
-
+    <!--
+      Existe pelas probes do OpenShift: sem um endpoint de saude, o cluster nao
+      tem como saber se o pod esta pronto para receber trafego. So o grupo
+      health e exposto (ver application.yml).
+    -->
     <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+    <!--
+      Validacao do id_token do Keycloak. Traz o NimbusJwtDecoder, que busca as
+      chaves no JWKS e confere assinatura, emissor e expiracao.
+
+      Nao e a dependencia completa de oauth2-client de proposito: a troca do
+      code por token e feita a mao (sao poucas linhas e um RestClient),
+      enquanto a parte que NAO se deve escrever a mao, a verificacao
+      criptografica, fica com a biblioteca.
+    -->
     <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-database-postgresql</artifactId>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+    </dependency>
+
+    <!--
+      Liquibase, e nao Flyway, por dois motivos praticos. E a ferramenta ja
+      usada no outro sistema do TJGO que roda no OpenShift, entao a equipe de
+      banco a conhece; e o Liquibase OSS gera o SQL de uma migracao pendente
+      (liquibase:updateSQL) para revisao previa, no dia em que o DBA pedir para
+      aplicar a mao. O Flyway community nao faz isso.
+    -->
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
     </dependency>
 
     <dependency>
@@ -114,6 +149,26 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!--
+        Existe para o dia em que a equipe de banco pedir para revisar o SQL
+        antes de ele rodar: `mvn liquibase:updateSQL` escreve em
+        target/liquibase/migracao.sql o que esta pendente, sem tocar no banco.
+        A aplicacao continua migrando sozinha na subida; isto e so a via de
+        inspecao.
+      -->
+      <plugin>
+        <groupId>org.liquibase</groupId>
+        <artifactId>liquibase-maven-plugin</artifactId>
+        <configuration>
+          <!-- Relativo ao searchPath, que e a raiz dos resources. -->
+          <changeLogFile>db/changelog/db.changelog-master.yaml</changeLogFile>
+          <searchPath>src/main/resources</searchPath>
+          <url>${liquibase.url}</url>
+          <username>${liquibase.username}</username>
+          <password>${liquibase.password}</password>
+          <migrationSqlOutputFile>target/liquibase/migracao.sql</migrationSqlOutputFile>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

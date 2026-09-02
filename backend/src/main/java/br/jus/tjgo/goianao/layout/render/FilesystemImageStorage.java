@@ -7,10 +7,20 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Armazenamento em diretorio local, configurado por {@code goianao.storage.dir}. */
+/**
+ * Armazenamento em diretorio local, configurado por {@code goianao.storage.dir}.
+ *
+ * Deixou de ser o padrao: ativa-se com {@code goianao.storage.tipo=filesystem}.
+ * Serve a quem roda fora de container e prefere ver os arquivos, ou a uma
+ * eventual instalacao com volume dedicado. Num pod sem volume, o conteudo
+ * desaparece no restart — por isso o padrao passou a ser o banco
+ * ({@link BancoImageStorage}).
+ */
 @Component
+@ConditionalOnProperty(name = "goianao.storage.tipo", havingValue = "filesystem")
 public class FilesystemImageStorage implements ImageStorage {
 
     private final Path raiz;

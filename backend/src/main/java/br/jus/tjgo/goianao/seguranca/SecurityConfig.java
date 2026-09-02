@@ -49,9 +49,16 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(reg -> {
                 // Login mock e verificacao publica de certificado (007/RNF-1).
+                // O fluxo de SSO acontece antes de existir sessao: quem chega no
+                // /login e no /callback ainda nao tem token nosso.
                 reg.requestMatchers("/api/auth/login", "/api/auth/usuarios-mock").permitAll()
+                        .requestMatchers("/api/auth/sso/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers("/actuator/health", "/error").permitAll();
+                        // Saude sem autenticacao: as probes do OpenShift batem
+                        // aqui antes de existir qualquer sessao. Inclui os
+                        // subcaminhos /liveness e /readiness.
+                        .requestMatchers("/actuator/health/**", "/actuator/health", "/error")
+                        .permitAll();
 
                 // O console do H2 so e liberado quando esta de fato ligado (perfil
                 // dev). Sem essa condicao, um ambiente que ativasse o console por

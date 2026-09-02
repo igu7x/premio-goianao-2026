@@ -20,6 +20,8 @@ interface ContextoSessao {
   identidade: Identidade | null
   carregando: boolean
   entrar: (credencial: string) => Promise<void>
+  /** Adota um token já emitido — o caminho de volta do SSO. */
+  adotarToken: (token: string) => Promise<void>
   sair: () => Promise<void>
   tem: (papel: Papel) => boolean
 }
@@ -60,7 +62,35 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
     setIdentidade({ cpf: sessao.cpf, nome: sessao.nome, papeis: sessao.papeis })
   }, [])
 
+  /**
+   * Entrada pelo SSO: o backend já validou o id_token do Keycloak e emitiu o
+   * nosso JWT, que chega no fragmento da URL. Aqui só guardamos e perguntamos
+   * ao /me quem é — os papéis vêm do servidor, nunca do token.
+   */
+  const adotarToken = useCallback(async (token: string) => {
+    guardarToken(token)
+    try {
+      setIdentidade(await api.get<Identidade>('/api/auth/me'))
+    } catch (e) {
+      descartarToken()
+      throw e
+    }
+  }, [])
+
+  /**
+   * Encerrar só do nosso lado não basta quando há SSO: a sessão do Keycloak
+   * continua de pé no navegador e o próximo "entrar" reautentica sem pedir
+   * nada — o usuário clica em Sair e volta logado, o que é pior do que não ter
+   * botão. Por isso, com SSO ativo, o navegador termina no logout do provedor.
+   */
   const sair = useCallback(async () => {
+    let urlDoProvedor: string | null = null
+    try {
+      urlDoProvedor = (await api.get<{ url: string | null }>('/api/auth/sso/logout-url')).url
+    } catch {
+      /* sem SSO ou indisponível: encerra só localmente */
+    }
+
     try {
       await api.post('/api/auth/logout')
     } catch {
@@ -68,6 +98,10 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
     }
     descartarToken()
     setIdentidade(null)
+
+    if (urlDoProvedor) {
+      window.location.assign(urlDoProvedor)
+    }
   }, [])
 
   const valor = useMemo<ContextoSessao>(
@@ -75,10 +109,11 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
       identidade,
       carregando,
       entrar,
+      adotarToken,
       sair,
       tem: (papel) => identidade?.papeis.includes(papel) ?? false,
     }),
-    [identidade, carregando, entrar, sair],
+    [identidade, carregando, entrar, adotarToken, sair],
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>

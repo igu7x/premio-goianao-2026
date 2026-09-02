@@ -1,3 +1,8 @@
+--liquibase formatted sql
+
+--changeset goianao:001
+--preconditions onFail:MARK_RAN onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE LOWER(table_name) = 'administrador' AND LOWER(table_schema) = 'public'
 -- Feature 001 (identidade/papeis) e 002 (edicoes).
 -- SQL deliberadamente portavel: roda em PostgreSQL e em H2 (modo PostgreSQL),
 -- para que dev/test funcionem sem depender de um servidor de banco instalado.

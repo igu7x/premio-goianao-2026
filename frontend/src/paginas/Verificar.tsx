@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ErroApi } from '../api/cliente'
+import { ErroApi, urlDaApi } from '../api/cliente'
 import type { Verificacao } from '../api/tipos'
 import { Aviso, Carregando, formatarDataHora } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
@@ -42,7 +42,7 @@ export function Verificar({ embutido = false }: { embutido?: boolean } = {}) {
     try {
       // Chamada direta: a verificação pública não usa o cliente autenticado,
       // para deixar claro que não depende de sessão alguma.
-      const resposta = await fetch(`/api/public/certificados/${encodeURIComponent(limpo)}`)
+      const resposta = await fetch(urlDaApi(`/api/public/certificados/${encodeURIComponent(limpo)}`))
       if (resposta.status === 429) {
         throw new ErroApi(
           429,

@@ -1,3 +1,8 @@
+--liquibase formatted sql
+
+--changeset goianao:004
+--preconditions onFail:MARK_RAN onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE LOWER(table_name) = 'servidor_habilitado' AND LOWER(table_schema) = 'public'
 -- Feature 008: snapshot, por edicao x unidade, de quem pode emitir o
 -- certificado de servidor. Remocao e logica (ativo = false) para auditoria.
 

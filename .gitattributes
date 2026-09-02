@@ -1,0 +1,25 @@
+# O repositorio e editado no Windows e executado em container Linux.
+#
+# Sem isto, o Git converte para CRLF ao gravar na arvore de trabalho e os
+# scripts de shell chegam ao container com \r no fim da linha — o kernel le a
+# shebang como "/bin/bash\r" e a mensagem que aparece e
+# "bad interpreter: No such file or directory", que nao ajuda em nada a
+# encontrar a causa.
+#
+# Vale para tudo que e lido por um interpretador dentro do container.
+* text=auto
+
+*.sh              text eol=lf
+Dockerfile        text eol=lf
+*.conf            text eol=lf
+.s2i/bin/*        text eol=lf
+frontend/.s2i/bin/assemble  text eol=lf
+frontend/.s2i/bin/run       text eol=lf
+
+# Binarios: nunca normalizar.
+*.png binary
+*.jpg binary
+*.pdf binary
+*.ttf binary
+*.woff binary
+*.woff2 binary

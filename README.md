@@ -85,6 +85,17 @@ execução anterior que não foi encerrada.
 trava (`backend/data/goianao.lock.db`) de um encerramento forçado. Apagar **só a
 trava** resolve; nunca apague o `goianao.mv.db`, que é o banco inteiro.
 
+**`Schema "public" not found` no H2** — o banco local é anterior à troca do
+Flyway pelo Liquibase e foi criado com o esquema em minúsculas, grafia que a
+configuração atual não usa mais. O arquivo só abre com a URL antiga, então não
+há como migrá-lo em execução: renomeie `backend/data/goianao.mv.db` e deixe a
+carga de demonstração recriar na próxima subida. Bancos PostgreSQL **não** são
+afetados — lá a grafia sempre foi coerente.
+
+> Se houver um `goianao.mv.db.antes-do-liquibase-*.bak` na pasta, é exatamente
+> isso: o banco anterior, guardado em vez de apagado. Pode remover quando tiver
+> certeza de que não precisa dos dados que estavam nele.
+
 **O frontend subiu em 5174 (ou outra porta)** — normal quando a 5173 está
 ocupada, e funciona: o perfil de desenvolvimento aceita qualquer porta local.
 Em produção a origem permitida é exata (`goianao.cors.origens`).
@@ -92,7 +103,16 @@ Em produção a origem permitida é exata (`goianao.cors.origens`).
 ### PostgreSQL
 
 O padrão de desenvolvimento é **H2 em modo de compatibilidade PostgreSQL**, para
-que o projeto rode sem instalar banco. As mesmas migrações Flyway valem nos dois.
+que o projeto rode sem instalar banco. As mesmas migrações Liquibase valem nos
+dois — elas são aplicadas **na subida da aplicação**, nunca por script enviado
+à mão.
+
+Para gerar o SQL de uma migração pendente, quando a equipe de banco quiser
+revisar antes de aplicar:
+
+```bash
+cd backend && mvn liquibase:updateSQL
+```
 Para usar PostgreSQL de verdade:
 
 ```bash
@@ -181,8 +201,34 @@ de ambiente:
 |---|---|---|
 | `GOIANAO_JWT_SEGREDO` | assinatura do token (mín. 32 bytes) | chave de desenvolvimento |
 | `GOIANAO_BASE_VERIFICACAO` | base da URL pública que o QR codifica | `http://localhost:5173` |
-| `GOIANAO_STORAGE_DIR` | onde ficam as artes enviadas | `./data/artes` |
+| `GOIANAO_STORAGE_TIPO` | `banco` ou `filesystem` | `banco` |
+| `GOIANAO_STORAGE_DIR` | diretório das artes, só com `filesystem` | `./data/artes` |
 | `GOIANAO_DB_URL` / `_USER` / `_PASSWORD` | PostgreSQL (perfil `postgres`) | banco local |
+| `GOIANAO_URL_FRONTEND` | para onde o SSO devolve o navegador | `http://localhost:5173` |
+| `OPENSHIFT_SSO_KEYCLOAK_URL` | base do Keycloak, **com `/auth`** | vazio (SSO desligado) |
+| `OPENSHIFT_SSO_KEYCLOAK_REALM` | realm | vazio |
+| `OPENSHIFT_SSO_CLIENT_ID` | client id | vazio |
+| `OPENSHIFT_SSO_SECRET` | client secret | vazio |
+| `OPENSHIFT_SSO_KEYCLOAK_REDIRECT_URI` | callback registrado no client | vazio |
+| `GOIANAO_SSO_CLAIMS_CPF` | claims tentados até achar o CPF | `cpf,CPF,preferred_username` |
 
 > **Em produção, defina `GOIANAO_JWT_SEGREDO`.** O valor padrão existe apenas
-> para o ambiente local e está versionado.
+> para o ambiente local e está versionado — sem a variável, a aplicação **sobe
+> normalmente** assinando com um segredo que está no repositório.
+
+> **O SSO só liga com as cinco propriedades `OPENSHIFT_SSO_*` preenchidas.**
+> Faltando qualquer uma, o sistema segue no login mockado em vez de subir
+> quebrado. E a URL do Keycloak do TJGO **precisa terminar em `/auth`** — o
+> servidor é anterior à versão 17, e sem o sufixo o login falha com
+> "Resource not found".
+
+### Onde ficam as artes dos certificados
+
+No banco, na tabela `arte_layout` — não em disco. A arte faz parte da
+autenticidade do certificado: uma reemissão feita daqui a anos precisa dela, e
+guardá-la no banco garante que ela seja restaurada pelo mesmo backup que
+restaura as emissões.
+
+Bases criadas antes dessa mudança têm os layouts apontando para arquivos. Elas
+são migradas sozinhas na primeira subida, e o log diz quantas artes vieram; os
+arquivos em `backend/data/artes` deixam de ser usados e podem ser apagados.

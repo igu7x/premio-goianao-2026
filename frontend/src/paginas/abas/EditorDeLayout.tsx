@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { abrirEmNovaAba, api, ErroApi, lerToken } from '../../api/cliente'
+import { abrirEmNovaAba, api, ErroApi, lerToken, urlDaApi } from '../../api/cliente'
 import type {
   Alinhamento,
   AreaCodigo,
@@ -94,7 +94,7 @@ export function EditorDeLayout({
     let ativo = true
     let criada: string | null = null
 
-    fetch(layout.imagemUrl, { headers: { Authorization: `Bearer ${lerToken() ?? ''}` } })
+    fetch(urlDaApi(layout.imagemUrl), { headers: { Authorization: `Bearer ${lerToken() ?? ''}` } })
       .then((resposta) => (resposta.ok ? resposta.blob() : Promise.reject(resposta)))
       .then((blob) => {
         if (!ativo) return

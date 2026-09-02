@@ -1,3 +1,8 @@
+--liquibase formatted sql
+
+--changeset goianao:002
+--preconditions onFail:MARK_RAN onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE LOWER(table_name) = 'unidade_judiciaria' AND LOWER(table_schema) = 'public'
 -- Feature 004: unidades judiciarias (espelho do EGESP), magistrados
 -- reconhecidos por edicao e seus reconhecimentos (unidade + selo).
 

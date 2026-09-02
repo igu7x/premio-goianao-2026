@@ -1,3 +1,8 @@
+--liquibase formatted sql
+
+--changeset goianao:005
+--preconditions onFail:MARK_RAN onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE LOWER(table_name) = 'certificado_emitido' AND LOWER(table_schema) = 'public'
 -- Features 005/006/007: registro de cada certificado logico emitido.
 -- O PDF nao e armazenado (gerado sob demanda); guardam-se metadados e o
 -- codigo de validacao, que e estavel entre reemissoes.

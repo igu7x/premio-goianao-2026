@@ -10,6 +10,32 @@
 const CHAVE_TOKEN = 'goianao.sessao'
 export const EVENTO_SESSAO_EXPIRADA = 'goianao:sessao-expirada'
 
+declare global {
+  interface Window {
+    __GOIANAO_CONFIG__?: { apiBaseUrl?: string }
+  }
+}
+
+/**
+ * Base da API.
+ *
+ * Em desenvolvimento fica vazia: os caminhos saem relativos e o proxy do Vite
+ * encaminha `/api` para o backend. Em producao, frontend e API sao dois apps
+ * com rotas distintas no OpenShift, entao a base precisa apontar para fora.
+ *
+ * O valor vem de `public/config.js`, servido ao lado do index.html e reescrito
+ * pelo container na subida. Fosse por `import.meta.env`, o Vite o congelaria no
+ * build e seria preciso uma imagem por ambiente.
+ */
+function baseDaApi(): string {
+  return (window.__GOIANAO_CONFIG__?.apiBaseUrl ?? '').replace(/\/+$/, '')
+}
+
+/** Resolve um caminho da API contra a base configurada. */
+export function urlDaApi(caminho: string): string {
+  return caminho.startsWith('/') ? baseDaApi() + caminho : caminho
+}
+
 export class ErroApi extends Error {
   readonly status: number
   readonly detalhes: string[]
@@ -91,11 +117,11 @@ async function json<T>(resposta: Response): Promise<T> {
 
 export const api = {
   async get<T>(caminho: string): Promise<T> {
-    return json<T>(await tratar(await fetch(caminho, { headers: cabecalhos() })))
+    return json<T>(await tratar(await fetch(urlDaApi(caminho), { headers: cabecalhos() })))
   },
 
   async post<T>(caminho: string, corpo?: unknown): Promise<T> {
-    const resposta = await fetch(caminho, {
+    const resposta = await fetch(urlDaApi(caminho), {
       method: 'POST',
       headers: cabecalhos(corpo === undefined ? {} : { 'Content-Type': 'application/json' }),
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -104,7 +130,7 @@ export const api = {
   },
 
   async put<T>(caminho: string, corpo: unknown): Promise<T> {
-    const resposta = await fetch(caminho, {
+    const resposta = await fetch(urlDaApi(caminho), {
       method: 'PUT',
       headers: cabecalhos({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(corpo),
@@ -113,13 +139,13 @@ export const api = {
   },
 
   async remover(caminho: string): Promise<void> {
-    await tratar(await fetch(caminho, { method: 'DELETE', headers: cabecalhos() }))
+    await tratar(await fetch(urlDaApi(caminho), { method: 'DELETE', headers: cabecalhos() }))
   },
 
   /** Envio multipart (arte do certificado, planilha de reconhecidos). */
   async enviarArquivo<T>(caminho: string, dados: FormData, metodo = 'POST'): Promise<T> {
     // Sem Content-Type manual: o navegador precisa definir o boundary.
-    const resposta = await fetch(caminho, { method: metodo, headers: cabecalhos(), body: dados })
+    const resposta = await fetch(urlDaApi(caminho), { method: metodo, headers: cabecalhos(), body: dados })
     return json<T>(await tratar(resposta))
   },
 
@@ -132,7 +158,7 @@ export const api = {
     corpo?: unknown,
   ): Promise<{ blob: Blob; nomeArquivo: string; codigo: string | null }> {
     const resposta = await tratar(
-      await fetch(caminho, {
+      await fetch(urlDaApi(caminho), {
         method: 'POST',
         headers: cabecalhos(corpo === undefined ? {} : { 'Content-Type': 'application/json' }),
         body: corpo === undefined ? undefined : JSON.stringify(corpo),

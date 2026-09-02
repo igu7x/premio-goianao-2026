@@ -229,3 +229,132 @@ documento que a pessoa quer poder mandar para alguém. Modal não tem endereço.
 certificados") e passa a nomear a seção — sem isso, a conferência embutida
 apareceria sob um título que não é o dela. Verificado em `Verificar.test.tsx`,
 que continua exercitando a página fora da casca.
+
+---
+
+## DI-13 — As artes vão para o banco, não para object storage
+
+**Contexto.** As artes dos certificados eram gravadas em disco. No OpenShift o
+pod não tem volume persistente, e o container roda com UID aleatório do grupo 0
+— escrita em disco exige `chgrp -R 0` e `g+rwX`, e ainda assim o conteúdo
+desaparece no restart. O padrão de outro sistema do tribunal já no cluster é
+arquivo grande em object storage (ECS) e pequeno em base64 no PostgreSQL.
+
+**Decisão.** Tudo no banco, em `arte_layout` (migração V6). `BancoImageStorage`
+passa a ser o padrão; `FilesystemImageStorage` continua disponível via
+`goianao.storage.tipo=filesystem`.
+
+**Por que não o object storage, mesmo sendo a recomendação.** O critério deles é
+tamanho; aqui o que decide é ciclo de vida. São 8 artes por edição — quatro
+selos por dois tipos —, e a arte **faz parte da autenticidade do certificado**:
+uma reemissão feita daqui a seis anos tem que sair idêntica à original, o que só
+funciona se a arte ainda existir. No banco, ela é restaurada pelo mesmo backup
+que restaura `certificado_emitido`; não existe o cenário em que o registro da
+emissão volta e a arte não. Com ECS seriam dois sistemas de backup a manter em
+sincronia, e o dia em que não estiverem, o certificado antigo não sai.
+
+**Detalhe de mapeamento.** `byte[]` **sem** `@Lob`. Com `@Lob` o Hibernate mapeia
+para large object (OID) no PostgreSQL, o que cria tabela auxiliar, exige
+transação para ler e muda o comportamento do dump. Sem a anotação vira `bytea` no
+PostgreSQL e VARBINARY no H2 — o mesmo código serve aos dois.
+
+**Consequência.** O pod fica sem estado em disco, o que dispensa PVC e encerra a
+discussão entre RWO e RWX. O banco engorda alguns MB por edição. Verificado em
+PostgreSQL 18.3: arte de 3508x2480 enviada e lida de volta com SHA idêntico.
+
+---
+
+## DI-14 — Configuração do frontend em execução, não em build
+
+**Contexto.** No OpenShift, frontend e API são dois apps com rotas distintas, e
+o frontend precisa saber a URL da API. O caminho natural no Vite é
+`import.meta.env.VITE_API_BASE_URL`, mas ele congela o valor no bundle.
+
+**Decisão.** `public/config.js` define `window.__GOIANAO_CONFIG__`, é servido ao
+lado do `index.html` e reescrito na subida do container pelo `.s2i/bin/run`, a
+partir da variável `API_BASE_URL`. O cliente HTTP resolve todo caminho por
+`urlDaApi()`. Vazio significa mesma origem — o que vale em desenvolvimento com o
+proxy do Vite.
+
+**Alternativa descartada.** Uma imagem por ambiente. Promover para produção
+passaria a exigir rebuild, e o artefato testado em homologação deixaria de ser o
+artefato publicado — que é justamente o ponto de promover uma imagem.
+
+**Consequência.** `config.js` precisa de `Cache-Control: no-store` (está no
+`01-spa.conf`), senão o navegador serve a configuração do ambiente anterior
+depois do deploy.
+
+---
+
+## DI-15 — SSO com verificação de assinatura, e o CPF como configuração
+
+**Contexto.** O sistema irmão implementa o Keycloak à mão: decodifica o payload
+do token em base64 e confia nele, sem buscar JWKS nem conferir emissor e
+expiração — aceita, inclusive, um base64 puro como token. **Qualquer pessoa
+forja sessão de qualquer usuário.** O próprio levantamento marca isso como furo
+conhecido.
+
+**Decisão.** A troca do code por token é feita à mão (são poucas linhas e um
+`RestClient`), mas a verificação fica com o `NimbusJwtDecoder`, de
+`spring-security-oauth2-jose`, que busca as chaves no JWKS do realm e confere
+assinatura, emissor e expiração. A regra: o que é encanamento pode ser escrito;
+o que é criptografia, não.
+
+**O CPF é configuração, não código.** Todo o domínio é indexado por CPF, e o
+claim que o carrega depende do mapper do client — ainda não confirmado pela
+infra, e o sistema irmão não sabe responder porque chaveia por e-mail. Por isso
+`goianao.sso.claims-cpf` é uma lista tentada em ordem: quando a resposta vier,
+muda o ConfigMap.
+
+**Transporte do token.** Volta ao frontend no **fragmento** da URL, não na query
+string. Fragmento não é enviado ao servidor: não entra em log de proxy nem no
+`Referer`. No sistema irmão, sessão por query string causou 502 do HAProxy quando
+o payload passou de 80 KB.
+
+**Consequência.** Sem as cinco propriedades do client, o SSO se declara
+desligado e o login mockado continua valendo — a aplicação não deixa de subir
+por configuração ausente, que é mais difícil de diagnosticar num pod do que um
+endpoint respondendo "não configurado". O logout encerra também no provedor:
+sem isso o usuário clica em Sair e volta logado no clique seguinte.
+
+---
+
+## DI-16 — Liquibase no lugar do Flyway
+
+**Contexto.** As migrações já eram aplicadas na subida da aplicação, então
+nenhuma das duas ferramentas exigiria enviar script para a equipe de banco. A
+troca se justifica por outras duas razões: é o que o outro sistema do TJGO no
+OpenShift usa — a equipe de banco já conhece —, e o Liquibase OSS gera o SQL
+pendente para revisão prévia (`mvn liquibase:updateSQL`), coisa que o Flyway
+community não faz. No dia em que o DBA exigir olhar antes de aplicar, existe
+resposta.
+
+**Decisão.** `liquibase-core` no lugar do `flyway-core`, com as migrações
+mantidas em **SQL puro** (formato *formatted sql*), não em changesets XML/YAML.
+O esquema depende de recursos do banco — índice único sobre coluna nula para
+materializar "no máximo uma edição vigente", CHECK de status, identidade com
+`GENERATED BY DEFAULT` — e descrevê-los em YAML esconderia o que de fato roda.
+O changelog mestre lista os arquivos explicitamente, sem `includeAll`:
+acrescentar migração deve ser ato deliberado.
+
+**Bases que já existiam.** Cada changeset carrega
+`--preconditions onFail:MARK_RAN` com uma consulta ao `information_schema`
+verificando se a tabela principal já existe. Numa base criada pelo Flyway, o
+Liquibase percebe, registra o changeset como aplicado e segue — sem
+`changelogSync` manual e sem risco de tentar recriar tabela. Verificado no
+PostgreSQL de desenvolvimento: os 6 changesets ficaram como `MARK_RAN` e os
+dados (2 edições, 2 certificados, 16 artes) permaneceram intactos.
+
+**Efeito colateral que só apareceu testando.** O H2 rodava com
+`DATABASE_TO_LOWER=TRUE` e gravava as tabelas de controle em minúsculas,
+enquanto o adaptador H2 do Liquibase as procura em maiúsculas. O sintoma era
+`Table "databasechangelog" already exists` **na criação dela mesma**, e não só
+em teste: **toda reinicialização em desenvolvimento falharia**. A primeira
+execução passava, a segunda não. Corrigido removendo o `DATABASE_TO_LOWER` das
+URLs de H2 — o `MODE=PostgreSQL` continua garantindo a compatibilidade de
+dialeto que interessa.
+
+**Consequência.** Bancos H2 locais criados antes da troca têm o esquema em
+minúsculas e param com `Schema "public" not found`. São descartáveis: apagar
+`backend/data/goianao.mv.db` e deixar a carga de demonstração recriar. Bancos
+PostgreSQL não são afetados, porque lá a grafia sempre foi coerente.

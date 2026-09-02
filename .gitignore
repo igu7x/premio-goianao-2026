@@ -12,3 +12,8 @@ data/
 .vscode/
 *.iml
 .DS_Store
+
+# Levantamento da infraestrutura do tribunal: cita hosts, cluster, namespaces,
+# nomes de secret e uma falha nao corrigida de outro sistema. O repositorio e
+# publico -- este arquivo fica so no disco.
+SSO_E_OPENSHIFT_REFERENCIA.md

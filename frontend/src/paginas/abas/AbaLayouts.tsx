@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, ErroApi, lerToken } from '../../api/cliente'
+import { api, ErroApi, lerToken, urlDaApi } from '../../api/cliente'
 import type { Edicao, Layout, LayoutsDaEdicao, Selo, TipoCertificado } from '../../api/tipos'
 import { Aviso, Carregando } from '../../componentes/Basicos'
 import { Icone } from '../../componentes/Icone'
@@ -175,7 +175,7 @@ function ArteDoLayout({ layout }: { layout: Layout }) {
     let ativo = true
     let criada: string | null = null
 
-    fetch(layout.imagemUrl, { headers: { Authorization: `Bearer ${lerToken() ?? ''}` } })
+    fetch(urlDaApi(layout.imagemUrl), { headers: { Authorization: `Bearer ${lerToken() ?? ''}` } })
       .then((resposta) => (resposta.ok ? resposta.blob() : Promise.reject(resposta)))
       .then((blob) => {
         if (!ativo) return
