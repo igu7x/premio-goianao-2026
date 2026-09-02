@@ -358,3 +358,29 @@ dialeto que interessa.
 minúsculas e param com `Schema "public" not found`. São descartáveis: apagar
 `backend/data/goianao.mv.db` e deixar a carga de demonstração recriar. Bancos
 PostgreSQL não são afetados, porque lá a grafia sempre foi coerente.
+
+---
+
+## DI-17 — A aplicação recusa subir com o segredo público do repositório
+
+**Contexto.** `goianao.jwt.segredo` tem um valor padrão no `application.yml`
+para o desenvolvimento local funcionar sem configuração. Com o repositório
+**público**, esse valor é conhecido por qualquer pessoa. Se um ambiente subir
+sem `GOIANAO_JWT_SEGREDO`, quem leu o código assina um token válido para
+qualquer CPF — inclusive o de um administrador.
+
+**Decisão.** Fora dos perfis `dev` e `test`, o `JwtService` recusa inicializar
+se o segredo for exatamente o do repositório, com mensagem dizendo qual variável
+definir e com que tamanho.
+
+**Por que falhar no start.** Uma aplicação no ar assinando com chave conhecida
+não dá sinal algum de estar insegura: tudo funciona, e o problema só aparece
+quando alguém já se passou por outra pessoa. Falhar cedo troca uma falha
+silenciosa e indetectável por um pod que não sobe e um log que explica.
+
+**Alternativa descartada.** Só avisar no log. Aviso em log de subida de pod é
+lido uma vez, no dia do deploy, e nunca mais.
+
+**Consequência.** Um deploy que esqueça a variável não sobe — e é isso que se
+quer. Verificado: `SegredoJwtTest` cobre os quatro casos, e o perfil `postgres`
+sem a variável falha com a mensagem correta.

@@ -8,12 +8,14 @@ import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import javax.crypto.SecretKey;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,12 +25,44 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtService {
 
+    /**
+     * O valor de {@code goianao.jwt.segredo} que vem no application.yml.
+     *
+     * Ele existe para o desenvolvimento local funcionar sem configuracao, e
+     * esta num repositorio publico — ou seja, e conhecido. Se subir assim fora
+     * de desenvolvimento, qualquer pessoa que leia o codigo assina um token
+     * valido para qualquer CPF, inclusive o de um administrador.
+     */
+    private static final String SEGREDO_DE_DESENVOLVIMENTO =
+            "desenvolvimento-goianao-tjgo-chave-local-nao-use-em-producao";
+
     private final SecretKey chave;
     private final Duration validade;
 
-    public JwtService(GoianaoProperties props) {
-        this.chave = Keys.hmacShaKeyFor(props.jwt().segredo().getBytes(StandardCharsets.UTF_8));
+    public JwtService(GoianaoProperties props, Environment ambiente) {
+        String segredo = props.jwt().segredo();
+        exigirSegredoProprio(segredo, ambiente);
+        this.chave = Keys.hmacShaKeyFor(segredo.getBytes(StandardCharsets.UTF_8));
         this.validade = Duration.ofHours(props.jwt().expiracaoHoras());
+    }
+
+    /**
+     * Recusa subir com o segredo publico fora de desenvolvimento.
+     *
+     * Falhar no start e melhor que o contrario: uma aplicacao no ar assinando
+     * com chave conhecida nao da sinal nenhum de que esta insegura, e o
+     * problema so aparece quando alguem ja se passou por outra pessoa. Aqui o
+     * pod nao inicia e o log diz exatamente o que definir.
+     */
+    private static void exigirSegredoProprio(String segredo, Environment ambiente) {
+        boolean desenvolvimento = Arrays.stream(ambiente.getActiveProfiles())
+                .anyMatch(p -> p.equals("dev") || p.equals("test"));
+        if (!desenvolvimento && SEGREDO_DE_DESENVOLVIMENTO.equals(segredo)) {
+            throw new IllegalStateException(
+                    "GOIANAO_JWT_SEGREDO não foi definido: a aplicação está usando o segredo de "
+                    + "desenvolvimento, que é público e permitiria forjar a sessão de qualquer "
+                    + "usuário. Defina a variável com pelo menos 32 bytes aleatórios.");
+        }
     }
 
     public String gerar(UsuarioAutenticado usuario) {
