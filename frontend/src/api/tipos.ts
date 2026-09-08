@@ -2,7 +2,7 @@
  *  sao poucos tipos e revisar cada mudanca a mao evita que o frontend passe a
  *  depender de campos que a API nunca prometeu. */
 
-export type Papel = 'ADMINISTRADOR' | 'MAGISTRADO' | 'SERVIDOR'
+export type Papel = 'SUPERADMIN' | 'ADMINISTRADOR' | 'MAGISTRADO' | 'SERVIDOR'
 
 export type Selo = 'BRONZE' | 'PRATA' | 'OURO' | 'DIAMANTE'
 
@@ -206,4 +206,19 @@ export interface Verificacao {
   selo: Selo | null
   tipo: TipoCertificado | null
   emitidoEm: string | null
+}
+
+/** Usuário do sistema, como o cadastro do superadministrador o devolve. */
+export interface Usuario {
+  id: number
+  cpfMascarado: string
+  nome: string
+  email: string
+  unidadeLotacao: string | null
+  areaAtuacao: string | null
+  papeis: Papel[]
+  ativo: boolean
+  /** Falso para quem só entrará pelo SSO. */
+  temSenha: boolean
+  criadoEm: string
 }

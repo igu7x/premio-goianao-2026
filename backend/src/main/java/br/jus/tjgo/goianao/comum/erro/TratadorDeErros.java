@@ -56,6 +56,11 @@ public class TratadorDeErros {
      * alheia, edicao nao vigente); essa mensagem ajuda o usuario e nao revela
      * nada que ele ja nao saiba sobre o proprio vinculo.
      */
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<ErroResposta> credenciaisInvalidas(CredenciaisInvalidasException e) {
+        return resposta(HttpStatus.UNAUTHORIZED, "credenciais_invalidas", e.getMessage(), List.of());
+    }
+
     @ExceptionHandler(AcessoNegadoException.class)
     public ResponseEntity<ErroResposta> acessoNegado(AcessoNegadoException e) {
         return resposta(HttpStatus.FORBIDDEN, "acesso_negado", e.getMessage(), List.of());

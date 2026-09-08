@@ -34,6 +34,7 @@ public class LayoutService {
     private final CertificadoRenderer renderer;
     private final FonteInstitucional fonte;
     private final LayoutPreRequisitos preRequisitos;
+    private final EmissoesDaEdicao emissoes;
     private final String baseVerificacao;
 
     public LayoutService(LayoutRepository repositorio,
@@ -43,6 +44,7 @@ public class LayoutService {
                          CertificadoRenderer renderer,
                          FonteInstitucional fonte,
                          LayoutPreRequisitos preRequisitos,
+                         EmissoesDaEdicao emissoes,
                          br.jus.tjgo.goianao.config.GoianaoProperties props) {
         this.repositorio = repositorio;
         this.edicoes = edicoes;
@@ -51,6 +53,7 @@ public class LayoutService {
         this.renderer = renderer;
         this.fonte = fonte;
         this.preRequisitos = preRequisitos;
+        this.emissoes = emissoes;
         this.baseVerificacao = props.baseVerificacao();
     }
 
@@ -113,6 +116,57 @@ public class LayoutService {
         return layout;
     }
 
+    /**
+     * Copia as posicoes de nome, unidade e codigo para <b>todos</b> os layouts da
+     * edicao.
+     *
+     * <p>As oito pecas de uma edicao costumam ser a mesma arte em quatro cores:
+     * o texto fica no mesmo lugar em todas. Posicionar oito vezes e trabalho
+     * repetido e, pior, permite que as combinacoes divirjam entre si — o nome no
+     * Ouro tres pixels acima do nome no Prata, sem que ninguem perceba ate os
+     * certificados sairem lado a lado.
+     *
+     * <p>E <b>tudo ou nada</b>: se uma arte tiver dimensoes diferentes e as
+     * caixas nao couberem nela, nada e aplicado e a mensagem diz em quais
+     * combinacoes o problema esta. Aplicar em parte deixaria a edicao num estado
+     * que ninguem pediu e que e dificil de perceber.
+     *
+     * @return quantos layouts foram alterados
+     */
+    @Transactional
+    public int aplicarAreasEmTodos(Long edicaoId, AreaTexto nome, AreaTexto unidade,
+                                   AreaCodigo codigo) {
+        Edicao edicao = edicoes.buscar(edicaoId);
+        exigirEdicaoEditavel(edicao);
+
+        List<LayoutCertificado> todos = repositorio.findByEdicaoIdOrderBySeloAscTipoAsc(edicaoId);
+
+        List<String> naoCabem = todos.stream()
+                .filter(layout -> !cabeNaArte(layout, nome, unidade, codigo))
+                .map(layout -> layout.getSelo() + " / " + layout.getTipo())
+                .toList();
+
+        if (!naoCabem.isEmpty()) {
+            throw new RegraDeNegocioException(
+                    "As posições não cabem na arte de: " + String.join(", ", naoCabem)
+                    + ". Nenhum layout foi alterado.");
+        }
+
+        todos.forEach(layout -> layout.redefinirAreas(nome, unidade, codigo));
+        return todos.size();
+    }
+
+    private boolean cabeNaArte(LayoutCertificado layout, AreaTexto nome, AreaTexto unidade,
+                               AreaCodigo codigo) {
+        try {
+            validarAreas(nome, unidade, codigo,
+                    new DimensoesArte(layout.getImagemLargura(), layout.getImagemAltura()));
+            return true;
+        } catch (RegraDeNegocioException e) {
+            return false;
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<LayoutCertificado> listar(Long edicaoId) {
         edicoes.buscar(edicaoId);
@@ -125,8 +179,20 @@ public class LayoutService {
     }
 
     @Transactional(readOnly = true)
+    /**
+     * Um layout pode ser ajustado enquanto a edicao esta em rascunho e,
+     * <b>depois de publicada, enquanto nenhum certificado tiver sido emitido</b>.
+     *
+     * <p>A trava existe para que uma reemissao feita anos depois saia identica a
+     * original (003/RF-8). Se nunca houve emissao, nao existe original do qual
+     * divergir — e travar ali apenas impede o caso real de a arte definitiva
+     * chegar depois da publicacao, sem proteger nada.
+     *
+     * <p>A partir da primeira emissao a trava e definitiva: dai em diante existe
+     * documento em circulacao, e a fidelidade passa a valer mais que a correcao.
+     */
     public boolean edicaoEditavel(Long edicaoId) {
-        return edicoes.buscar(edicaoId).estaEmRascunho();
+        return edicoes.buscar(edicaoId).estaEmRascunho() || !emissoes.houveEmissao(edicaoId);
     }
 
     public boolean fonteInstitucionalDisponivel() {
@@ -178,13 +244,15 @@ public class LayoutService {
     }
 
     /**
-     * Layouts so mudam com a edicao em rascunho: publicar trava a configuracao e
-     * e o que preserva a fidelidade das reemissoes (003/RF-8).
+     * Guarda de escrita, com a mesma regra de {@link #edicaoEditavel(Long)}: o
+     * que trava o layout nao e a publicacao, e a existencia de certificado
+     * emitido (003/RF-8).
      */
     private void exigirEdicaoEditavel(Edicao edicao) {
-        if (!edicao.estaEmRascunho()) {
+        if (!edicao.estaEmRascunho() && emissoes.houveEmissao(edicao.getId())) {
             throw new ConflitoException(
-                    "A edição " + edicao.getAno() + " já foi publicada: os layouts estão travados.");
+                    "A edição " + edicao.getAno() + " já tem certificados emitidos: os layouts "
+                    + "estão travados para que uma reemissão saia idêntica à original.");
         }
     }
 

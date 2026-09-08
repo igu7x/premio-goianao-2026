@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { StatusEdicao } from '../api/tipos'
 import { Icone } from './Icone'
 
@@ -140,7 +141,20 @@ export function Modal({
     }
   }, [aoFechar])
 
-  return (
+  /*
+   * O modal e renderizado no <body>, nao onde o componente esta na arvore.
+   *
+   * A cortina e position: fixed, e fixed se posiciona em relacao a viewport —
+   * exceto quando algum ancestral cria bloco de contencao, o que qualquer
+   * transform, filter ou animacao de transform faz. A .pagina anima com
+   * translateY na entrada, e isso bastava para o modal passar a se centrar na
+   * area de conteudo em vez da janela: aparecia deslocado para a direita e com
+   * o cabecalho cortado acima da tela.
+   *
+   * Pelo portal a cortina fica fora de qualquer ancestral do layout, entao o
+   * problema nao volta quando alguem acrescentar uma animacao nova.
+   */
+  return createPortal(
     <div
       className="cortina"
       role="dialog"
@@ -171,7 +185,8 @@ export function Modal({
         <div className="modal-corpo">{children}</div>
         {rodape && <footer className="modal-rodape">{rodape}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

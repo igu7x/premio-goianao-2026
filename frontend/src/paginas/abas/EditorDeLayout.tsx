@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { abrirEmNovaAba, api, ErroApi, lerToken, urlDaApi } from '../../api/cliente'
+import { Icone } from '../../componentes/Icone'
 import type {
   Alinhamento,
   AreaCodigo,
@@ -17,7 +18,7 @@ interface Props {
   selo: Selo
   tipo: TipoCertificado
   layout: Layout | null
-  /** Falso quando a edição já foi publicada: os layouts ficam travados (003/RF-8). */
+  /** Falso a partir da primeira emissão da edição: aí o layout trava (003/RF-8). */
   editavel: boolean
   aoFechar: () => void
   aoSalvar: () => Promise<void>
@@ -68,6 +69,14 @@ export function EditorDeLayout({
   const [alvo, setAlvo] = useState<Alvo>('nome')
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+
+  /**
+   * As oito peças de uma edição costumam ser a mesma arte em quatro cores, com
+   * o texto no mesmo lugar. Posicionar oito vezes é trabalho repetido e deixa as
+   * combinações divergirem entre si sem ninguém perceber — o nome no Ouro três
+   * pixels acima do nome no Prata, visível só quando saem lado a lado.
+   */
+  const [replicar, setReplicar] = useState(false)
 
   const telaRef = useRef<HTMLDivElement>(null)
   const arraste = useRef<{
@@ -157,7 +166,7 @@ export function EditorDeLayout({
     evento.stopPropagation()
     const atual = areaDe(qual)
     if (!atual) return
-    // Com a edição publicada o layout está travado: selecionar para conferir as
+    // Layout travado pela primeira emissão: selecionar para conferir as
     // coordenadas continua valendo, mover não. Deixar arrastar aqui só levaria
     // o administrador a ajustar tudo e descobrir no fim que não há como salvar.
     if (!editavel) {
@@ -294,6 +303,16 @@ export function EditorDeLayout({
         )
         await api.enviarArquivo(`/api/edicoes/${edicaoId}/layouts`, dados)
       }
+
+      // Replicar depois de salvar, não antes: se o salvamento falhar, os
+      // outros sete layouts não são tocados.
+      if (replicar) {
+        await api.put(`/api/edicoes/${edicaoId}/layouts/areas`, {
+          areaNome,
+          areaUnidade,
+          areaCodigo,
+        })
+      }
       await aoSalvar()
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao salvar o layout.')
@@ -327,7 +346,7 @@ export function EditorDeLayout({
       descricao={
         editavel
           ? 'Arraste as caixas sobre a arte. As coordenadas são gravadas em pixels da imagem original.'
-          : 'Edição publicada: este layout está travado. Você pode conferir as posições e gerar a prévia, mas não alterá-las.'
+          : 'Esta edição já tem certificados emitidos, então o layout está travado — é o que garante que uma reemissão saia idêntica à original. Você pode conferir as posições e gerar a prévia.'
       }
       aoFechar={aoFechar}
       rodape={
@@ -341,6 +360,16 @@ export function EditorDeLayout({
               Pré-visualizar PDF
             </button>
           )}
+          {editavel && (
+            <label className="replicar" title="Aplica só as posições; a arte de cada combinação continua a dela.">
+              <input
+                type="checkbox"
+                checked={replicar}
+                onChange={(evento) => setReplicar(evento.target.checked)}
+              />
+              Aplicar estas posições às 8 combinações
+            </label>
+          )}
           <button type="button" className="botao botao-neutro" onClick={aoFechar}>
             {editavel ? 'Cancelar' : 'Fechar'}
           </button>
@@ -351,7 +380,11 @@ export function EditorDeLayout({
               disabled={salvando}
               onClick={() => void salvar()}
             >
-              {salvando ? 'Salvando…' : 'Salvar layout'}
+              {salvando
+                ? 'Salvando…'
+                : replicar
+                  ? 'Salvar e aplicar a todos'
+                  : 'Salvar layout'}
             </button>
           )}
         </>
@@ -386,6 +419,16 @@ export function EditorDeLayout({
             onPointerCancel={encerrarArraste}
           >
             <img src={urlDaArte} alt="Arte do certificado" />
+
+            {/* Sobre a prancheta, não só no topo do modal: o aviso do cabeçalho
+                sai da tela assim que a pessoa rola até a arte, e aí a conclusão
+                é de que o editor está quebrado. */}
+            {!editavel && (
+              <div className="tela-travada">
+                <Icone nome="atencao" tamanho={14} />
+                Travado: esta edição já emitiu certificados
+              </div>
+            )}
 
             {(['nome', 'unidade', 'codigo', 'qr'] as Alvo[]).map((qual) => {
               const area = areaDe(qual)

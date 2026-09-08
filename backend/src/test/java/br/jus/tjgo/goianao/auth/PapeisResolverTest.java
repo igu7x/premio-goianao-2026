@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import br.jus.tjgo.goianao.seguranca.Papel;
+import br.jus.tjgo.goianao.usuario.UsuarioRepository;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,12 +21,16 @@ class PapeisResolverTest {
 
     @Mock private AdministradorRepository administradores;
     @Mock private MagistradoLookup magistradoLookup;
+    @Mock private UsuarioRepository usuarios;
 
     private PapeisResolver resolver;
 
     @BeforeEach
     void preparar() {
-        resolver = new PapeisResolver(administradores, magistradoLookup);
+        // Sem cadastro de usuario para o CPF: estes casos exercitam as fontes
+        // anteriores (tabela de administradores e reconhecimento de magistrado).
+        when(usuarios.findByCpf(CPF)).thenReturn(Optional.empty());
+        resolver = new PapeisResolver(administradores, magistradoLookup, usuarios);
     }
 
     @Test

@@ -8,6 +8,7 @@ import { Disco } from '../componentes/Selo'
 import { useSessao } from '../sessao/SessaoContexto'
 
 const ROTULO_PAPEL: Record<Papel, string> = {
+  SUPERADMIN: 'Superadmin',
   ADMINISTRADOR: 'Administrador',
   MAGISTRADO: 'Magistrado',
   SERVIDOR: 'Servidor',
@@ -45,13 +46,16 @@ function lerFragmento(): { token?: string; erro?: string; destino?: string } {
  * mudar no código no dia da virada.
  */
 export function Entrar() {
-  const { identidade, entrar, adotarToken, carregando } = useSessao()
+  const { identidade, entrar, entrarComSenha, adotarToken, carregando } = useSessao()
   const navegar = useNavigate()
 
   const [sso, setSso] = useState<SituacaoSso | null>(null)
   const [usuarios, setUsuarios] = useState<UsuarioMock[] | null>(null)
   const [entrando, setEntrando] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [entrandoComSenha, setEntrandoComSenha] = useState(false)
   const [voltandoDoSso, setVoltandoDoSso] = useState(() => Boolean(lerFragmento().token))
 
   // Retorno do Keycloak. O fragmento é limpo antes de qualquer outra coisa,
@@ -98,6 +102,17 @@ export function Entrar() {
   }
   if (identidade) {
     return <Navigate to="/" replace />
+  }
+
+  async function autenticarComSenha() {
+    setEntrandoComSenha(true)
+    setErro(null)
+    try {
+      await entrarComSenha(email.trim(), senha)
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível entrar.')
+      setEntrandoComSenha(false)
+    }
   }
 
   async function autenticar(cpf: string) {
@@ -153,6 +168,49 @@ export function Entrar() {
             </div>
           )}
 
+          {/*
+            E-mail e senha vem primeiro, e nao atras das identidades de teste:
+            e por aqui que entra quem tem cadastro de verdade. A lista mockada
+            existe para percorrer o sistema sem cadastrar ninguem.
+          */}
+          <form
+            className="entrada-credenciais"
+            onSubmit={(evento) => {
+              evento.preventDefault()
+              void autenticarComSenha()
+            }}
+          >
+            <div className="campo">
+              <label htmlFor="email">E-mail</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(evento) => setEmail(evento.target.value)}
+              />
+            </div>
+            <div className="campo">
+              <label htmlFor="senha">Senha</label>
+              <input
+                id="senha"
+                type="password"
+                autoComplete="current-password"
+                value={senha}
+                onChange={(evento) => setSenha(evento.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              className="botao"
+              disabled={entrandoComSenha || !email.trim() || !senha}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {entrandoComSenha && <span className="giro" />}
+              {entrandoComSenha ? 'Entrando…' : 'Entrar'}
+            </button>
+          </form>
+
           {!sso && <Carregando />}
 
           {sso?.habilitado && (
@@ -175,6 +233,9 @@ export function Entrar() {
 
           {sso && !sso.habilitado && (
             <>
+              <div className="regua" style={{ marginTop: 'var(--e6)' }}>
+                <span>ou entre como</span>
+              </div>
               <p className="apoio" style={{ marginTop: 12 }}>
                 A integração com o SSO do tribunal ainda está em homologação. Até lá, escolha uma
                 das identidades de teste abaixo — seus dados e permissões são os mesmos que o SSO

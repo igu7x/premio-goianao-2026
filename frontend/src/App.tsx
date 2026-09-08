@@ -7,6 +7,7 @@ import { Entrar } from './paginas/Entrar'
 import { Inicio } from './paginas/Inicio'
 import { MeusCertificados } from './paginas/MeusCertificados'
 import { MinhasUnidades } from './paginas/MinhasUnidades'
+import { Usuarios } from './paginas/Usuarios'
 import { Verificar } from './paginas/Verificar'
 import { useSessao } from './sessao/SessaoContexto'
 import type { Papel } from './api/tipos'
@@ -91,6 +92,14 @@ export function App() {
           element={
             <Exige papeis={['ADMINISTRADOR']}>
               <EdicaoDetalhe />
+            </Exige>
+          }
+        />
+        <Route
+          path="/usuarios"
+          element={
+            <Exige papeis={['SUPERADMIN']}>
+              <Usuarios />
             </Exige>
           }
         />

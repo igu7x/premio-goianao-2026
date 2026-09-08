@@ -2,6 +2,7 @@ package br.jus.tjgo.goianao.auth;
 
 import br.jus.tjgo.goianao.auth.dto.IdentidadeResposta;
 import br.jus.tjgo.goianao.auth.dto.LoginRequisicao;
+import br.jus.tjgo.goianao.auth.dto.LoginSenhaRequisicao;
 import br.jus.tjgo.goianao.auth.dto.SessaoResposta;
 import br.jus.tjgo.goianao.auth.dto.UsuarioMockResposta;
 import br.jus.tjgo.goianao.comum.Cpf;
@@ -26,12 +27,15 @@ public class AuthController {
     private final IdentityProvider identityProvider;
     private final PapeisResolver papeisResolver;
     private final JwtService jwtService;
+    private final LoginPorSenhaService loginPorSenha;
 
     public AuthController(IdentityProvider identityProvider, PapeisResolver papeisResolver,
+                          LoginPorSenhaService loginPorSenha,
                           JwtService jwtService) {
         this.identityProvider = identityProvider;
         this.papeisResolver = papeisResolver;
         this.jwtService = jwtService;
+        this.loginPorSenha = loginPorSenha;
     }
 
     /** Login (mock nesta fase). Devolve o JWT de 8h e a identidade resolvida. */
@@ -42,6 +46,33 @@ public class AuthController {
         UsuarioAutenticado usuario =
                 new UsuarioAutenticado(identidade.cpf(), identidade.nome(), papeis);
 
+        return new SessaoResposta(
+                jwtService.gerar(usuario),
+                jwtService.validade().toSeconds(),
+                usuario.cpf(),
+                usuario.nome(),
+                usuario.papeisComoTexto());
+    }
+
+
+    /**
+     * Login por e-mail e senha (cadastro proprio de usuarios).
+     *
+     * Convive com o login mockado: um serve ao cadastro real, o outro as
+     * identidades de teste. Ambos terminam no mesmo JWT, entao nada mais no
+     * sistema precisa saber por qual porta a pessoa entrou.
+     */
+    @PostMapping("/login-senha")
+    public SessaoResposta loginPorSenha(@Valid @RequestBody LoginSenhaRequisicao requisicao) {
+        IdentidadeAutenticada identidade =
+                loginPorSenha.autenticar(requisicao.email(), requisicao.senha());
+        return sessaoDe(identidade);
+    }
+
+    private SessaoResposta sessaoDe(IdentidadeAutenticada identidade) {
+        Set<Papel> papeis = papeisResolver.resolver(identidade.cpf());
+        UsuarioAutenticado usuario =
+                new UsuarioAutenticado(identidade.cpf(), identidade.nome(), papeis);
         return new SessaoResposta(
                 jwtService.gerar(usuario),
                 jwtService.validade().toSeconds(),

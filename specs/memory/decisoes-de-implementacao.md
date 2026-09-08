@@ -82,8 +82,8 @@ encadeados: sem eles não dá para conferir posicionamento, preview nem emissão
 
 **Decisão.** `demo/DadosDemo` roda quando `goianao.dados-demo=true` (padrão do
 perfil `dev`) e só se o banco estiver vazio. Monta um cenário completo — duas
-edições, os 8 layouts de cada uma com arte gerada por `demo/GeradorArteDemo` no
-padrão A4/300 DPI, reconhecidos e listas semeadas. O cenário é desenhado para
+edições, os 8 layouts de cada uma com as artes reais em A4/300 DPI (ver DI-18),
+reconhecidos e listas semeadas. O cenário é desenhado para
 exercitar as regras: a mesma unidade recebe Ouro de um magistrado e Bronze de
 outro (regra do maior selo), e um dos usuários acumula administrador e
 magistrado.
@@ -384,3 +384,167 @@ lido uma vez, no dia do deploy, e nunca mais.
 **Consequência.** Um deploy que esqueça a variável não sobe — e é isso que se
 quer. Verificado: `SegredoJwtTest` cobre os quatro casos, e o perfil `postgres`
 sem a variável falha com a mensagem correta.
+
+---
+
+## DI-18 — Artes reais no lugar da arte gerada em código
+
+**Contexto.** A carga de demonstração gerava as oito artes por código
+(`GeradorArteDemo`): retângulos e texto, no tamanho certo mas sem desenho. Isso
+bastava para exercitar o pipeline, mas deixava o posicionamento das caixas de
+texto no chute — não havia como saber se o nome cairia num lugar plausível da
+peça real.
+
+**Decisão.** As oito peças oficiais (quatro selos × dois tipos) foram rendidas
+do PDF da comunicação em **A4 paisagem a 300 DPI** (3507×2480), o mesmo padrão
+que o `ValidadorDeArte` exige de quem sobe arte pela tela, e versionadas em
+`backend/src/main/resources/artes-exemplo/`. `ArtesDeExemplo` as lê do
+classpath; `GeradorArteDemo` foi removido.
+
+**Formato e tamanho.** JPEG com qualidade 0.80: 13 MB no total, contra 89 MB em
+PNG. O que pesa nessas peças é a textura granulada do fundo, que o PNG não
+comprime. Para arte de demonstração, o artefato de compressão é invisível a olho
+nu e a economia é de 85%.
+
+**As caixas deixaram de ser chute.** A peça já traz o texto fixo — "A
+Presidência ... reconhece que" termina por volta de `y=970`, "Conquistou o Selo
+..." começa em `y=1480`. Nome e unidade entram nesse vão, começando em `x=1250`,
+**alinhados à esquerda com o parágrafo** em vez de centrados na página: centrar
+tiraria o nome do eixo do texto que vem antes e depois dele. Código e QR vão
+para o rodapé branco, no vazio entre a assinatura e a marca do prêmio — a única
+área livre da peça.
+
+**Verificação.** Emissão real conferida olhando o PDF, não só pelo teste: nome,
+unidade, QR e código nos lugares previstos, e o selo correto escolhido pela
+combinação (pedida a unidade Ouro, veio a arte Ouro).
+
+**Pendência que isto tornou visível.** O nome sai numa fonte que não é a da
+peça, porque a fonte institucional ainda não foi fornecida — o sistema cai no
+padrão do PDF. Com arte gerada isso não incomodava; sobre o desenho real, o
+contraste fica evidente. Instalar o TTF em
+`backend/src/main/resources/fontes/institucional.ttf` resolve, sem mudança de
+código (DI-4).
+
+---
+
+## DI-19 — Layout trava na primeira emissão, não na publicação
+
+**Contexto.** Publicar a edição travava os layouts (003/RF-8). A regra existe
+para que uma reemissão feita anos depois saia idêntica à original — mas travava
+cedo demais: o caso real de a arte definitiva chegar **depois** da publicação
+ficava sem saída, já que despublicar não existe.
+
+**Decisão.** O que trava é a existência de **certificado emitido**, não o status
+da edição. Rascunho edita; publicada sem emissão edita; a partir do primeiro
+certificado, trava para sempre. A leitura da existência de emissões vem por uma
+porta (`EmissoesDaEdicao`), para o pacote de layouts não depender do de
+certificados.
+
+**Por que é seguro.** Sem emissão não existe documento em circulação do qual
+divergir. Depois da primeira, a fidelidade passa a valer mais que a correção — e
+aí a trava é definitiva.
+
+**Consequência na interface.** A mensagem deixou de dizer "edição publicada" e
+passou a dizer o motivo verdadeiro. Verificado em `LayoutIT`, com os dois casos:
+publicada sem emissão continua editável; emitido um certificado, trava.
+
+---
+
+## DI-20 — Aplicar posições às oito combinações de uma vez
+
+**Contexto.** As oito peças de uma edição são, na prática, a mesma arte em
+quatro cores, com o texto no mesmo lugar. Posicionar as caixas oito vezes é
+trabalho repetido e — pior que isso — deixa as combinações divergirem entre si
+sem ninguém perceber: o nome do Ouro três pixels acima do nome do Prata, o que
+só aparece quando dois certificados saem lado a lado.
+
+**Decisão.** `PUT /api/edicoes/{id}/layouts/areas` replica nome, unidade e
+código para todos os layouts da edição. No editor é uma caixa de seleção ao lado
+do botão de salvar — a decisão de replicar se toma olhando o resultado, não numa
+tela de configuração à parte. Só as **posições** são replicadas; a arte de cada
+combinação continua sendo a dela.
+
+**Tudo ou nada.** Se alguma arte tiver dimensões diferentes e as caixas não
+couberem, nada é aplicado e a mensagem nomeia as combinações problemáticas.
+Aplicar em parte deixaria a edição num estado que ninguém pediu e que é difícil
+de notar depois.
+
+**Ordem no cliente.** A réplica acontece **depois** do salvamento do layout
+aberto: se salvar falhar, os outros sete não são tocados.
+
+**Consequência.** Configurar uma edição inteira passa a ser: posicionar uma vez,
+marcar a caixa, salvar. Verificado em `LayoutIT`, inclusive o caso que não cabe.
+
+---
+
+## DI-21 — Superadministrador e cadastro próprio de usuários
+
+**Contexto.** A identidade vinha inteira do provedor (mockado) e o papel de
+administrador era uma linha em `administrador`. Faltava quem conceda acesso: não
+havia como cadastrar uma pessoa, dizer o papel dela e a lotação.
+
+**Decisão.** Papel `SUPERADMIN`, tabela `usuario` (migração V7) e um módulo
+exclusivo dele. Login por e-mail e senha convive com o mockado; ambos terminam
+no mesmo JWT, então nada mais no sistema sabe por qual porta a pessoa entrou.
+
+**SUPERADMIN contém ADMINISTRADOR.** A inclusão é resolvida em
+`UsuarioAutenticado.authorities()`, e não trocando cada
+`hasRole('ADMINISTRADOR')` por `hasAnyRole(...)`: seriam dezenas de pontos, e
+cada endpoint novo uma chance de esquecer um.
+
+**O CPF é obrigatório no cadastro**, embora o pedido não o listasse. É a chave do
+domínio inteiro — magistrado reconhecido, servidor habilitado e certificado
+emitido são todos indexados por ele. Um usuário sem CPF entraria e não acharia
+nada seu. Na **edição** o campo nem existe no contrato: mudar o CPF seria trocar
+a pessoa mantendo o registro.
+
+**Área de atuação é texto livre** e só é gravada para magistrado. Texto porque a
+taxonomia do tribunal não está definida, e um enum errado sai mais caro de
+corrigir depois do que um campo aberto.
+
+**A senha é opcional.** Hoje se entra por e-mail; quando o SSO assumir, os
+usuários continuarão existindo sem senha alguma. Guardada sempre em BCrypt.
+
+**Promover é por e-mail.** Quem se promove já existe: promover é conceder papel a
+alguém conhecido, não cadastrar gente nova. O e-mail é o identificador que o
+superadministrador tem em mãos, e é o mesmo com que a pessoa entra.
+
+**Duas guardas que evitam sistema intravável.** Não se remove o papel do último
+superadministrador ativo, e ninguém desativa o próprio usuário — nos dois casos
+não haveria tela para sair do estado, só acesso ao banco.
+
+**Login não revela quais contas existem.** E-mail inexistente, senha errada e
+usuário desativado devolvem a mesma resposta; quando o e-mail não existe, ainda
+se gasta o tempo de um BCrypt contra um hash descartável, senão a diferença de
+tempo denuncia as contas válidas. Há teste comparando as duas respostas.
+
+**A senha do primeiro superadministrador não entra no repositório.** Ela vem de
+`GOIANAO_SUPERADMIN_SENHA` e é gravada como hash. Sem a variável, nenhum
+superadmin é criado e o log diz o que falta — o repositório é público, e uma
+senha versionada ali é uma senha entregue.
+
+---
+
+## DI-22 — Modais vão por portal para o `body`
+
+**Contexto.** O modal aparecia deslocado para a direita e com o cabeçalho
+cortado acima da tela. A cortina é `position: fixed`, que deveria se posicionar
+pela viewport — mas a medição do caso real mostrou o modal centrado no eixo da
+**área de conteúdo**, não da janela.
+
+**Causa.** `position: fixed` deixa de usar a viewport quando algum ancestral
+cria bloco de contenção, e **qualquer transform, filter ou animação de transform
+faz isso**. A `.pagina` anima a entrada com `translateY`, e só isso bastava.
+
+**Decisão.** O componente `Modal` renderiza por `createPortal` direto no
+`document.body`. A correção não depende de identificar qual ancestral é o
+culpado — e continua valendo quando alguém acrescentar uma animação nova.
+
+**Alternativa descartada.** Remover a animação da `.pagina`. Trataria este caso
+e deixaria a armadilha montada: a próxima animação em qualquer ancestral traria
+o problema de volta, com um sintoma difícil de associar à causa.
+
+**Consequência.** Vale como regra para o projeto: **o que é `position: fixed` e
+cobre a tela vai por portal**, não fica pendurado na árvore da página. Amarrado
+por teste (`Modal.test.tsx`), que renderiza o modal dentro de um contêiner com
+transform e exige que a cortina saia no `body`.

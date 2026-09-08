@@ -3,6 +3,7 @@ package br.jus.tjgo.goianao.layout;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.comum.TipoCertificado;
 import br.jus.tjgo.goianao.edicao.Edicao;
+import br.jus.tjgo.goianao.layout.dto.AreasEmLoteRequisicao;
 import br.jus.tjgo.goianao.layout.dto.LayoutRequisicao;
 import br.jus.tjgo.goianao.layout.dto.PreviewRequisicao;
 import br.jus.tjgo.goianao.suporte.ArteDeTeste;
@@ -116,9 +118,36 @@ class LayoutIT extends TesteDeIntegracao {
     }
 
     @Test
-    @DisplayName("RF-8: publicada a edicao, os layouts ficam travados")
-    void travaAoPublicar() throws Exception {
+    @DisplayName("RF-8: publicada e sem emissao, o layout ainda pode ser ajustado")
+    void publicadaSemEmissaoContinuaEditavel() throws Exception {
         Edicao edicao = edicaoPublicada(2065);
+
+        // O caso real: a arte definitiva chega depois da publicação. Travar aqui
+        // não protegeria nada — não há certificado emitido do qual divergir.
+        mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
+                        .file(arte())
+                        .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, true))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                .andExpect(status().is2xxSuccessful());
+
+        mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                .andExpect(jsonPath("$.editavel").value(true));
+    }
+
+    /** Registra uma emissao direto no repositorio: o que interessa aqui e o
+     *  efeito dela sobre a trava, nao o fluxo de emissao (coberto em 005/006). */
+    private void registrarEmissao(Edicao edicao) {
+        certificados.save(new br.jus.tjgo.goianao.certificado.CertificadoEmitido(
+                edicao, TipoCertificado.MAGISTRADO, "10120230100", "Fulano de Teste",
+                unidade("1ª Vara Cível da Comarca de Goiânia"), Selo.OURO, "TEST-0000-0001"));
+    }
+
+    @Test
+    @DisplayName("RF-8: emitido um certificado, os layouts ficam travados para sempre")
+    void travaNaPrimeiraEmissao() throws Exception {
+        Edicao edicao = edicaoPublicada(2066);
+        registrarEmissao(edicao);
 
         mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
                         .file(arte())
@@ -180,5 +209,55 @@ class LayoutIT extends TesteDeIntegracao {
                 substituir);
         return new MockMultipartFile("dados", "", MediaType.APPLICATION_JSON_VALUE,
                 corpo(requisicao).getBytes());
+    }
+
+    @Test
+    @DisplayName("aplica as posicoes de uma vez em todos os layouts da edicao")
+    void aplicaAreasEmTodos() throws Exception {
+        Edicao edicao = novaEdicao(2067);
+        criarTodosOsLayouts(edicao);
+
+        String corpo = corpo(new AreasEmLoteRequisicao(
+                new AreaTexto(100, 200, 900, 120, Alinhamento.ESQUERDA),
+                new AreaTexto(100, 400, 900, 90, Alinhamento.ESQUERDA),
+                new AreaCodigo(100, 700, 500, 40, Alinhamento.CENTRO, null)));
+
+        mvc.perform(put("/api/edicoes/" + edicao.getId() + "/layouts/areas")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.layoutsAtualizados").value(8));
+
+        // As oito passam a compartilhar exatamente a mesma posicao: e o ponto.
+        mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                .andExpect(jsonPath("$.layouts[0].areaNome.y").value(200))
+                .andExpect(jsonPath("$.layouts[7].areaNome.y").value(200))
+                .andExpect(jsonPath("$.layouts[7].areaCodigo.alinhamento").value("CENTRO"));
+    }
+
+    @Test
+    @DisplayName("posicao que nao cabe na arte nao altera nenhum layout")
+    void loteNaoAplicaParcialmente() throws Exception {
+        Edicao edicao = novaEdicao(2068);
+        criarTodosOsLayouts(edicao);
+
+        String corpo = corpo(new AreasEmLoteRequisicao(
+                new AreaTexto(100, 999_000, 900, 120, Alinhamento.ESQUERDA),
+                new AreaTexto(100, 400, 900, 90, Alinhamento.ESQUERDA),
+                new AreaCodigo(100, 700, 500, 40, Alinhamento.CENTRO, null)));
+
+        mvc.perform(put("/api/edicoes/" + edicao.getId() + "/layouts/areas")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.mensagem",
+                        org.hamcrest.Matchers.containsString("Nenhum layout foi alterado")));
+
+        mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                .andExpect(jsonPath("$.layouts[0].areaNome.y").value(org.hamcrest.Matchers.not(999000)));
     }
 }

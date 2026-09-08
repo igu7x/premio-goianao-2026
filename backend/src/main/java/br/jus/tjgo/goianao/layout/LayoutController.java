@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.layout;
 
+import br.jus.tjgo.goianao.layout.dto.AreasEmLoteRequisicao;
 import br.jus.tjgo.goianao.layout.dto.AtualizarLayoutRequisicao;
 import br.jus.tjgo.goianao.layout.dto.LayoutRequisicao;
 import br.jus.tjgo.goianao.layout.dto.LayoutResposta;
@@ -66,6 +67,25 @@ public class LayoutController {
 
         return LayoutResposta.de(servico.atualizar(edicaoId, layoutId, imagem, dados));
     }
+
+    /**
+     * Replica as posicoes para todos os layouts da edicao.
+     *
+     * As oito pecas costumam ser a mesma arte em quatro cores, com o texto no
+     * mesmo lugar; sem isto, o administrador posiciona oito vezes e as
+     * combinacoes podem divergir entre si sem ninguem notar.
+     */
+    @PutMapping("/areas")
+    public AreasAplicadasResposta aplicarAreasEmTodos(
+            @PathVariable Long edicaoId,
+            @Valid @RequestBody AreasEmLoteRequisicao dados) {
+
+        int alterados = servico.aplicarAreasEmTodos(
+                edicaoId, dados.areaNome(), dados.areaUnidade(), dados.areaCodigo());
+        return new AreasAplicadasResposta(alterados);
+    }
+
+    public record AreasAplicadasResposta(int layoutsAtualizados) {}
 
     /** Arte da combinacao, consumida pelo editor visual de posicionamento. */
     @GetMapping("/{layoutId}/imagem")

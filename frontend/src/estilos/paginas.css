@@ -178,6 +178,11 @@
   color: var(--ouro-escuro);
 }
 
+.papel-superadmin {
+  background: var(--verde-900);
+  color: #fff;
+}
+
 .papel-servidor {
   background: var(--superficie-2);
   border: 1px solid var(--traco);
@@ -688,15 +693,36 @@
   box-shadow: 0 0 0 1px rgba(168, 128, 31, 0.5);
 }
 
-.caixa-travada { cursor: default; }
+/*
+ * Layout travado (edição publicada). O aviso no topo do modal não bastava: a
+ * pessoa tenta arrastar assim mesmo, nada acontece, e a conclusão é de que o
+ * editor está quebrado. O cursor e o traço interrompido dizem "não se mexe"
+ * exatamente onde a mão vai.
+ */
+.caixa-travada {
+  cursor: not-allowed;
+  border-style: dashed;
+  border-color: var(--tinta-3);
+  background: rgba(118, 125, 132, 0.08);
+}
+
+.caixa-travada .caixa-rotulo { background: var(--tinta-3); }
 .caixa-qr { border-style: dashed; }
 
+/*
+ * A etiqueta fica DENTRO da caixa.
+ *
+ * Fora dela, pairando 20px acima, a etiqueta cobria a arte logo acima do campo
+ * — e a leitura era de que a caixa estava por cima do texto impresso, quando na
+ * verdade só a etiqueta estava. Num editor cujo trabalho é justamente julgar
+ * posição, o marcador não pode ocupar espaço que a caixa não ocupa.
+ */
 .caixa-rotulo {
   position: absolute;
-  top: -20px;
-  left: -1.5px;
+  top: 0;
+  left: 0;
   padding: 2px 7px;
-  border-radius: 4px 4px 0 0;
+  border-radius: 0 0 4px 0;
   background: var(--verde-2);
   color: #fff;
   font-size: 9.5px;
@@ -704,6 +730,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .caixa.selecionada .caixa-rotulo { background: var(--ouro-med); }
@@ -1312,3 +1339,66 @@
 .conferencia-embutida .resultado {
   margin-top: var(--e5);
 }
+
+/*
+ * Aviso de layout travado, sobre a prancheta.
+ *
+ * O texto do cabeçalho do modal explica a trava, mas sai da tela assim que a
+ * pessoa rola até a arte — e é exatamente ali que ela tenta arrastar. Um aviso
+ * que não está onde a ação acontece não é aviso.
+ */
+.tela-travada {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: rgba(18, 22, 26, 0.82);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+/*
+ * "Aplicar às 8 combinações" — vive no rodapé do editor, à esquerda dos botões.
+ *
+ * Fica junto do salvar, e não numa tela de configuração à parte, porque a
+ * decisão de replicar se toma no momento em que se olha para o resultado: é
+ * aqui que a pessoa acabou de posicionar e sabe se aquilo serve para todas.
+ */
+.replicar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.replicar input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--verde-2);
+  cursor: pointer;
+}
+
+.replicar:hover { color: var(--tinta); }
+
+/* Formulário de e-mail e senha na entrada. */
+.entrada-credenciais {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e4);
+  margin-top: var(--e5);
+}
+
+.entrada-credenciais .campo { margin: 0; }

@@ -14,6 +14,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -41,6 +43,16 @@ public class SecurityConfig {
         this.consoleH2Ligado = consoleH2Ligado;
     }
 
+    /**
+     * BCrypt: custo padrao (10), com salt por senha. A escolha importa porque
+     * senha guardada com hash rapido (MD5, SHA) e senha entregue de bandeja se
+     * o banco vazar.
+     */
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -51,7 +63,8 @@ public class SecurityConfig {
                 // Login mock e verificacao publica de certificado (007/RNF-1).
                 // O fluxo de SSO acontece antes de existir sessao: quem chega no
                 // /login e no /callback ainda nao tem token nosso.
-                reg.requestMatchers("/api/auth/login", "/api/auth/usuarios-mock").permitAll()
+                reg.requestMatchers("/api/auth/login", "/api/auth/login-senha", "/api/auth/usuarios-mock")
+                        .permitAll()
                         .requestMatchers("/api/auth/sso/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         // Saude sem autenticacao: as probes do OpenShift batem

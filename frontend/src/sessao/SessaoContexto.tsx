@@ -20,6 +20,8 @@ interface ContextoSessao {
   identidade: Identidade | null
   carregando: boolean
   entrar: (credencial: string) => Promise<void>
+  /** Entrada por e-mail e senha, do cadastro próprio de usuários. */
+  entrarComSenha: (email: string, senha: string) => Promise<void>
   /** Adota um token já emitido — o caminho de volta do SSO. */
   adotarToken: (token: string) => Promise<void>
   sair: () => Promise<void>
@@ -54,6 +56,12 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
     const aoExpirar = () => setIdentidade(null)
     window.addEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar)
     return () => window.removeEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar)
+  }, [])
+
+  const entrarComSenha = useCallback(async (email: string, senha: string) => {
+    const sessao = await api.post<Sessao>('/api/auth/login-senha', { email, senha })
+    guardarToken(sessao.token)
+    setIdentidade({ cpf: sessao.cpf, nome: sessao.nome, papeis: sessao.papeis })
   }, [])
 
   const entrar = useCallback(async (credencial: string) => {
@@ -109,11 +117,12 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
       identidade,
       carregando,
       entrar,
+      entrarComSenha,
       adotarToken,
       sair,
       tem: (papel) => identidade?.papeis.includes(papel) ?? false,
     }),
-    [identidade, carregando, entrar, adotarToken, sair],
+    [identidade, carregando, entrar, entrarComSenha, adotarToken, sair],
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>

@@ -75,6 +75,7 @@ public abstract class TesteDeIntegracao {
     @Autowired protected MagistradoService magistrados;
     @Autowired protected ServidorHabilitadoService servidores;
     @Autowired protected UnidadeService unidades;
+    @Autowired protected br.jus.tjgo.goianao.certificado.CertificadoEmitidoRepository certificados;
 
     @BeforeEach
     void prepararAdministrador() {

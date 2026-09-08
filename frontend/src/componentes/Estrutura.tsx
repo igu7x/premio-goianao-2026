@@ -18,6 +18,7 @@ interface GrupoDeMenu {
 
 /** Rótulo do topo: diz em que parte do sistema a pessoa está. */
 function contexto(caminho: string): string {
+  if (caminho.startsWith('/usuarios')) return 'Superadministração'
   if (caminho.startsWith('/verificar')) return 'Conferência pública'
   if (caminho.startsWith('/edicoes')) return 'Configuração do prêmio'
   if (caminho.startsWith('/minhas-unidades')) return 'Servidores da unidade'
@@ -57,6 +58,14 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
   }, [dentroDaEdicao?.params.edicaoId])
 
   const grupos: GrupoDeMenu[] = []
+
+  // Superadministração vem primeiro: é de onde se concede acesso a tudo mais.
+  if (tem('SUPERADMIN')) {
+    grupos.push({
+      titulo: 'Superadministração',
+      itens: [{ para: '/usuarios', rotulo: 'Usuários do sistema', icone: 'equipe' }],
+    })
+  }
 
   if (tem('ADMINISTRADOR')) {
     grupos.push({

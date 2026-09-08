@@ -62,8 +62,8 @@ export function AbaLayouts({ edicao }: { edicao: Edicao }) {
       {!dados.editavel && (
         <div style={{ marginBottom: 'var(--e5)' }}>
           <Aviso tom="informacao">
-            Os layouts desta edição estão travados desde a publicação. É o que garante que uma
-            reemissão feita daqui a anos saia idêntica à original.
+            Esta edição já tem certificados emitidos, então os layouts estão travados. É o que
+            garante que uma reemissão feita daqui a anos saia idêntica à original.
           </Aviso>
         </div>
       )}

@@ -59,6 +59,17 @@ goianao:
   # Base publica usada para montar a URL do QR de verificacao (feature 007).
   base-verificacao: ${GOIANAO_BASE_VERIFICACAO:http://localhost:5173}
 
+  # Primeiro superadministrador, criado na subida quando ainda nao existe
+  # nenhum. A SENHA NAO FICA NO REPOSITORIO: vem de GOIANAO_SUPERADMIN_SENHA e
+  # e gravada como hash BCrypt. Sem a variavel, nenhum superadmin e criado e o
+  # log diz o que falta -- subir sem superadmin e melhor do que subir com uma
+  # senha que qualquer leitor do codigo conheceria.
+  superadmin:
+    email: ${GOIANAO_SUPERADMIN_EMAIL:}
+    senha: ${GOIANAO_SUPERADMIN_SENHA:}
+    cpf: ${GOIANAO_SUPERADMIN_CPF:}
+    nome: ${GOIANAO_SUPERADMIN_NOME:Superadministrador}
+
   # SSO corporativo (Keycloak do TJGO). Vazio ate o client existir: sem as
   # cinco primeiras propriedades o SSO fica desligado e vale o login mockado.
   #

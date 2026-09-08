@@ -24,8 +24,6 @@ import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
 import br.jus.tjgo.goianao.unidade.UnidadeService;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Year;
 import java.util.EnumSet;
 import java.util.List;
@@ -66,7 +64,7 @@ public class DadosDemo {
     private final UnidadeService unidades;
     private final LayoutRepository layouts;
     private final ImageStorage storage;
-    private final GeradorArteDemo arte;
+    private final ArtesDeExemplo artes;
 
     public DadosDemo(AdministradorRepository administradores,
                      EdicaoRepository edicoesRepo,
@@ -76,7 +74,7 @@ public class DadosDemo {
                      UnidadeService unidades,
                      LayoutRepository layouts,
                      ImageStorage storage,
-                     GeradorArteDemo arte) {
+                     ArtesDeExemplo artes) {
         this.administradores = administradores;
         this.edicoesRepo = edicoesRepo;
         this.edicoes = edicoes;
@@ -85,7 +83,7 @@ public class DadosDemo {
         this.unidades = unidades;
         this.layouts = layouts;
         this.storage = storage;
-        this.arte = arte;
+        this.artes = artes;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -107,7 +105,6 @@ public class DadosDemo {
 
             criarEdicaoCompleta(anoVigente + 1);
 
-            exportarArtesDeExemplo(anoVigente);
             log.info("Dados de demonstracao prontos. Edicao vigente: {}.", anoVigente);
         } catch (RuntimeException e) {
             log.error("Falha ao gerar os dados de demonstracao.", e);
@@ -144,38 +141,53 @@ public class DadosDemo {
                 "Edição " + ano + " do Prêmio Goianão — reconhecimento das unidades "
                         + "judiciárias de destaque do TJGO."));
 
-        criarLayouts(edicao, ano);
+        criarLayouts(edicao);
         criarReconhecidos(edicao.getId());
         return edicao;
     }
 
     /** As 8 combinacoes selo x tipo: pre-condicao para publicar (002/RF-3b). */
-    private void criarLayouts(Edicao edicao, int ano) {
+    private void criarLayouts(Edicao edicao) {
         for (Selo selo : Selo.values()) {
             for (TipoCertificado tipo : TipoCertificado.values()) {
-                String referencia = storage.salvar(arte.gerar(ano, selo, tipo), "png");
+                String referencia = storage.salvar(
+                        artes.carregar(selo, tipo), ArtesDeExemplo.EXTENSAO);
                 layouts.save(new LayoutCertificado(
                         edicao, selo, tipo, referencia,
-                        GeradorArteDemo.LARGURA, GeradorArteDemo.ALTURA,
+                        ArtesDeExemplo.LARGURA, ArtesDeExemplo.ALTURA,
                         areaNome(), areaUnidade(), areaCodigo()));
             }
         }
     }
 
-    // Caixas calibradas sobre a arte de demonstracao. Elas sao o ponto de
-    // partida do editor visual: o administrador arrasta e redimensiona a partir
-    // daqui quando sobe a arte definitiva.
+    /*
+     * Caixas medidas sobre a arte de exemplo (3507x2480).
+     *
+     * A peca ja traz o texto fixo: "A Presidencia ... reconhece que" termina por
+     * volta de y=970 e "Conquistou o Selo ..." comeca em y=1480. O vao entre os
+     * dois e onde entram nome e unidade — e e por isso que as caixas comecam em
+     * x=1250, alinhadas a esquerda com o restante do paragrafo, em vez de
+     * centradas na pagina: centrar deixaria o nome fora do eixo do texto que
+     * vem antes e depois dele.
+     *
+     * O codigo e o QR vao para o rodape branco, no vao entre a assinatura e a
+     * marca do premio — a unica area livre da peca.
+     *
+     * Elas sao o ponto de partida do editor visual: quando a arte definitiva de
+     * uma edicao for enviada, o administrador arrasta e redimensiona a partir
+     * daqui.
+     */
     private AreaTexto areaNome() {
-        return new AreaTexto(454, 1163, 2600, 124, Alinhamento.CENTRO);
+        return new AreaTexto(1250, 1030, 1870, 170, Alinhamento.ESQUERDA);
     }
 
     private AreaTexto areaUnidade() {
-        return new AreaTexto(454, 1504, 2600, 92, Alinhamento.CENTRO);
+        return new AreaTexto(1250, 1235, 1870, 110, Alinhamento.ESQUERDA);
     }
 
     private AreaCodigo areaCodigo() {
-        return new AreaCodigo(520, 2230, 1000, 50, Alinhamento.ESQUERDA,
-                new AreaQr(280, 2080, 200));
+        return new AreaCodigo(2545, 2215, 460, 44, Alinhamento.CENTRO,
+                new AreaQr(2660, 1955, 230));
     }
 
     /**
@@ -210,26 +222,4 @@ public class DadosDemo {
         }
     }
 
-    /**
-     * Grava as artes geradas em {@code data/artes-exemplo} para que seja possivel
-     * testar o upload e o editor visual com arquivos reais, no formato correto.
-     */
-    private void exportarArtesDeExemplo(int ano) {
-        Path destino = Path.of("data", "artes-exemplo");
-        try {
-            Files.createDirectories(destino);
-            for (Selo selo : Selo.values()) {
-                for (TipoCertificado tipo : TipoCertificado.values()) {
-                    String nome = String.format("arte-%d-%s-%s.png", ano,
-                            selo.name().toLowerCase(), tipo.name().toLowerCase());
-                    Path arquivo = destino.resolve(nome);
-                    if (!Files.exists(arquivo)) {
-                        Files.write(arquivo, arte.gerar(ano, selo, tipo));
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Nao foi possivel exportar as artes de exemplo: {}", e.getMessage());
-        }
-    }
 }
