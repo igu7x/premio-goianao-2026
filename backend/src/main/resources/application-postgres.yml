@@ -1,0 +1,11 @@
+# Perfil de homologacao/producao. Suba o banco com `docker compose up -d` na
+# raiz do repositorio ou aponte para a instancia do TJGO.
+spring:
+  datasource:
+    url: ${GOIANAO_DB_URL:jdbc:postgresql://localhost:5432/goianao}
+    username: ${GOIANAO_DB_USER:goianao}
+    password: ${GOIANAO_DB_PASSWORD:goianao}
+    driver-class-name: org.postgresql.Driver
+
+goianao:
+  dados-demo: false

@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+# Build do frontend no OpenShift (Source-to-Image).
+#
+# Segue o padrao ja em producao no tribunal: builder Node da Red Hat compila e o
+# resultado e servido pela imagem httpd. O que muda aqui e o uso de `npm ci`
+# em vez de `npm install`: existe package-lock.json no repositorio, e `ci`
+# instala exatamente o que esta travado nele. Build reproduzivel importa mais
+# num sistema que emite documento.
+set -e
+
+echo "---> Instalando dependencias"
+if [ -f package-lock.json ]; then
+    npm ci
+else
+    # Sem lock, cai para install. Nao deveria acontecer: o lock e versionado.
+    echo "---> AVISO: package-lock.json ausente, usando npm install"
+    npm install
+fi
+
+echo "---> Compilando (vite build)"
+npm run build
+
+echo "---> Build concluido"

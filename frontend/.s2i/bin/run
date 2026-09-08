@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# Inicializacao do container do frontend.
+#
+# Faz duas coisas antes de entregar o controle ao httpd:
+#
+# 1. Promove o conteudo de dist/ para a raiz servida e descarta o que nao deve
+#    ir ao navegador (codigo-fonte e node_modules).
+#
+# 2. Reescreve o config.js com a base da API vinda do ambiente. E isto que
+#    permite promover a MESMA imagem de homologacao para producao: sem essa
+#    etapa, a URL da API ficaria congelada no bundle pelo Vite e seria preciso
+#    uma imagem por ambiente.
+set -e
+
+RAIZ=/opt/app-root/src
+
+if [ -d "$RAIZ/dist" ]; then
+    echo "---> Promovendo dist/ para a raiz"
+    cp -a "$RAIZ/dist/." "$RAIZ/"
+    rm -rf "$RAIZ/dist" "$RAIZ/src" "$RAIZ/node_modules"
+fi
+
+# API_BASE_URL vazia significa mesma origem — util se um dia frontend e API
+# ficarem atras da mesma rota.
+echo "---> Configurando base da API: ${API_BASE_URL:-(mesma origem)}"
+cat > "$RAIZ/config.js" <<EOF
+window.__GOIANAO_CONFIG__ = {
+  apiBaseUrl: '${API_BASE_URL:-}',
+}
+EOF
+
+echo "---> Iniciando httpd"
+exec /usr/libexec/s2i/run

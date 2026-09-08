@@ -1,0 +1,27 @@
+# Build
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# Dados locais: banco H2, artes enviadas e artes de exemplo geradas na carga
+backend/data/
+data/
+
+# Ferramentas
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Levantamento da infraestrutura do tribunal: cita hosts, cluster, namespaces,
+# nomes de secret e uma falha nao corrigida de outro sistema. O repositorio e
+# publico -- este arquivo fica so no disco.
+SSO_E_OPENSHIFT_REFERENCIA.md
+
+# Especificacoes de APIs internas baixadas para consulta: nao vao para o
+# repositorio (o do GitHub e publico).
+target-swagger.json
+*-swagger.json
+
+# Cache incremental do TypeScript.
+frontend/tsconfig.tsbuildinfo

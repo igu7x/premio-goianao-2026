@@ -1,0 +1,23 @@
+# Banco para quem quiser rodar com PostgreSQL de verdade em vez do H2 local.
+#   docker compose up -d
+#   cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=postgres
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goianao-postgres
+    environment:
+      POSTGRES_DB: goianao
+      POSTGRES_USER: goianao
+      POSTGRES_PASSWORD: goianao
+    ports:
+      - "5432:5432"
+    volumes:
+      - goianao-dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goianao -d goianao"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  goianao-dados:
