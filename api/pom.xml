@@ -12,9 +12,9 @@
   </parent>
 
   <groupId>br.jus.tjgo</groupId>
-  <artifactId>goianao-backend</artifactId>
+  <artifactId>goianao-api</artifactId>
   <version>1.0.0</version>
-  <name>goianao-backend</name>
+  <name>goianao-api</name>
   <description>Premio Goianao - Emissao de Certificados (TJGO)</description>
 
   <properties>

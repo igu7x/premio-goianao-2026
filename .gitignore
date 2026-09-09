@@ -1,10 +1,10 @@
 # Build
-backend/target/
+api/target/
 frontend/dist/
 frontend/node_modules/
 
 # Dados locais: banco H2, artes enviadas e artes de exemplo geradas na carga
-backend/data/
+api/data/
 data/
 
 # Ferramentas

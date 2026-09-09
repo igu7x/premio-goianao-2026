@@ -16,8 +16,8 @@ Pré-requisitos: **Java 21**, **Maven 3.9+** e **Node 20+**. Não é preciso ter
 banco instalado para desenvolver.
 
 ```bash
-# 1) backend  (http://localhost:8080)
-cd backend
+# 1) api      (http://localhost:8080)
+cd api
 mvn spring-boot:run
 
 # 2) frontend (http://localhost:5173)
@@ -32,7 +32,7 @@ Na primeira execução o backend cria o banco, aplica as migrações e gera uma
 **carga de demonstração**: duas edições (uma publicada e vigente, outra em
 rascunho), os oito layouts de cada uma com arte gerada no padrão correto,
 magistrados reconhecidos e as listas de servidores já semeadas do EGESP mockado.
-Para começar do zero, apague a pasta `backend/data/`.
+Para começar do zero, apague a pasta `api/data/`.
 
 ### Identidades de teste
 
@@ -55,7 +55,7 @@ negativo: nenhuma opção de emissão.
 ### Testes
 
 ```bash
-cd backend  && mvn test       # 149 testes (unitários e de integração)
+cd api      && mvn test       # 153 testes (unitários e de integração)
 cd frontend && npm test       # 11 testes de componente (Vitest)
 cd frontend && npm run lint   # checagem de tipos
 ```
@@ -82,13 +82,13 @@ avisa em vez de encerrar.
 execução anterior que não foi encerrada.
 
 **O backend não sobe e reclama que o banco está em uso** — sobrou o arquivo de
-trava (`backend/data/goianao.lock.db`) de um encerramento forçado. Apagar **só a
+trava (`api/data/goianao.lock.db`) de um encerramento forçado. Apagar **só a
 trava** resolve; nunca apague o `goianao.mv.db`, que é o banco inteiro.
 
 **`Schema "public" not found` no H2** — o banco local é anterior à troca do
 Flyway pelo Liquibase e foi criado com o esquema em minúsculas, grafia que a
 configuração atual não usa mais. O arquivo só abre com a URL antiga, então não
-há como migrá-lo em execução: renomeie `backend/data/goianao.mv.db` e deixe a
+há como migrá-lo em execução: renomeie `api/data/goianao.mv.db` e deixe a
 carga de demonstração recriar na próxima subida. Bancos PostgreSQL **não** são
 afetados — lá a grafia sempre foi coerente.
 
@@ -111,13 +111,13 @@ Para gerar o SQL de uma migração pendente, quando a equipe de banco quiser
 revisar antes de aplicar:
 
 ```bash
-cd backend && mvn liquibase:updateSQL
+cd api && mvn liquibase:updateSQL
 ```
 Para usar PostgreSQL de verdade:
 
 ```bash
 docker compose up -d
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=postgres
+cd api && mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 
 ---
@@ -127,11 +127,11 @@ cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 premio-goianao/
 ├── specs/           # constituição, templates e as 9 features (spec/plan/tasks)
-├── backend/         # Java 21 + Spring Boot 3.5
+├── api/             # Java 21 + Spring Boot 3.5
 └── frontend/        # React 18 + TypeScript + Vite
 ```
 
-### Backend
+### API
 
 Pacotes por **domínio**, não por camada — cada um traz entidade, repositório,
 serviço, controlador e DTOs do seu assunto:
@@ -185,7 +185,7 @@ Estes pontos estão isolados de propósito; nenhum deles exige rearquitetura:
 2. **EGESP** — implementar `EgespClient` contra a API real (unidades e servidores
    por unidade).
 3. **Fonte institucional** — colocar o TTF em
-   `backend/src/main/resources/fontes/institucional.ttf`. Sem ele, os
+   `api/src/main/resources/fontes/institucional.ttf`. Sem ele, os
    certificados usam a fonte padrão do PDF; a tela de layouts avisa.
 4. **Domínio público de verificação** — configurar `GOIANAO_BASE_VERIFICACAO`.
    É essa base que o QR do certificado codifica.
@@ -194,7 +194,7 @@ Estes pontos estão isolados de propósito; nenhum deles exige rearquitetura:
 
 ## Configuração
 
-Tudo em `backend/src/main/resources/application.yml`, sobrescrevível por variável
+Tudo em `api/src/main/resources/application.yml`, sobrescrevível por variável
 de ambiente:
 
 | Variável | Para quê | Padrão |
@@ -231,4 +231,4 @@ restaura as emissões.
 
 Bases criadas antes dessa mudança têm os layouts apontando para arquivos. Elas
 são migradas sozinhas na primeira subida, e o log diz quantas artes vieram; os
-arquivos em `backend/data/artes` deixam de ser usados e podem ser apagados.
+arquivos em `api/data/artes` deixam de ser usados e podem ser apagados.

@@ -35,7 +35,7 @@ Start-Sleep -Seconds 2
 
 # O H2 deixa um arquivo de trava quando o processo morre à força. O banco em si
 # fica intacto; só a trava precisa sair para a próxima subida funcionar.
-$trava = Join-Path $PSScriptRoot 'backend\data\goianao.lock.db'
+$trava = Join-Path $PSScriptRoot 'api\data\goianao.lock.db'
 if (Test-Path $trava) {
     Remove-Item $trava -Force
     Write-Host 'trava do banco removida (os dados foram preservados)'
@@ -47,6 +47,6 @@ if ($encerrados -eq 0) {
 else {
     Write-Host ''
     Write-Host 'pronto. agora:'
-    Write-Host '  cd backend  ; mvn spring-boot:run'
+    Write-Host '  cd api  ; mvn spring-boot:run'
     Write-Host '  cd frontend ; npm run dev'
 }

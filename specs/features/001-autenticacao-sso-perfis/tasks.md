@@ -16,7 +16,7 @@
 ## Tarefas
 
 ### Bootstrap (base do projeto)
-- [x] **T-001** — Criar o **monorepo**: `backend/` (Spring Boot, Java 21 LTS) e
+- [x] **T-001** — Criar o **monorepo**: `api/` (Spring Boot, Java 21 LTS) e
   `frontend/` (React), com build unificado e README de execução. _(infra)_
 - [x] **T-002** [P] — Configurar **PostgreSQL** + migrações (Flyway) e perfis de
   ambiente (dev/test). _(infra)_

@@ -356,7 +356,7 @@ dialeto que interessa.
 
 **Consequência.** Bancos H2 locais criados antes da troca têm o esquema em
 minúsculas e param com `Schema "public" not found`. São descartáveis: apagar
-`backend/data/goianao.mv.db` e deixar a carga de demonstração recriar. Bancos
+`api/data/goianao.mv.db` e deixar a carga de demonstração recriar. Bancos
 PostgreSQL não são afetados, porque lá a grafia sempre foi coerente.
 
 ---
@@ -398,7 +398,7 @@ peça real.
 **Decisão.** As oito peças oficiais (quatro selos × dois tipos) foram rendidas
 do PDF da comunicação em **A4 paisagem a 300 DPI** (3507×2480), o mesmo padrão
 que o `ValidadorDeArte` exige de quem sobe arte pela tela, e versionadas em
-`backend/src/main/resources/artes-exemplo/`. `ArtesDeExemplo` as lê do
+`api/src/main/resources/artes-exemplo/`. `ArtesDeExemplo` as lê do
 classpath; `GeradorArteDemo` foi removido.
 
 **Formato e tamanho.** JPEG com qualidade 0.80: 13 MB no total, contra 89 MB em
@@ -422,7 +422,7 @@ combinação (pedida a unidade Ouro, veio a arte Ouro).
 peça, porque a fonte institucional ainda não foi fornecida — o sistema cai no
 padrão do PDF. Com arte gerada isso não incomodava; sobre o desenho real, o
 contraste fica evidente. Instalar o TTF em
-`backend/src/main/resources/fontes/institucional.ttf` resolve, sem mudança de
+`api/src/main/resources/fontes/institucional.ttf` resolve, sem mudança de
 código (DI-4).
 
 ---

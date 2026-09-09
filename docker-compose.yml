@@ -1,6 +1,6 @@
 # Banco para quem quiser rodar com PostgreSQL de verdade em vez do H2 local.
 #   docker compose up -d
-#   cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=postgres
+#   cd api && mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 services:
   postgres:
     image: postgres:16-alpine

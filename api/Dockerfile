@@ -1,4 +1,4 @@
-# Imagem do backend.
+# Imagem da API.
 #
 # Existe para o caso de o build sair por Dockerfile. Se a infra optar por
 # Source-to-Image, o BuildConfig substitui este arquivo — mas as decisoes
