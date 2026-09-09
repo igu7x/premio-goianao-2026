@@ -98,3 +98,22 @@ Requisitos da pipeline:
 
 Há uma sonda em `GET /saude` que responde `ok` sem tocar no disco, útil para as
 probes.
+
+## As URLs precisam ser https
+
+As Routes do OpenShift redirecionam para HTTPS, e **página em HTTPS não pode
+chamar API em HTTP**: o navegador bloqueia como conteúdo misto antes de a
+requisição sair, e o que aparece na tela é só "Failed to fetch". Custou um
+deploy para descobrir.
+
+Vale para as três, com `https://`:
+
+- `API_BASE_URL` (frontend)
+- `GOIANAO_CORS_ORIGENS` (API) — precisa casar com a origem exata do navegador
+- `GOIANAO_BASE_VERIFICACAO` (API) — **esta é a mais grave**: vai impressa no QR
+  de cada certificado. Um QR gerado com `http://` fica errado para sempre,
+  porque o PDF já foi emitido e distribuído.
+
+O cliente HTTP promove `http://` para `https://` quando a própria página está em
+HTTPS, com aviso no console — rede de proteção para a configuração errada, não
+substituto dela.

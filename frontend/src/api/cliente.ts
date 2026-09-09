@@ -28,7 +28,28 @@ declare global {
  * build e seria preciso uma imagem por ambiente.
  */
 function baseDaApi(): string {
-  return (window.__GOIANAO_CONFIG__?.apiBaseUrl ?? '').replace(/\/+$/, '')
+  const configurada = (window.__GOIANAO_CONFIG__?.apiBaseUrl ?? '').replace(/\/+$/, '')
+
+  /*
+   * Página em HTTPS não pode chamar API em HTTP: o navegador bloqueia como
+   * conteúdo misto, antes de a requisição sair. O erro que chega ao usuário é
+   * "Failed to fetch", que não diz nada sobre o esquema da URL — e a tela
+   * inteira fica inútil por causa de quatro letras numa variável de ambiente.
+   *
+   * Aqui isso é corrigido em vez de quebrar, porque em HTTP a chamada estaria
+   * bloqueada de qualquer jeito: promover o esquema não piora nada e resolve a
+   * confusão mais provável. O aviso fica no console para que a configuração
+   * errada continue visível a quem for procurar.
+   */
+  if (window.location.protocol === 'https:' && configurada.startsWith('http://')) {
+    console.warn(
+      `[goianao] API_BASE_URL está em http:// (${configurada}) numa página https —` +
+        ' o navegador bloquearia a chamada. Usando https. Corrija a variável no ambiente.',
+    )
+    return 'https://' + configurada.slice('http://'.length)
+  }
+
+  return configurada
 }
 
 /** Resolve um caminho da API contra a base configurada. */
