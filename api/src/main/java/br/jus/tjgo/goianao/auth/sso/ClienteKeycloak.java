@@ -145,6 +145,12 @@ public class ClienteKeycloak {
             }
             String cpf = Cpf.normalizar(valor.toString());
             if (Cpf.valido(cpf)) {
+                // O NOME do claim, nunca o valor: CPF e dado pessoal e log de
+                // aplicacao costuma sair do perimetro (coletor, indice, backup).
+                // Saber qual claim funcionou responde, no primeiro login real, a
+                // pergunta que a infra nao soube responder -- e permite fixar a
+                // lista em OPENSHIFT_SSO_CLAIMS_CPF em vez de tentar varios.
+                log.info("CPF obtido do claim \"{}\".", claim);
                 Object nome = token.getClaim(props.claimNome());
                 return new IdentidadeAutenticada(
                         cpf, nome != null ? nome.toString() : cpf);
