@@ -63,3 +63,12 @@ oc create secret generic goianao-default \
 Se for trocado depois, todas as sessões abertas caem — os usuários apenas
 entram de novo. Nenhum certificado já emitido é afetado: o código de validação
 não depende dessa chave.
+
+## Acrescentado depois do primeiro deploy em homologação (2026-09-09)
+
+| Variável | Obrigatória | O que é |
+| --- | --- | --- |
+| `GOIANAO_CORS_ORIGENS` | **sim** | Origem pública do frontend, separada por vírgula. Frontend e API têm Routes distintas, então o navegador as trata como origens diferentes: sem esta variável vale o padrão de desenvolvimento (`localhost`) e **nenhuma chamada da tela funciona**, com o erro aparecendo só no console do navegador. Em homologação: `http://goianao-stag-frontend.apps.ocp-c01.tjgo.jus.br`. |
+
+Aceita padrão além de origem exata (`http://host,https://host`), porque em
+desenvolvimento o Vite troca de porta.

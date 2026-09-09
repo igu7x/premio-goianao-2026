@@ -106,8 +106,12 @@ goianao:
     # A4 paisagem a 300 DPI ~ 3508x2480 px (003/RNF-4).
     largura-minima: 2400
     tolerancia-proporcao: 0.05
+  # Frontend e API sao apps separados, com Routes distintas: o navegador trata
+  # como origens diferentes e a chamada so passa se a origem do frontend estiver
+  # listada aqui. Sem a variavel, vale o padrao de desenvolvimento e NENHUMA
+  # chamada funciona em homologacao ou producao.
   cors:
-    origens: http://localhost:5173,http://127.0.0.1:5173
+    origens: ${GOIANAO_CORS_ORIGENS:http://localhost:5173,http://127.0.0.1:5173}
   verificacao-publica:
     consultas-por-minuto: 30
   dados-demo: false
