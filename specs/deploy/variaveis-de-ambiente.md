@@ -72,3 +72,29 @@ não depende dessa chave.
 
 Aceita padrão além de origem exata (`http://host,https://host`), porque em
 desenvolvimento o Vite troca de porta.
+
+## Como o frontend é servido em produção
+
+A pipeline executa `npm run <script>` numa imagem Node e expõe a **8080**. Sem
+um script `start`, ela acabou executando `npm run dev` — o servidor de
+desenvolvimento do Vite, que escuta em `localhost:5173`. O pod ficava "Running"
+e a Route devolvia 503, porque não havia nada ouvindo onde o Service procurava.
+
+O script `start` passa a rodar `frontend/servidor.mjs`: servidor estático sem
+dependência alguma (só o que vem no Node), que serve `dist/`, escuta em
+`0.0.0.0:${PORT:-8080}` e devolve `index.html` para rota desconhecida — o que o
+QR do certificado exige, já que `/verificar/<codigo>` é rota do React Router e
+não arquivo.
+
+Requisitos da pipeline:
+
+1. `npm run build` **antes** de `npm start`. Sem `dist/index.html` o processo
+   encerra com código 1 e a mensagem diz exatamente isso, em vez de subir um
+   servidor que responde 404 em tudo.
+2. Não definir `NPM_RUN=dev` nem `DEV_MODE=true` — é o que faz a imagem Node
+   escolher `dev` em vez de `start`.
+3. `API_BASE_URL` no ambiente do pod. O `servidor.mjs` reescreve o `config.js`
+   na subida a partir dela.
+
+Há uma sonda em `GET /saude` que responde `ok` sem tocar no disco, útil para as
+probes.
