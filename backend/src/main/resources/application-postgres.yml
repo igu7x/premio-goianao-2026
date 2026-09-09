@@ -1,11 +1,26 @@
-# Perfil de homologacao/producao. Suba o banco com `docker compose up -d` na
-# raiz do repositorio ou aponte para a instancia do TJGO.
+# Perfil de homologacao/producao.
+#
+# Localmente, suba o banco com `docker compose up -d` na raiz do repositorio;
+# os valores padrao abaixo apontam para ele. No OpenShift, todos vem das
+# variaveis que a infraestrutura do TJGO ja provisiona.
+#
+# A URL e montada aqui a partir de host/porta/base/esquema em vez de vir pronta
+# numa variavel unica. E o formato em que a infra entrega os dados do banco, e
+# montar a URL do lado deles significaria pedir que soubessem a sintaxe JDBC do
+# PostgreSQL para acertar o `currentSchema` — trabalho nosso, nao deles.
 spring:
   datasource:
-    url: ${GOIANAO_DB_URL:jdbc:postgresql://localhost:5432/goianao}
-    username: ${GOIANAO_DB_USER:goianao}
-    password: ${GOIANAO_DB_PASSWORD:goianao}
+    url: jdbc:postgresql://${OPENSHIFT_POSTGRESQL_DB_HOST:localhost}:${OPENSHIFT_POSTGRESQL_DB_PORT:5432}/${OPENSHIFT_POSTGRESQL_DB_NAME:goianao}?currentSchema=${OPENSHIFT_POSTGRESQL_DB_SCHEMA:public}
+    username: ${OPENSHIFT_POSTGRESQL_DB_USERNAME:goianao}
+    password: ${OPENSHIFT_POSTGRESQL_DB_PASSWORD:goianao}
     driver-class-name: org.postgresql.Driver
+
+  # O Liquibase precisa saber o esquema explicitamente: sem isto ele cria as
+  # duas tabelas de controle (databasechangelog e databasechangeloglock) no
+  # esquema padrao do usuario, que nem sempre e o mesmo do `currentSchema` —
+  # e o resultado seria remigrar tudo a cada troca de esquema.
+  liquibase:
+    default-schema: ${OPENSHIFT_POSTGRESQL_DB_SCHEMA:public}
 
 goianao:
   dados-demo: false

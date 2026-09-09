@@ -76,17 +76,26 @@ goianao:
   # ATENCAO na url: o Keycloak do tribunal e anterior a v17, entao o caminho
   # inclui /auth -- https://<host-do-keycloak>/auth, nao https://<host-do-keycloak>.
   # Sem o sufixo o login falha com "Resource not found".
+  # Os nomes abaixo sao os que a infraestrutura do TJGO ja provisiona no
+  # OpenShift. A grafia KEYCLOACK e a deles; aceito tambem KEYCLOAK como
+  # alternativa, porque uma variavel com o nome trocado nao quebra a subida:
+  # ela deixa o SSO vazio e a aplicacao cai no login mockado, que e uma falha
+  # silenciosa e bem pior do que nao subir.
   sso:
-    url: ${OPENSHIFT_SSO_KEYCLOAK_URL:}
-    realm: ${OPENSHIFT_SSO_KEYCLOAK_REALM:}
-    client-id: ${OPENSHIFT_SSO_CLIENT_ID:}
-    client-secret: ${OPENSHIFT_SSO_SECRET:}
-    redirect-uri: ${OPENSHIFT_SSO_KEYCLOAK_REDIRECT_URI:}
-    url-frontend: ${GOIANAO_URL_FRONTEND:http://localhost:5173}
+    url: ${OPENSHIFT_SSO_KEYCLOACK_URL:${OPENSHIFT_SSO_KEYCLOAK_URL:}}
+    realm: ${OPENSHIFT_SSO_KEYCLOACK_REALM:${OPENSHIFT_SSO_KEYCLOAK_REALM:}}
+    client-id: ${OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID:${OPENSHIFT_SSO_CLIENT_ID:}}
+    client-secret: ${OPENSHIFT_SSO_KEYCLOACK_SECRET:${OPENSHIFT_SSO_SECRET:}}
+    redirect-uri: ${OPENSHIFT_SSO_KEYCLOACK_REDIRECT_URI:${OPENSHIFT_SSO_KEYCLOAK_REDIRECT_URI:}}
+    # Para onde devolver o navegador depois do login. E o mesmo endereco publico
+    # que vai impresso no QR, entao acompanha BASE_VERIFICACAO por padrao e so
+    # precisa de variavel propria se um dia forem endereços diferentes.
+    url-frontend: ${GOIANAO_URL_FRONTEND:${GOIANAO_BASE_VERIFICACAO:http://localhost:5173}}
     # Tentados em ordem ate achar um CPF valido. A infra ainda nao confirmou
-    # em qual claim ele vem; quando confirmar, e so ajustar aqui.
-    claims-cpf: ${GOIANAO_SSO_CLAIMS_CPF:cpf,CPF,preferred_username}
-    claim-nome: ${GOIANAO_SSO_CLAIM_NOME:name}
+    # em qual claim ele vem; quando confirmar, basta definir OPENSHIFT_SSO_CLAIMS_CPF
+    # com o nome certo, sem alterar codigo.
+    claims-cpf: ${OPENSHIFT_SSO_CLAIMS_CPF:cpf,CPF,preferred_username}
+    claim-nome: ${OPENSHIFT_SSO_CLAIMS_NAME:name}
   storage:
     # banco (padrao) ou filesystem. No OpenShift o pod nao tem disco que
     # sobreviva ao restart, e a arte precisa durar tanto quanto o certificado
