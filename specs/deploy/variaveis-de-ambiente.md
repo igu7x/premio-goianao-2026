@@ -149,3 +149,58 @@ formar `/realms/...` direto, o que indica instalação nova. Se o login falhar c
 
 Os endereços agora são completados com `https://` quando vêm sem esquema, com
 aviso no log — rede de proteção, não substituto da configuração correta.
+
+## Keycloak: valores confirmados no servidor (09/09/2026)
+
+Lidos do discovery, não deduzidos:
+
+```
+curl https://sso.tjgo.jus.br/auth/realms/tjgo.gov-tst/.well-known/openid-configuration
+```
+
+| | |
+| --- | --- |
+| issuer | `https://sso.tjgo.jus.br/auth/realms/tjgo.gov-tst` |
+| authorization | `.../protocol/openid-connect/auth` |
+| token | `.../protocol/openid-connect/token` |
+| jwks | `.../protocol/openid-connect/certs` |
+| logout | `.../protocol/openid-connect/logout` |
+
+**O sufixo `/auth` é obrigatório.** Sem ele o Keycloak responde "Resource not
+found" — e a resposta vem com a cara dele, o que engana: parece realm errado ou
+client inexistente, e é só o caminho. O mesmo `curl` sem `/auth` devolve 404 e
+com `/auth` devolve 200; é o teste de dez segundos.
+
+```
+OPENSHIFT_SSO_KEYCLOACK_URL=https://sso.tjgo.jus.br/auth
+```
+
+Os caminhos que a aplicação monta (`issuer + /protocol/openid-connect/...`)
+batem exatamente com os do discovery, então nada além da base precisa mudar.
+
+### O CPF continua sem resposta — mas a pergunta ficou mais precisa
+
+O `claims_supported` do realm lista apenas:
+
+```
+iss sub aud exp iat auth_time name given_name family_name
+preferred_username email acr azp nonce
+```
+
+**Não há `cpf`.** Isso não é prova definitiva: no Keycloak, `claims_supported` é
+uma lista estática do realm e **não reflete protocol mappers configurados por
+client**. O client `goianao-stag` pode ter um mapper que acrescente `cpf` ao
+token sem aparecer aqui.
+
+Duas perguntas para a infra, nessa ordem:
+
+1. O client `goianao-stag` tem mapper de CPF? Se sim, qual o nome do claim —
+   basta pôr em `OPENSHIFT_SSO_CLAIMS_CPF`.
+2. Se não tem: o `preferred_username` do realm **é** o CPF? Se for, já funciona,
+   porque ele é o último da lista tentada. Se for matrícula ou login, precisamos
+   de um mapper — sem CPF o sistema não identifica ninguém, já que magistrado
+   reconhecido, servidor habilitado e certificado emitido são todos indexados
+   por ele.
+
+O jeito mais rápido de responder as duas: fazer um login de teste, capturar o
+`id_token` e olhar o conteúdo.

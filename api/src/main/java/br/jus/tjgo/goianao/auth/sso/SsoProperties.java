@@ -19,10 +19,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * redirecionamento para o Keycloak sai relativo e o navegador o resolve contra
  * o caminho da propria API, devolvendo 404. Ver {@link #comEsquema}.
  *
- * <b>O sufixo {@code /auth} depende da versao.</b> Ate a versao 16 o caminho
- * padrao do Keycloak comecava com {@code /auth}; da 17 em diante, nao. Se o
- * login falhar com "Resource not found", e a primeira coisa a conferir — a URL
- * pode precisar ou nao do sufixo, conforme a instalacao do tribunal.
+ * <b>O sufixo {@code /auth} e obrigatorio.</b> Confirmado no discovery do
+ * proprio servidor em 09/09/2026: o issuer e
+ * {@code https://sso.tjgo.jus.br/auth/realms/tjgo.gov-tst}. Sem o sufixo, o
+ * Keycloak responde "Resource not found" — e a resposta vem do Keycloak, com a
+ * cara dele, o que engana: parece problema de realm ou de client, e e so o
+ * caminho. Confira com
+ * {@code curl https://sso.tjgo.jus.br/auth/realms/<realm>/.well-known/openid-configuration},
+ * que devolve 200 com o sufixo e 404 sem ele.
  *
  * <b>O CPF nao tem claim garantido.</b> Depende do mapper configurado no
  * client, e o outro sistema do tribunal chaveia por e-mail, entao nao serve de
