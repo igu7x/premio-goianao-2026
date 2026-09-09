@@ -1,6 +1,8 @@
 package br.jus.tjgo.goianao.auth.sso;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -11,14 +13,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * continua no login mockado. Ter um prefixo proprio deixa isso explicito no
  * ConfigMap e evita que a ausencia de SSO quebre o resto da configuracao.
  *
- * <h2>Duas armadilhas do Keycloak do TJGO</h2>
+ * <h2>Tres armadilhas do Keycloak do TJGO</h2>
  *
- * <b>O sufixo {@code /auth} na URL e obrigatorio.</b> O Keycloak do tribunal e
- * anterior a versao 17, que foi quando o prefixo saiu do caminho padrao. A URL
- * correta termina em {@code /auth} — {@code https://<host-do-keycloak>/auth},
- * nao {@code https://<host-do-keycloak>}. Sem ele o login falha com "Resource not
- * found" — e essa e a primeira coisa a conferir quando o login para de
- * funcionar depois de alguem recriar o secret.
+ * <b>Os enderecos precisam de esquema.</b> Sem {@code https://}, o
+ * redirecionamento para o Keycloak sai relativo e o navegador o resolve contra
+ * o caminho da propria API, devolvendo 404. Ver {@link #comEsquema}.
+ *
+ * <b>O sufixo {@code /auth} depende da versao.</b> Ate a versao 16 o caminho
+ * padrao do Keycloak comecava com {@code /auth}; da 17 em diante, nao. Se o
+ * login falhar com "Resource not found", e a primeira coisa a conferir — a URL
+ * pode precisar ou nao do sufixo, conforme a instalacao do tribunal.
  *
  * <b>O CPF nao tem claim garantido.</b> Depende do mapper configurado no
  * client, e o outro sistema do tribunal chaveia por e-mail, entao nao serve de
@@ -45,12 +49,41 @@ public record SsoProperties(
         List<String> claimsCpf,
         String claimNome) {
 
+    private static final Logger log = LoggerFactory.getLogger(SsoProperties.class);
+
     public SsoProperties {
         claimsCpf = (claimsCpf == null || claimsCpf.isEmpty())
                 ? List.of("cpf", "CPF", "preferred_username")
                 : claimsCpf;
         claimNome = (claimNome == null || claimNome.isBlank()) ? "name" : claimNome;
-        url = url == null ? null : url.replaceAll("/+$", "");
+        url = comEsquema(url == null ? null : url.replaceAll("/+$", ""), "url");
+        redirectUri = comEsquema(redirectUri, "redirect-uri");
+        urlFrontend = comEsquema(urlFrontend, "url-frontend");
+    }
+
+    /**
+     * Garante que o endereco tenha esquema.
+     *
+     * <p>Sem {@code https://}, o {@code Location} do redirecionamento sai
+     * <b>relativo</b> e o navegador o resolve contra o caminho da propria API:
+     * em vez de ir ao Keycloak, ele pede
+     * {@code /api/auth/sso/sso.tjgo.jus.br/realms/...} e recebe 404 da nossa
+     * aplicacao. O sintoma nao aponta em nada para a variavel de ambiente que o
+     * causou, e ja custou um deploy.
+     *
+     * <p>Completar e melhor do que recusar: um endereco sem esquema so poderia
+     * ser HTTPS num ambiente de tribunal, e derrubar a aplicacao por isso
+     * deixaria o sistema inteiro fora do ar por causa de oito caracteres. O
+     * aviso mantem a configuracao errada visivel a quem for procurar.
+     */
+    private static String comEsquema(String endereco, String nome) {
+        if (endereco == null || endereco.isBlank() || endereco.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*")) {
+            return endereco;
+        }
+        log.warn("goianao.sso.{} veio sem esquema (\"{}\"); assumindo https."
+                + " Corrija a variavel de ambiente: sem esquema o redirecionamento"
+                + " sai relativo e o login falha com 404 na propria API.", nome, endereco);
+        return "https://" + endereco;
     }
 
     /**

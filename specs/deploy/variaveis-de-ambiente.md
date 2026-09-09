@@ -117,3 +117,35 @@ Vale para as três, com `https://`:
 O cliente HTTP promove `http://` para `https://` quando a própria página está em
 HTTPS, com aviso no console — rede de proteção para a configuração errada, não
 substituto dela.
+
+## As duas variáveis de SSO que erraram no primeiro login
+
+**`OPENSHIFT_SSO_KEYCLOACK_URL`** veio sem `https://`. O `Location` do
+redirecionamento saiu relativo e o navegador pediu
+`/api/auth/sso/sso.tjgo.jus.br/realms/...` à **própria API**, que respondeu 404.
+Nada no erro apontava para a variável.
+
+**`OPENSHIFT_SSO_KEYCLOACK_REDIRECT_URI`** veio como
+`https://goianao-stag-frontend.../*` — o **padrão de URIs permitidas** do
+cadastro do client, não uma URI de callback. Duas coisas erradas: o `*`, que não
+é endereço, e o destino, que é a **API**, não o frontend. Quem recebe o `code`
+do Keycloak e o troca por token é o backend; só depois o navegador volta ao
+frontend com a sessão pronta.
+
+Valores corretos em homologação:
+
+```
+OPENSHIFT_SSO_KEYCLOACK_URL=https://sso.tjgo.jus.br
+OPENSHIFT_SSO_KEYCLOACK_REDIRECT_URI=https://goianao-stag-api.apps.ocp-c01.tjgo.jus.br/api/auth/sso/callback
+```
+
+Esse mesmo endereço de callback precisa estar nas **Valid redirect URIs** do
+client `goianao-stag` no realm `tjgo.gov-tst` — é lá que o `/*` faz sentido.
+
+Sobre o sufixo `/auth` na URL do Keycloak: era obrigatório até a versão 16 e
+deixou de ser na 17. A URL montada no primeiro teste não o tinha e chegou a
+formar `/realms/...` direto, o que indica instalação nova. Se o login falhar com
+"Resource not found", é a primeira coisa a testar.
+
+Os endereços agora são completados com `https://` quando vêm sem esquema, com
+aviso no log — rede de proteção, não substituto da configuração correta.
