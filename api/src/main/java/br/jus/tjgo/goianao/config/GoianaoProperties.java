@@ -11,10 +11,34 @@ public record GoianaoProperties(
         Storage storage,
         Layout layout,
         Cors cors,
+        Login login,
         VerificacaoPublica verificacaoPublica,
         boolean dadosDemo) {
 
+    public GoianaoProperties {
+        login = login == null ? new Login(false, false) : login;
+    }
+
     public record Jwt(String segredo, int expiracaoHoras) {}
+
+    /**
+     * Quais portas de entrada existem <b>neste</b> ambiente, alem do SSO.
+     *
+     * <p>Ambas nascem <b>desligadas</b>, e isso e deliberado: esquecer de
+     * definir a variavel em producao deixa o sistema no estado seguro, enquanto
+     * o padrao inverso deixaria uma porta aberta que ninguem pediu para abrir.
+     *
+     * @param senha login por e-mail e senha do cadastro proprio. Existe em
+     *              desenvolvimento e em homologacao, onde nem todo mundo tem
+     *              conta no Keycloak de teste. Em producao vale so o SSO.
+     * @param mock  login por identidade de teste, que <b>dispensa credencial</b>:
+     *              basta informar o CPF e o sistema emite a sessao. Serve ao
+     *              desenvolvimento sem SSO e a nada mais — habilita-lo num
+     *              ambiente alcancavel de fora entrega o sistema a quem quiser,
+     *              porque {@code /api/auth/usuarios-mock} lista as identidades
+     *              e uma delas e administrador.
+     */
+    public record Login(boolean senha, boolean mock) {}
 
     /**
      * Armazenamento das artes. {@code tipo} vale {@code banco} (padrao) ou

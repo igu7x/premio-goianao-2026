@@ -18,3 +18,10 @@ goianao:
     # Qualquer porta local: o Vite cai para 5174, 5175... quando a 5173 esta
     # ocupada, e sem isto o login volta 403 (Invalid CORS request).
     origens: http://localhost:[*],http://127.0.0.1:[*]
+
+  # Em desenvolvimento valem as duas: nao ha Keycloak local, e o login mockado
+  # e o que permite alternar entre magistrado, servidor e administrador sem
+  # cadastrar ninguem.
+  login:
+    senha: true
+    mock: true

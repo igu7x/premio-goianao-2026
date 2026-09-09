@@ -112,6 +112,16 @@ goianao:
   # chamada funciona em homologacao ou producao.
   cors:
     origens: ${GOIANAO_CORS_ORIGENS:http://localhost:5173,http://127.0.0.1:5173}
+
+  # Portas de entrada alem do SSO. Ambas DESLIGADAS por padrao: esquecer a
+  # variavel em producao deixa o sistema no estado seguro.
+  #
+  # Em producao nenhuma das duas deve ser ligada -- vale so o SSO.
+  # Em homologacao, GOIANAO_LOGIN_SENHA=true (nem todos tem conta no Keycloak
+  # de teste). O login mockado nao: ele dispensa credencial.
+  login:
+    senha: ${GOIANAO_LOGIN_SENHA:false}
+    mock: ${GOIANAO_LOGIN_MOCK:false}
   verificacao-publica:
     consultas-por-minuto: 30
   dados-demo: false

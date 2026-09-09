@@ -63,7 +63,12 @@ public class SecurityConfig {
                 // Login mock e verificacao publica de certificado (007/RNF-1).
                 // O fluxo de SSO acontece antes de existir sessao: quem chega no
                 // /login e no /callback ainda nao tem token nosso.
-                reg.requestMatchers("/api/auth/login", "/api/auth/login-senha", "/api/auth/usuarios-mock")
+                // /situacao diz quais portas de entrada este ambiente abre. E a
+                // primeira coisa que a tela de login consulta, entao precisa
+                // responder sem sessao — e nao revela nada que o proprio
+                // formulario ja nao revelasse.
+                reg.requestMatchers("/api/auth/login", "/api/auth/login-senha",
+                                "/api/auth/usuarios-mock", "/api/auth/situacao")
                         .permitAll()
                         .requestMatchers("/api/auth/sso/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()

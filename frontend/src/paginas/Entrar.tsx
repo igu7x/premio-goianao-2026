@@ -16,8 +16,11 @@ const ROTULO_PAPEL: Record<Papel, string> = {
 
 const LIGAS: Selo[] = ['BRONZE', 'PRATA', 'OURO', 'DIAMANTE']
 
-interface SituacaoSso {
-  habilitado: boolean
+/** Portas de entrada que o ambiente abre, decididas pelo backend. */
+interface SituacaoLogin {
+  sso: boolean
+  senha: boolean
+  mock: boolean
 }
 
 /** O retorno do SSO chega no fragmento: /entrar#token=...&destino=... */
@@ -40,16 +43,16 @@ function lerFragmento(): { token?: string; erro?: string; destino?: string } {
  * volta no <b>fragmento</b> da URL, que não é enviado ao servidor e por isso não
  * aparece em log de proxy nem no cabeçalho Referer.
  *
- * O segundo é a lista de identidades de teste, que existe enquanto o client do
- * Keycloak não é criado. Ela some sozinha quando o SSO é configurado: o backend
- * informa a situação em <code>/api/auth/sso/situacao</code>, e não há nada a
- * mudar no código no dia da virada.
+ * Quais caminhos aparecem é decisão do <b>backend</b>, consultada em
+ * <code>/api/auth/situacao</code> — não do build. A mesma imagem sobe em
+ * homologação, onde também vale e-mail e senha, e em produção, onde vale só o
+ * SSO. Não há nada a mudar no código no dia da virada.
  */
 export function Entrar() {
   const { identidade, entrar, entrarComSenha, adotarToken, carregando } = useSessao()
   const navegar = useNavigate()
 
-  const [sso, setSso] = useState<SituacaoSso | null>(null)
+  const [situacao, setSituacao] = useState<SituacaoLogin | null>(null)
   const [usuarios, setUsuarios] = useState<UsuarioMock[] | null>(null)
   const [entrando, setEntrando] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -81,21 +84,28 @@ export function Entrar() {
     }
   }, [adotarToken, navegar])
 
+  /*
+   * Quais portas de entrada este ambiente abre. Quem decide é o backend, não o
+   * build: a mesma imagem sobe em homologação, onde vale o login por senha, e
+   * em produção, onde vale só o SSO. Se a consulta falhar, assume-se o conjunto
+   * mais restrito — errar para menos aqui só esconde um formulário; errar para
+   * mais desenharia uma porta que o servidor recusa.
+   */
   useEffect(() => {
     api
-      .get<SituacaoSso>('/api/auth/sso/situacao')
-      .then(setSso)
-      .catch(() => setSso({ habilitado: false }))
+      .get<SituacaoLogin>('/api/auth/situacao')
+      .then(setSituacao)
+      .catch(() => setSituacao({ sso: false, senha: false, mock: false }))
   }, [])
 
-  // A lista mockada só é buscada quando o SSO não está disponível.
+  // A lista mockada só existe onde o login mockado está ligado.
   useEffect(() => {
-    if (!sso || sso.habilitado) return
+    if (!situacao?.mock) return
     api
       .get<UsuarioMock[]>('/api/auth/usuarios-mock')
       .then(setUsuarios)
       .catch((e: ErroApi) => setErro(e.message))
-  }, [sso])
+  }, [situacao])
 
   if (carregando || voltandoDoSso) {
     return <Carregando texto="Verificando sua sessão…" />
@@ -170,9 +180,13 @@ export function Entrar() {
 
           {/*
             E-mail e senha vem primeiro, e nao atras das identidades de teste:
-            e por aqui que entra quem tem cadastro de verdade. A lista mockada
-            existe para percorrer o sistema sem cadastrar ninguem.
+            e por aqui que entra quem tem cadastro de verdade.
+
+            So aparece onde o ambiente aceita — homologacao e desenvolvimento.
+            Em producao vale so o SSO, e desenhar um formulario que o servidor
+            recusaria seria convidar a tentar.
           */}
+          {situacao?.senha && (
           <form
             className="entrada-credenciais"
             onSubmit={(evento) => {
@@ -210,10 +224,11 @@ export function Entrar() {
               {entrandoComSenha ? 'Entrando…' : 'Entrar'}
             </button>
           </form>
+          )}
 
-          {!sso && <Carregando />}
+          {!situacao && <Carregando />}
 
-          {sso?.habilitado && (
+          {situacao?.sso && (
             <>
               <p className="apoio" style={{ marginTop: 12 }}>
                 Use as mesmas credenciais dos demais sistemas do tribunal.
@@ -231,7 +246,7 @@ export function Entrar() {
             </>
           )}
 
-          {sso && !sso.habilitado && (
+          {situacao?.mock && (
             <>
               <div className="regua" style={{ marginTop: 'var(--e6)' }}>
                 <span>ou entre como</span>
@@ -276,6 +291,19 @@ export function Entrar() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Ambiente sem porta de entrada nenhuma: em vez de uma caixa vazia,
+              diz o que houve. Acontece quando o SSO ainda não foi configurado e
+              nada mais foi habilitado — ou quando a consulta de situação falhou
+              e assumimos o conjunto mais restrito. */}
+          {situacao && !situacao.sso && !situacao.senha && !situacao.mock && (
+            <Aviso tom="atencao" titulo="Nenhuma forma de acesso disponível">
+              <p>
+                Este ambiente ainda não tem o login corporativo configurado. Procure a equipe
+                responsável pelo sistema.
+              </p>
+            </Aviso>
           )}
 
           <p className="apoio" style={{ marginTop: 'var(--e5)' }}>

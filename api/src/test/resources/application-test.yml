@@ -13,6 +13,11 @@ goianao:
   base-verificacao: https://goianao.tjgo.jus.br
   storage:
     dir: ./target/artes-teste
+  # Os testes exercitam as duas portas de entrada; quem verifica que elas podem
+  # ser desligadas sobrescreve estas propriedades (ver LoginPorAmbienteIT).
+  login:
+    senha: true
+    mock: true
 
 logging:
   level:

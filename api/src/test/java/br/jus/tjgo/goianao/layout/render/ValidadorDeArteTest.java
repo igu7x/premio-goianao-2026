@@ -19,6 +19,7 @@ class ValidadorDeArteTest {
             new GoianaoProperties.Storage("banco", "./target/artes-teste"),
             new GoianaoProperties.Layout(2400, 0.05),
             new GoianaoProperties.Cors(List.of("http://localhost")),
+            new GoianaoProperties.Login(false, false),
             new GoianaoProperties.VerificacaoPublica(30),
             false));
 

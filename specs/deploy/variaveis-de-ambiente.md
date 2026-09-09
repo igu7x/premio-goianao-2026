@@ -204,3 +204,57 @@ Duas perguntas para a infra, nessa ordem:
 
 O jeito mais rápido de responder as duas: fazer um login de teste, capturar o
 `id_token` e olhar o conteúdo.
+
+## Portas de entrada por ambiente
+
+Além do SSO, existem duas formas de entrar. **As duas nascem desligadas** — a
+variável ausente deixa o ambiente no estado seguro.
+
+| Variável | dev | **stag** | **prod** | O que é |
+| --- | --- | --- | --- | --- |
+| `GOIANAO_LOGIN_SENHA` | `true` (perfil) | **`true`** | não definir | Login por e-mail e senha do cadastro próprio. |
+| `GOIANAO_LOGIN_MOCK` | `true` (perfil) | não definir | não definir | Identidade de teste. **Dispensa credencial.** |
+
+Em homologação, portanto, basta:
+
+```
+GOIANAO_LOGIN_SENHA=true
+```
+
+O login mockado **não pode** ser ligado fora de desenvolvimento: informado o
+CPF, a sessão é emitida sem senha, e `/api/auth/usuarios-mock` publica as
+identidades disponíveis — uma delas administrador. A aplicação **recusa
+iniciar** com `GOIANAO_LOGIN_MOCK=true` fora dos perfis `dev`/`test`, no mesmo
+espírito da recusa por segredo de JWT público.
+
+Endpoint desligado responde **404**, não 403: 403 confirmaria que existe e está
+apenas fechado. Para quem sondar a API em produção, o login mockado não existe.
+
+O frontend consulta `GET /api/auth/situacao` e desenha só o que o ambiente
+aceita. Nada disso é decidido no build — a mesma imagem serve homologação e
+produção.
+
+## O primeiro superadministrador
+
+Criado na subida, quando não existe nenhum. As quatro variáveis vão no ambiente
+da **API**:
+
+```
+GOIANAO_SUPERADMIN_EMAIL=teixeiraigor09@gmail.com
+GOIANAO_SUPERADMIN_SENHA=<a senha>
+GOIANAO_SUPERADMIN_CPF=71198182105
+GOIANAO_SUPERADMIN_NOME=Igor Freitas Costa Cupertino Teixeira
+```
+
+A senha é gravada como **hash BCrypt**; o valor em claro não é guardado nem
+registrado em log. Ela nunca entra no repositório — por isso vem de variável, e
+o ideal é criá-la como Secret no cluster, não em ConfigMap.
+
+Depois da primeira subida bem-sucedida as quatro podem ser removidas: o usuário
+já está no banco. Se não forem, não há efeito — a criação só ocorre quando não
+existe superadministrador algum.
+
+Sem essas variáveis a aplicação sobe normalmente e o log diz que nenhum
+superadministrador foi cadastrado. Como o login por senha depende de alguém
+existir no cadastro, sem elas não há como entrar em homologação a não ser pelo
+SSO.
