@@ -5,6 +5,8 @@ import br.jus.tjgo.goianao.edicao.EdicaoService;
 import br.jus.tjgo.goianao.magistrado.MagistradoService;
 import br.jus.tjgo.goianao.magistrado.Reconhecimento;
 import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
+import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
+import br.jus.tjgo.goianao.unidade.UnidadeService;
 import br.jus.tjgo.goianao.servidor.dto.ListaHabilitadosResposta;
 import br.jus.tjgo.goianao.servidor.dto.ServidorHabilitadoResposta;
 import java.util.ArrayList;
@@ -29,13 +31,16 @@ public class MagistradoServidoresController {
     private final ServidorHabilitadoService servico;
     private final MagistradoService magistrados;
     private final EdicaoService edicoes;
+    private final UnidadeService unidadesDoCadastro;
 
     public MagistradoServidoresController(ServidorHabilitadoService servico,
                                           MagistradoService magistrados,
-                                          EdicaoService edicoes) {
+                                          EdicaoService edicoes,
+                                          UnidadeService unidadesDoCadastro) {
         this.servico = servico;
         this.magistrados = magistrados;
         this.edicoes = edicoes;
+        this.unidadesDoCadastro = unidadesDoCadastro;
     }
 
     @GetMapping
@@ -45,10 +50,25 @@ public class MagistradoServidoresController {
         Edicao edicao = edicoes.resolverAlvo(edicaoId);
         String cpf = UsuarioAtual.obrigatorio().cpf();
 
-        // Uma entrada por unidade reconhecida do magistrado, sem repetir.
+        /*
+         * As unidades do magistrado vêm de dois lugares, sem repetir:
+         *
+         * 1. aquelas pelas quais ele foi reconhecido nesta edição;
+         * 2. aquelas pelas quais ele responde, por designação do
+         *    superadministrador no cadastro de unidades.
+         *
+         * As designadas só entram quando a unidade foi reconhecida na edição —
+         * fora disso não existe lista de habilitados para gerenciar, e mostrar
+         * um cartão que não leva a lugar algum seria pior do que omiti-lo.
+         */
         Map<Long, String> unidades = new LinkedHashMap<>();
         for (Reconhecimento r : magistrados.reconhecimentosDe(edicao.getId(), cpf)) {
             unidades.putIfAbsent(r.getUnidade().getId(), r.getUnidade().getNome());
+        }
+        for (UnidadeJudiciaria u : unidadesDoCadastro.unidadesSobResponsabilidade(cpf)) {
+            if (magistrados.unidadeEhReconhecida(edicao.getId(), u.getId())) {
+                unidades.putIfAbsent(u.getId(), u.getNome());
+            }
         }
 
         List<ListaHabilitadosResposta> resposta = new ArrayList<>();

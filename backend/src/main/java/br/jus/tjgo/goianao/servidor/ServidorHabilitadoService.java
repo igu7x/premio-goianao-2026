@@ -46,9 +46,19 @@ public class ServidorHabilitadoService {
     // ------------------------------------------------------------------
 
     /**
-     * Administrador edita qualquer unidade reconhecida; magistrado so as
-     * <b>suas</b> unidades e so enquanto a edicao e a <b>vigente</b> — principio
-     * do menor privilegio, com o admin cobrindo o resto.
+     * Administrador edita qualquer unidade reconhecida; magistrado edita as
+     * <b>suas</b> e so enquanto a edicao e a <b>vigente</b> — principio do menor
+     * privilegio, com o admin cobrindo o resto.
+     *
+     * <p>Uma unidade e "dele" por dois caminhos: por ter sido <b>reconhecido</b>
+     * nela naquela edicao, ou por ter sido <b>designado responsavel</b> pela
+     * unidade no cadastro do superadministrador. O segundo existe porque
+     * responder pela unidade e coisa diferente de ter vencido o premio nela — o
+     * juiz de uma vara que nao ganhou nada continua sendo quem sabe quem
+     * trabalha ali.
+     *
+     * <p>A restricao a edicao vigente vale para os dois caminhos: edicao passada
+     * e congelada, independentemente de como o escopo foi obtido.
      */
     public boolean podeEditar(Edicao edicao, Long unidadeId) {
         UsuarioAutenticado usuario = UsuarioAtual.obrigatorio();
@@ -58,15 +68,17 @@ public class ServidorHabilitadoService {
         if (!edicao.isVigente()) {
             return false;
         }
-        return magistrados.reconhecimentosDe(edicao.getId(), usuario.cpf()).stream()
+        boolean reconhecido = magistrados.reconhecimentosDe(edicao.getId(), usuario.cpf()).stream()
                 .anyMatch(r -> r.getUnidade().getId().equals(unidadeId));
+
+        return reconhecido || unidades.ehResponsavel(unidadeId, usuario.cpf());
     }
 
     private void exigirPermissao(Edicao edicao, Long unidadeId) {
         if (!podeEditar(edicao, unidadeId)) {
             throw new AcessoNegadoException(
-                    "Você só pode editar a lista das unidades pelas quais foi reconhecido,"
-                            + " e apenas na edição vigente.");
+                    "Você só pode editar a lista das unidades pelas quais foi reconhecido ou "
+                            + "pelas quais responde, e apenas na edição vigente.");
         }
     }
 

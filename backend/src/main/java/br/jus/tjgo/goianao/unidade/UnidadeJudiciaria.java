@@ -1,11 +1,15 @@
 package br.jus.tjgo.goianao.unidade;
 
 import br.jus.tjgo.goianao.comum.Texto;
+import br.jus.tjgo.goianao.usuario.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
@@ -34,6 +38,17 @@ public class UnidadeJudiciaria {
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
+    /**
+     * Superior responsavel, designado pelo superadministrador.
+     *
+     * <p>E propriedade da <b>unidade</b>, nao da edicao: quem responde pela vara
+     * nao muda porque o premio mudou de ano. Nulo enquanto ninguem foi
+     * designado, que e o estado normal de uma unidade recem-cadastrada.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "responsavel_id")
+    private Usuario responsavel;
+
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 
@@ -44,6 +59,14 @@ public class UnidadeJudiciaria {
         this.nomeCanonico = Texto.canonicalizar(nomeDoEgesp);
         this.ativo = true;
         this.criadoEm = LocalDateTime.now();
+    }
+
+    public void designarResponsavel(Usuario responsavel) {
+        this.responsavel = responsavel;
+    }
+
+    public Usuario getResponsavel() {
+        return responsavel;
     }
 
     public Long getId() {

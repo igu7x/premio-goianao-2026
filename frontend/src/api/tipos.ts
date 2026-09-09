@@ -222,3 +222,12 @@ export interface Usuario {
   temSenha: boolean
   criadoEm: string
 }
+
+/** Unidade judiciária no cadastro do superadministrador. */
+export interface Unidade {
+  id: number
+  nome: string
+  ativo: boolean
+  /** Quem responde pela unidade; nulo enquanto ninguém foi designado. */
+  responsavel: { id: number; nome: string; email: string } | null
+}

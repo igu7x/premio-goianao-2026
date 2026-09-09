@@ -18,7 +18,9 @@ interface GrupoDeMenu {
 
 /** Rótulo do topo: diz em que parte do sistema a pessoa está. */
 function contexto(caminho: string): string {
-  if (caminho.startsWith('/usuarios')) return 'Superadministração'
+  if (caminho.startsWith('/usuarios') || caminho.startsWith('/unidades')) {
+    return 'Superadministração'
+  }
   if (caminho.startsWith('/verificar')) return 'Conferência pública'
   if (caminho.startsWith('/edicoes')) return 'Configuração do prêmio'
   if (caminho.startsWith('/minhas-unidades')) return 'Servidores da unidade'
@@ -63,7 +65,10 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
   if (tem('SUPERADMIN')) {
     grupos.push({
       titulo: 'Superadministração',
-      itens: [{ para: '/usuarios', rotulo: 'Usuários do sistema', icone: 'equipe' }],
+      itens: [
+        { para: '/usuarios', rotulo: 'Usuários do sistema', icone: 'equipe' },
+        { para: '/unidades', rotulo: 'Unidades', icone: 'edicoes' },
+      ],
     })
   }
 

@@ -7,6 +7,7 @@ import { Entrar } from './paginas/Entrar'
 import { Inicio } from './paginas/Inicio'
 import { MeusCertificados } from './paginas/MeusCertificados'
 import { MinhasUnidades } from './paginas/MinhasUnidades'
+import { Unidades } from './paginas/Unidades'
 import { Usuarios } from './paginas/Usuarios'
 import { Verificar } from './paginas/Verificar'
 import { useSessao } from './sessao/SessaoContexto'
@@ -100,6 +101,14 @@ export function App() {
           element={
             <Exige papeis={['SUPERADMIN']}>
               <Usuarios />
+            </Exige>
+          }
+        />
+        <Route
+          path="/unidades"
+          element={
+            <Exige papeis={['SUPERADMIN']}>
+              <Unidades />
             </Exige>
           }
         />

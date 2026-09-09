@@ -4,8 +4,11 @@ import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
 import br.jus.tjgo.goianao.integracao.egesp.EgespClient;
+import br.jus.tjgo.goianao.seguranca.Papel;
 import br.jus.tjgo.goianao.integracao.egesp.UnidadeEgesp;
 import br.jus.tjgo.goianao.unidade.dto.UnidadeEgespResposta;
+import br.jus.tjgo.goianao.usuario.Usuario;
+import br.jus.tjgo.goianao.usuario.UsuarioRepository;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -16,10 +19,13 @@ public class UnidadeService {
 
     private final UnidadeRepository repositorio;
     private final EgespClient egesp;
+    private final UsuarioRepository usuarios;
 
-    public UnidadeService(UnidadeRepository repositorio, EgespClient egesp) {
+    public UnidadeService(UnidadeRepository repositorio, EgespClient egesp,
+                          UsuarioRepository usuarios) {
         this.repositorio = repositorio;
         this.egesp = egesp;
+        this.usuarios = usuarios;
     }
 
     /** Unidades do EGESP para o administrador escolher (004/RF-1). */
@@ -47,6 +53,60 @@ public class UnidadeService {
     public UnidadeJudiciaria buscar(Long id) {
         return repositorio.findById(id).orElseThrow(
                 () -> new NaoEncontradoException("Unidade " + id + " não encontrada."));
+    }
+
+    // ------------------------------------------------------------------
+    // Superior responsavel pela unidade
+    // ------------------------------------------------------------------
+
+    /**
+     * Designa quem responde pela unidade.
+     *
+     * <p>E o que passa a dar ao magistrado o direito de gerenciar a lista de
+     * servidores habilitados dali. Antes disso, o unico caminho era ter sido
+     * <b>reconhecido</b> na unidade — o que amarra duas coisas diferentes: ter
+     * vencido o premio e responder pela unidade.
+     *
+     * <p>Exige o papel MAGISTRADO porque a tela que a designacao destrava e a do
+     * magistrado; designar quem nao o tem criaria um responsavel sem lugar
+     * algum para exercer a responsabilidade.
+     */
+    @Transactional
+    public UnidadeJudiciaria designarResponsavel(Long unidadeId, Long usuarioId) {
+        UnidadeJudiciaria unidade = buscar(unidadeId);
+        Usuario usuario = usuarios.findById(usuarioId).orElseThrow(
+                () -> new NaoEncontradoException("Usuário não encontrado."));
+
+        if (!usuario.isAtivo()) {
+            throw new RegraDeNegocioException(
+                    "Usuário desativado não pode responder por uma unidade. Reative-o antes.");
+        }
+        if (!usuario.getPapeis().contains(Papel.MAGISTRADO)) {
+            throw new RegraDeNegocioException(
+                    "Só quem tem o papel de magistrado pode responder por uma unidade — é a tela "
+                    + "dele que a designação libera. Ajuste os papéis em Usuários do sistema.");
+        }
+
+        unidade.designarResponsavel(usuario);
+        return unidade;
+    }
+
+    /** Escopo: este CPF responde por esta unidade? */
+    @Transactional(readOnly = true)
+    public boolean ehResponsavel(Long unidadeId, String cpf) {
+        return repositorio.existsByIdAndResponsavelCpf(unidadeId, cpf);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnidadeJudiciaria> unidadesSobResponsabilidade(String cpf) {
+        return repositorio.findByResponsavelCpfOrderByNomeAsc(cpf);
+    }
+
+    @Transactional
+    public UnidadeJudiciaria removerResponsavel(Long unidadeId) {
+        UnidadeJudiciaria unidade = buscar(unidadeId);
+        unidade.designarResponsavel(null);
+        return unidade;
     }
 
     /**

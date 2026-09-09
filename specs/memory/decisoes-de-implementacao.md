@@ -548,3 +548,45 @@ o problema de volta, com um sintoma difícil de associar à causa.
 cobre a tela vai por portal**, não fica pendurado na árvore da página. Amarrado
 por teste (`Modal.test.tsx`), que renderiza o modal dentro de um contêiner com
 transform e exige que a cortina saia no `body`.
+
+---
+
+## DI-23 — Responder pela unidade deixa de ser consequência de ter vencido
+
+**Contexto.** Quem podia gerenciar a lista de servidores habilitados de uma
+unidade era o magistrado **reconhecido** nela naquela edição. Isso amarra duas
+coisas diferentes: ter vencido o prêmio e responder pela unidade. O juiz de uma
+vara que não ganhou nada — que é justamente quem sabe quem trabalha ali — ficava
+de fora, e não havia como o tribunal corrigir isso pelo sistema.
+
+**Decisão.** O superadministrador designa o **superior responsável** por cada
+unidade, num módulo próprio (`/unidades`). O escopo do magistrado passa a ser a
+**união**: unidades pelas quais foi reconhecido **ou** pelas quais responde.
+
+**Por que união e não substituição.** A regra do reconhecimento é da feature 008
+e está coberta por testes; trocá-la de uma vez quebraria comportamento que
+ninguém pediu para mudar. A união entrega o que foi pedido sem retirar nada. Se
+depois se decidir que a designação deve ser a **única** fonte de escopo, é
+apagar um ramo do `podeEditar` — e aí vale rever a spec de 008.
+
+**A designação é da unidade, não da edição.** Quem responde pela vara não muda
+porque o prêmio mudou de ano. Já a restrição de **só mexer na edição vigente**
+continua valendo para os dois caminhos: edição passada é congelada,
+independentemente de como o escopo foi obtido.
+
+**Exige o papel MAGISTRADO.** É a tela dele que a designação destrava; designar
+quem não o tem criaria um responsável sem lugar algum para exercer a
+responsabilidade. A mensagem de erro diz onde ajustar o papel.
+
+**A unidade designada só aparece se estiver reconhecida na edição.** Sem
+reconhecimento não existe lista de habilitados para gerenciar, e um cartão que
+não leva a lugar nenhum é pior do que a ausência dele.
+
+**Consequência.** `GET /api/unidades` passou a ser exclusivo do
+superadministrador: a resposta agora traz quem responde por cada unidade, com
+nome e e-mail — é o mapa de quem manda em quê, não uma lista de nomes de vara.
+Verificado em `ResponsavelPelaUnidadeIT`, inclusive o caso de o designado não
+ter sido reconhecido na unidade.
+
+**Pendente.** A importação da planilha de unidades (CSV) ainda não existe; hoje
+as unidades entram pelo cadastro de reconhecidos.

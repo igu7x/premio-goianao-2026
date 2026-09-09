@@ -21,3 +21,4 @@ databaseChangeLog:
   - include: { file: db/changelog/005-certificados-emitidos.sql }
   - include: { file: db/changelog/006-artes-no-banco.sql }
   - include: { file: db/changelog/007-usuarios.sql }
+  - include: { file: db/changelog/008-responsavel-pela-unidade.sql }
