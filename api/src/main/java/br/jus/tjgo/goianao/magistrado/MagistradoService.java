@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.magistrado;
 
 import br.jus.tjgo.goianao.comum.Cpf;
+import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.comum.erro.ConflitoException;
@@ -92,16 +93,17 @@ public class MagistradoService {
         Edicao edicao = edicoes.buscar(edicaoId);
         exigirElegivelParaInclusao(edicao);
 
-        String cpf = validarCpf(requisicao.cpf());
+        String email = Email.exigir(requisicao.email());
         String nome = exigirNome(requisicao.nome());
+        String cpf = Cpf.opcional(requisicao.cpf());
 
-        if (magistrados.existsByEdicaoIdAndCpf(edicaoId, cpf)) {
-            throw new ConflitoException("Já existe um magistrado com este CPF na edição "
+        if (magistrados.existsByEdicaoIdAndEmail(edicaoId, email)) {
+            throw new ConflitoException("Já existe um magistrado com este e-mail na edição "
                     + edicao.getAno() + ". Use a inclusão de reconhecimento para adicionar"
                     + " outra unidade a ele.");
         }
 
-        MagistradoReconhecido magistrado = new MagistradoReconhecido(edicao, cpf, nome);
+        MagistradoReconhecido magistrado = new MagistradoReconhecido(edicao, email, nome, cpf);
         aplicarReconhecimentos(magistrado, requisicao.reconhecimentos());
         return magistrados.save(magistrado);
     }
@@ -135,13 +137,16 @@ public class MagistradoService {
         MagistradoReconhecido magistrado = buscar(edicaoId, magistradoId);
         exigirRascunho(magistrado.getEdicao(), "editar");
 
-        String cpf = validarCpf(requisicao.cpf());
-        if (!cpf.equals(magistrado.getCpf())
-                && magistrados.existsByEdicaoIdAndCpf(edicaoId, cpf)) {
-            throw new ConflitoException("Já existe outro magistrado com este CPF na edição.");
+        // O e-mail e a chave e nao muda; quem cadastrou o e-mail errado remove e
+        // cadastra de novo — possivel, porque editar so existe em rascunho.
+        String email = Email.exigir(requisicao.email());
+        if (!email.equals(magistrado.getEmail())) {
+            throw new RegraDeNegocioException("O e-mail do magistrado não pode ser alterado. "
+                    + "Remova o cadastro e inclua de novo com o e-mail correto.");
         }
 
         magistrado.renomear(exigirNome(requisicao.nome()));
+        magistrado.definirCpf(Cpf.opcional(requisicao.cpf()));
         magistrado.limparReconhecimentos();
         aplicarReconhecimentos(magistrado, requisicao.reconhecimentos());
         return magistrado;
@@ -210,15 +215,15 @@ public class MagistradoService {
         return resposta;
     }
 
-    /** Reconhecimentos de um CPF em uma edicao — base das opcoes de emissao (005/RF-2). */
+    /** Reconhecimentos de um e-mail em uma edicao — base das opcoes de emissao (005/RF-2). */
     @Transactional(readOnly = true)
-    public List<Reconhecimento> reconhecimentosDe(Long edicaoId, String cpf) {
-        return reconhecimentos.doMagistradoNaEdicao(edicaoId, cpf);
+    public List<Reconhecimento> reconhecimentosDe(Long edicaoId, String email) {
+        return reconhecimentos.doMagistradoNaEdicao(edicaoId, email);
     }
 
     @Transactional(readOnly = true)
-    public List<Long> edicoesPublicadasDe(String cpf) {
-        return magistrados.edicoesPublicadasComReconhecimento(cpf);
+    public List<Long> edicoesPublicadasDe(String email) {
+        return magistrados.edicoesPublicadasComReconhecimento(email);
     }
 
     @Transactional(readOnly = true)
@@ -238,8 +243,8 @@ public class MagistradoService {
 
     /** Nome cadastrado do magistrado naquela edicao — o que vai impresso (005/RF-4). */
     @Transactional(readOnly = true)
-    public Optional<MagistradoReconhecido> porCpfNaEdicao(Long edicaoId, String cpf) {
-        return magistrados.findByEdicaoIdAndCpf(edicaoId, cpf);
+    public Optional<MagistradoReconhecido> porEmailNaEdicao(Long edicaoId, String email) {
+        return magistrados.findByEdicaoIdAndEmail(edicaoId, email);
     }
 
     // ------------------------------------------------------------------
@@ -280,14 +285,6 @@ public class MagistradoService {
             throw new RegraDeNegocioException("Informe a unidade judiciária.");
         }
         return unidades.garantirDoEgesp(nome);
-    }
-
-    private String validarCpf(String bruto) {
-        String cpf = Cpf.normalizar(bruto);
-        if (!Cpf.valido(cpf)) {
-            throw new RegraDeNegocioException("CPF inválido.");
-        }
-        return cpf;
     }
 
     private String exigirNome(String bruto) {

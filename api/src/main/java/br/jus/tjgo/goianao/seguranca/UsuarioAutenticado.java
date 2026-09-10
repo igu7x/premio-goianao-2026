@@ -8,11 +8,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 /**
- * Identidade em uso na requisicao: CPF e nome vem do SSO (mockado nesta fase) e
- * os papeis sao resolvidos pelo {@code PapeisResolver}. O CPF nunca e digitado
- * pelo emissor (constituicao, principio 3).
+ * Identidade em uso na requisicao: e-mail e nome vem do SSO (ou do login por
+ * senha) e os papeis sao resolvidos pelo {@code PapeisResolver}. O e-mail e a
+ * chave da pessoa (DI-24) e nunca e digitado pelo emissor (constituicao,
+ * principio 3).
  */
-public record UsuarioAutenticado(String cpf, String nome, Set<Papel> papeis) {
+public record UsuarioAutenticado(String email, String nome, Set<Papel> papeis) {
 
     public boolean tem(Papel papel) {
         return papeis.contains(papel);

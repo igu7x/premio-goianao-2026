@@ -4,6 +4,8 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** a elegibilidade é conferida pelo **e-mail
+  corporativo** que o SSO informa, e não pelo CPF.
 
 > Esta spec descreve **o quê** e **por quê**. A elegibilidade do servidor vem da
 > **lista de servidores habilitados** (feature 008), não de consulta ao EGESP na

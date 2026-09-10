@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.magistrado;
 
 import br.jus.tjgo.goianao.comum.Cpf;
+import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.edicao.Edicao;
@@ -20,8 +21,8 @@ import org.springframework.stereotype.Service;
  *
  * <p>Deliberadamente <b>sem</b> transacao propria: cada magistrado e persistido
  * pela transacao de {@link MagistradoService#criar}, o que produz a semantica
- * pedida — um CPF com qualquer linha invalida e rejeitado inteiro e vai para o
- * relatorio, e os demais entram normalmente (004/RNF-3).
+ * pedida — um magistrado com qualquer linha invalida e rejeitado inteiro e vai
+ * para o relatorio, e os demais entram normalmente (004/RNF-3).
  */
 @Service
 public class ImportacaoMagistradosService {
@@ -44,16 +45,16 @@ public class ImportacaoMagistradosService {
         List<ImportadorCsv.LinhaCsv> linhas = leitor.ler(csv);
         List<ImportacaoResposta.ErroDeLinha> erros = new ArrayList<>();
 
-        // Agrupa por CPF preservando a ordem do arquivo: varias linhas do mesmo
-        // magistrado viram um cadastro com varios reconhecimentos.
+        // Agrupa por e-mail preservando a ordem do arquivo: varias linhas do
+        // mesmo magistrado viram um cadastro com varios reconhecimentos.
         Map<String, Grupo> grupos = new LinkedHashMap<>();
 
         for (ImportadorCsv.LinhaCsv linha : linhas) {
-            String cpf = Cpf.normalizar(linha.cpf());
-            if (cpf == null || !Cpf.valido(cpf)) {
-                erros.add(erro(linha, "CPF inválido ou ausente."));
+            if (!Email.valido(linha.email())) {
+                erros.add(erro(linha, "E-mail inválido ou ausente."));
                 continue;
             }
+            String email = Email.normalizar(linha.email());
             String nome = Texto.aparar(linha.nome());
             if (nome == null) {
                 erros.add(erro(linha, "Nome ausente."));
@@ -69,8 +70,17 @@ public class ImportacaoMagistradosService {
                 erros.add(erro(linha, "Selo inválido. Use Bronze, Prata, Ouro ou Diamante."));
                 continue;
             }
+            String cpf = Cpf.normalizar(linha.cpf());
+            if (cpf != null && !cpf.isEmpty() && !Cpf.valido(cpf)) {
+                erros.add(erro(linha, "CPF inválido. A coluna é opcional: deixe em branco ou "
+                        + "corrija."));
+                continue;
+            }
 
-            Grupo grupo = grupos.computeIfAbsent(cpf, k -> new Grupo(nome));
+            Grupo grupo = grupos.computeIfAbsent(email, k -> new Grupo(nome));
+            if (grupo.cpf == null && cpf != null && !cpf.isEmpty()) {
+                grupo.cpf = cpf;
+            }
             grupo.linhas.add(linha);
             grupo.reconhecimentos.add(new ReconhecimentoRequisicao(null, unidade, selo));
         }
@@ -83,11 +93,11 @@ public class ImportacaoMagistradosService {
             Grupo grupo = entrada.getValue();
             try {
                 MagistradoReconhecido salvo = magistrados.criar(edicaoId,
-                        new MagistradoRequisicao(entrada.getKey(), grupo.nome,
+                        new MagistradoRequisicao(entrada.getKey(), grupo.nome, grupo.cpf,
                                 grupo.reconhecimentos));
                 magistradosCriados++;
                 reconhecimentosCriados += salvo.getReconhecimentos().size();
-                criados.add(salvo.getNome() + " (" + Cpf.formatar(salvo.getCpf()) + ") - "
+                criados.add(salvo.getNome() + " (" + salvo.getEmail() + ") - "
                         + salvo.getReconhecimentos().size() + " unidade(s)");
             } catch (RuntimeException e) {
                 // Rejeita o magistrado inteiro, apontando todas as linhas dele.
@@ -120,6 +130,7 @@ public class ImportacaoMagistradosService {
 
     private static final class Grupo {
         private final String nome;
+        private String cpf;
         private final List<ImportadorCsv.LinhaCsv> linhas = new ArrayList<>();
         private final List<ReconhecimentoRequisicao> reconhecimentos = new ArrayList<>();
 

@@ -18,16 +18,21 @@
 2. **Fonte única da verdade é o administrador** — quem venceu, em qual unidade e
    com qual selo, é informação cadastrada pelo administrador. O sistema nunca
    infere ou calcula vencedores.
-3. **Identidade vem de integração, não do emissor** — CPF e nome do emissor são
-   obtidos do SSO. O emissor nunca digita esses dados; ele apenas emite o que lhe
-   é de direito.
+3. **Identidade vem de integração, não do emissor** — e-mail corporativo e nome
+   do emissor são obtidos do SSO. O emissor nunca digita esses dados; ele apenas
+   emite o que lhe é de direito. O **e-mail corporativo é a chave** que identifica
+   a pessoa em todo o sistema; o CPF, quando existe, é dado opcional e apenas
+   informativo.
+   - *Emenda de 2026-09-10 (DI-24):* a chave era o CPF. Mudou porque o SSO do
+     tribunal entrega o e-mail e não entrega o CPF — com o CPF como chave,
+     ninguém que entrasse pelo SSO seria reconhecido.
 3a. **O nome impresso no certificado tem origem definida por tipo** — para o
    **magistrado**, o nome impresso é o do **cadastro daquela edição** (princípio 2:
    o administrador é a fonte da verdade; o cadastro é travado ao publicar, então a
    reemissão de uma edição antiga sempre imprime a mesma grafia). Para o
    **servidor**, o nome impresso vem do **SSO**, porque a lista de habilitados
-   registra *quem pode emitir* (CPF×unidade) e não a grafia oficial do nome. Em
-   ambos os casos o SSO é quem **identifica** o emissor (CPF); a diferença é apenas
+   registra *quem pode emitir* (e-mail×unidade) e não a grafia oficial do nome. Em
+   ambos os casos o SSO é quem **identifica** o emissor (e-mail); a diferença é apenas
    qual fonte fornece o **texto** que vai no PDF.
 3b. **Elegibilidade do servidor é versionada por edição (snapshot)** — a relação
    servidor↔unidade é registrada numa **lista de servidores habilitados** por
@@ -61,9 +66,9 @@
 - **Stack / plataforma:** Java 21 LTS + Spring (backend), React (frontend),
   PostgreSQL (banco), organizados em **monorepo** (backend + frontend no mesmo
   repositório).
-- **Integrações externas:** SSO corporativo (identifica CPF/nome) e EGESP
-  (sistema de RH; **fornece a lista de unidades** e os **servidores por unidade**
-  para semear a lista de habilitados). Ambos **mockados** nesta fase — parâmetros
+- **Integrações externas:** SSO corporativo (identifica e-mail/nome) e EGESP
+  (sistema de RH; **fornece a lista de unidades** e os **servidores por unidade**,
+  com o e-mail corporativo de cada um, para semear a lista de habilitados). Ambos **mockados** nesta fase — parâmetros
   reais de OAuth/API ainda indisponíveis. O **nome da unidade** (como vem do
   EGESP) identifica a unidade ao semear; a **emissão do servidor não chama o
   EGESP** (usa a lista persistida da feature 008).
@@ -87,7 +92,7 @@
 | Servidor | Funcionário lotado em unidade reconhecida; emite com a regra do maior selo. |
 | Administrador | Perfil que alimenta todos os cadastros e configurações. |
 | Layout de certificado | Imagem-modelo + posições de nome e unidade, por edição/selo/tipo. |
-| SSO | Login corporativo que fornece CPF e nome do usuário (mock). |
+| SSO | Login corporativo que fornece e-mail e nome do usuário. |
 | EGESP | Sistema de RH; fornece a lista de unidades e os servidores por unidade (mock). |
 | Lista de servidores habilitados | Snapshot por edição×unidade de quem pode emitir o certificado de servidor; semeada do EGESP e editável (feature 008). |
 | Edição vigente | Edição padrão (atual); não bloqueia reemissão de edições anteriores. |

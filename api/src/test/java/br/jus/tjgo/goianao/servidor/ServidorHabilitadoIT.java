@@ -3,6 +3,7 @@ package br.jus.tjgo.goianao.servidor;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,6 +13,7 @@ import br.jus.tjgo.goianao.servidor.dto.IncluirServidorRequisicao;
 import br.jus.tjgo.goianao.suporte.TesteDeIntegracao;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
 import org.assertj.core.api.Assertions;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -26,59 +28,121 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
         Cenario cenario = cenarioVigente(2110);
 
         mvc.perform(post(base(cenario) + "/semear")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.incluidos").value(org.hamcrest.Matchers.greaterThan(0)))
-                .andExpect(jsonPath("$.totalAtivos").value(org.hamcrest.Matchers.greaterThan(0)));
+                .andExpect(jsonPath("$.incluidos").value(Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.totalAtivos").value(Matchers.greaterThan(0)))
+                // O EGESP mockado entrega e-mail para todos: nada fica de fora.
+                .andExpect(jsonPath("$.ignoradosSemEmail").value(0));
 
         mvc.perform(get(base(cenario))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.servidores[0].origem").value("EGESP"))
+                .andExpect(jsonPath("$.servidores[0].email")
+                        .value(Matchers.endsWith("@tjgo.example")))
+                .andExpect(jsonPath("$.servidores[0].emailMascarado")
+                        .value(Matchers.containsString("***@tjgo.example")))
+                // O CPF do EGESP entra como dado informativo, sempre mascarado.
                 .andExpect(jsonPath("$.servidores[0].cpfMascarado")
-                        .value(org.hamcrest.Matchers.startsWith("***.")));
+                        .value(Matchers.startsWith("***.")));
     }
 
     @Test
-    @DisplayName("CA-2: inclusao manual entra com origem MANUAL")
+    @DisplayName("CA-2: inclusao manual entra com origem MANUAL, pelo e-mail e sem CPF")
     void inclusaoManual() throws Exception {
         Cenario cenario = cenarioVigente(2111);
 
         mvc.perform(post(base(cenario))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(new IncluirServidorRequisicao(CPF_SERVIDOR, "Marcos"))))
+                        .content(corpo(new IncluirServidorRequisicao(
+                                "Marcos.Paula@TJGO.example", "Marcos", null))))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.origem").value("MANUAL"))
-                .andExpect(jsonPath("$.ativo").value(true));
+                .andExpect(jsonPath("$.ativo").value(true))
+                // Gravado normalizado (DI-24).
+                .andExpect(jsonPath("$.email").value(EMAIL_SERVIDOR))
+                .andExpect(jsonPath("$.cpfMascarado").doesNotExist());
     }
 
     @Test
-    @DisplayName("CA-6: CPF repetido na mesma unidade e edicao e rejeitado")
-    void cpfDuplicado() throws Exception {
-        Cenario cenario = cenarioVigente(2112);
-        habilitarServidor(cenario.edicao.getId(), cenario.unidade.getId(), CPF_SERVIDOR, "Marcos");
+    @DisplayName("o CPF e opcional; se vier, precisa ser valido e sai mascarado")
+    void cpfOpcional() throws Exception {
+        Cenario cenario = cenarioVigente(2131);
 
         mvc.perform(post(base(cenario))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(new IncluirServidorRequisicao(CPF_SERVIDOR, "Marcos"))))
-                .andExpect(status().isConflict());
+                        .content(corpo(new IncluirServidorRequisicao(
+                                EMAIL_SERVIDOR, "Marcos", "11111111111"))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.mensagem").value("CPF inválido."));
+
+        mvc.perform(post(base(cenario))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo(new IncluirServidorRequisicao(
+                                EMAIL_SERVIDOR, "Marcos", "507.609.805-78"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.cpfMascarado").value("***.609.805-**"));
     }
 
     @Test
-    @DisplayName("CA-3: o magistrado edita a lista da sua unidade na edicao vigente")
+    @DisplayName("CA-6: e-mail repetido na mesma unidade e edicao e rejeitado, em qualquer caixa")
+    void emailDuplicado() throws Exception {
+        Cenario cenario = cenarioVigente(2112);
+        habilitarServidor(cenario.edicao.getId(), cenario.unidade.getId(), EMAIL_SERVIDOR, "Marcos");
+
+        mvc.perform(post(base(cenario))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo(new IncluirServidorRequisicao(
+                                "MARCOS.PAULA@tjgo.example", "Marcos", null))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.mensagem")
+                        .value("Este e-mail já consta na lista desta unidade nesta edição."));
+    }
+
+    @Test
+    @DisplayName("CA-3: o magistrado edita a lista da sua unidade na vigente, removendo pelo id")
     void magistradoEditaNaVigente() throws Exception {
         Cenario cenario = cenarioVigente(2113);
-        habilitarServidor(cenario.edicao.getId(), cenario.unidade.getId(), CPF_SERVIDOR, "Marcos");
+        ServidorHabilitado servidor = habilitarServidor(
+                cenario.edicao.getId(), cenario.unidade.getId(), EMAIL_SERVIDOR, "Marcos");
 
-        mvc.perform(delete(base(cenario) + "/" + CPF_SERVIDOR)
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+        mvc.perform(delete(base(cenario) + "/" + servidor.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(status().isNoContent());
 
         // Remocao logica: o item permanece para auditoria, porem inativo.
         Assertions.assertThat(servidores.estaHabilitado(
-                cenario.edicao.getId(), cenario.unidade.getId(), CPF_SERVIDOR)).isFalse();
+                cenario.edicao.getId(), cenario.unidade.getId(), EMAIL_SERVIDOR)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a remocao e so pelo id: e-mail na URL nao e aceito, e id de outra lista nao remove")
+    void remocaoSoPeloId() throws Exception {
+        Cenario cenario = cenarioVigente(2132);
+        Long edicaoId = cenario.edicao.getId();
+        ServidorHabilitado servidor = habilitarServidor(
+                edicaoId, cenario.unidade.getId(), EMAIL_SERVIDOR, "Marcos");
+
+        // Dado pessoal nao vai na URL: o caminho so aceita o id numerico.
+        mvc.perform(delete(base(cenario) + "/" + EMAIL_SERVIDOR)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isBadRequest());
+
+        // O id de um item da unidade A nao remove nada pela lista da unidade B.
+        UnidadeJudiciaria outra = unidade(UNIDADE_B);
+        mvc.perform(delete("/api/edicoes/" + edicaoId + "/unidades/" + outra.getId()
+                        + "/servidores/" + servidor.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isNotFound());
+
+        Assertions.assertThat(servidores.estaHabilitado(
+                edicaoId, cenario.unidade.getId(), EMAIL_SERVIDOR)).isTrue();
     }
 
     @Test
@@ -88,15 +152,15 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
         edicaoVigente(2115); // a anterior deixa de ser vigente
 
         mvc.perform(post(base(anterior))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(new IncluirServidorRequisicao(CPF_SERVIDOR, "Marcos"))))
+                        .content(corpo(new IncluirServidorRequisicao(EMAIL_SERVIDOR, "Marcos", null))))
                 .andExpect(status().isForbidden());
 
         mvc.perform(post(base(anterior))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(new IncluirServidorRequisicao(CPF_SERVIDOR, "Marcos"))))
+                        .content(corpo(new IncluirServidorRequisicao(EMAIL_SERVIDOR, "Marcos", null))))
                 .andExpect(status().isCreated());
     }
 
@@ -104,17 +168,17 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
     @DisplayName("CA-5: o magistrado nao edita lista de unidade que nao e dele")
     void magistradoNaoEditaUnidadeAlheia() throws Exception {
         Edicao edicao = edicaoComLayouts(2116);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
         edicoes.tornarVigente(edicoes.publicar(edicao.getId()).getId());
 
         UnidadeJudiciaria alheia = unidade(UNIDADE_C);
 
         mvc.perform(post("/api/edicoes/" + edicao.getId() + "/unidades/" + alheia.getId()
                         + "/servidores")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(new IncluirServidorRequisicao(CPF_SERVIDOR, "Marcos"))))
+                        .content(corpo(new IncluirServidorRequisicao(EMAIL_SERVIDOR, "Marcos", null))))
                 .andExpect(status().isForbidden());
     }
 
@@ -125,24 +189,26 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
         Long edicaoId = cenario.edicao.getId();
         Long unidadeId = cenario.unidade.getId();
 
-        atuandoComo(CPF_ADMIN);
+        atuandoComo(EMAIL_ADMIN);
         servidores.semear(edicaoId, unidadeId);
 
         // Um ajuste manual de cada tipo: uma inclusao e uma remocao.
-        servidores.incluir(edicaoId, unidadeId, CPF_SERVIDOR_2, "Juliana Prado Ferreira");
-        String cpfDoEgesp = servidores.listar(edicaoId, unidadeId).stream()
+        servidores.incluir(edicaoId, unidadeId, EMAIL_SERVIDOR_2, "Juliana Prado Ferreira", null);
+        ServidorHabilitado doEgesp = servidores.listar(edicaoId, unidadeId).stream()
                 .filter(s -> s.getOrigem() == OrigemServidor.EGESP)
-                .findFirst().orElseThrow().getCpf();
-        servidores.remover(edicaoId, unidadeId, cpfDoEgesp);
+                .findFirst().orElseThrow();
+        servidores.remover(edicaoId, unidadeId, doEgesp.getId());
 
         mvc.perform(post(base(cenario) + "/semear")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.incluidos").value(0))
-                .andExpect(jsonPath("$.preservadosRemovidos").value(1));
+                .andExpect(jsonPath("$.preservadosRemovidos").value(1))
+                .andExpect(jsonPath("$.ignoradosSemEmail").value(0));
 
-        Assertions.assertThat(servidores.estaHabilitado(edicaoId, unidadeId, cpfDoEgesp)).isFalse();
-        Assertions.assertThat(servidores.estaHabilitado(edicaoId, unidadeId, CPF_SERVIDOR_2))
+        Assertions.assertThat(servidores.estaHabilitado(edicaoId, unidadeId, doEgesp.getEmail()))
+                .isFalse();
+        Assertions.assertThat(servidores.estaHabilitado(edicaoId, unidadeId, EMAIL_SERVIDOR_2))
                 .isTrue();
     }
 
@@ -154,9 +220,9 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
 
         mvc.perform(post("/api/edicoes/" + cenario.edicao.getId() + "/unidades/"
                         + semReconhecimento.getId() + "/servidores")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(new IncluirServidorRequisicao(CPF_SERVIDOR, "Marcos"))))
+                        .content(corpo(new IncluirServidorRequisicao(EMAIL_SERVIDOR, "Marcos", null))))
                 .andExpect(status().isUnprocessableEntity());
     }
 
@@ -166,7 +232,7 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
         cenarioVigente(2119);
 
         mvc.perform(get("/api/magistrado/servidores")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].unidadeNome").value(UNIDADE_A))
@@ -174,32 +240,34 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
     }
 
     @Test
-    @DisplayName("RNF-2: o CPF completo só vai para quem pode editar a lista")
-    void cpfSoParaQuemEdita() throws Exception {
+    @DisplayName("RNF-2: o e-mail completo so vai para quem pode editar a lista")
+    void emailSoParaQuemEdita() throws Exception {
         Edicao edicao = edicaoComLayouts(2130);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
         edicoes.tornarVigente(edicoes.publicar(edicao.getId()).getId());
 
         UnidadeJudiciaria unidadeA = unidade(UNIDADE_A);
-        habilitarServidor(edicao.getId(), unidadeA.getId(), CPF_SERVIDOR, "Marcos");
+        ServidorHabilitado servidor =
+                habilitarServidor(edicao.getId(), unidadeA.getId(), EMAIL_SERVIDOR, "Marcos");
 
         String caminho = "/api/edicoes/" + edicao.getId()
                 + "/unidades/" + unidadeA.getId() + "/servidores";
 
-        // O dono da unidade precisa do CPF: e por ele que a remocao acontece.
-        mvc.perform(get(caminho).header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+        // O dono da unidade ve o e-mail completo, e o id pelo qual remove.
+        mvc.perform(get(caminho).header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.podeEditar").value(true))
-                .andExpect(jsonPath("$.servidores[0].cpf").value(CPF_SERVIDOR));
+                .andExpect(jsonPath("$.servidores[0].id").value(servidor.getId()))
+                .andExpect(jsonPath("$.servidores[0].email").value(EMAIL_SERVIDOR));
 
-        // Quem so consulta recebe apenas o mascarado.
-        mvc.perform(get(caminho).header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO_2)))
+        // Quem so consulta recebe apenas o mascarado — e o endereco nao aparece em lugar nenhum.
+        mvc.perform(get(caminho).header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO_2)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.podeEditar").value(false))
-                .andExpect(jsonPath("$.servidores[0].cpf").doesNotExist())
-                .andExpect(jsonPath("$.servidores[0].cpfMascarado")
-                        .value(org.hamcrest.Matchers.startsWith("***.")));
+                .andExpect(jsonPath("$.servidores[0].email").doesNotExist())
+                .andExpect(jsonPath("$.servidores[0].emailMascarado").value("m***@tjgo.example"))
+                .andExpect(content().string(Matchers.not(Matchers.containsString(EMAIL_SERVIDOR))));
     }
 
     private record Cenario(Edicao edicao, UnidadeJudiciaria unidade) {}
@@ -211,7 +279,7 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
 
     private Cenario cenarioVigente(int ano) {
         Edicao edicao = edicaoComLayouts(ano);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
         edicoes.publicar(edicao.getId());
         edicoes.tornarVigente(edicao.getId());
         return new Cenario(edicoes.buscar(edicao.getId()), unidade(UNIDADE_A));

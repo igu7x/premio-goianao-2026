@@ -48,7 +48,7 @@ public class EmissaoService {
     }
 
     @Transactional
-    public CertificadoGerado emitir(Edicao edicao, TipoCertificado tipo, String cpf,
+    public CertificadoGerado emitir(Edicao edicao, TipoCertificado tipo, String email,
                                     String nomeImpresso, UnidadeJudiciaria unidade, Selo selo) {
 
         exigirEdicaoPublicada(edicao);
@@ -57,8 +57,8 @@ public class EmissaoService {
         // Um certificado logico por (edicao, tipo, pessoa, unidade): a reemissao
         // reencontra o registro e mantem o mesmo codigo de validacao.
         Optional<CertificadoEmitido> existente = repositorio
-                .findByEdicaoIdAndTipoAndCpfEmissorAndUnidadeId(
-                        edicao.getId(), tipo, cpf, unidade.getId());
+                .findByEdicaoIdAndTipoAndEmailEmissorAndUnidadeId(
+                        edicao.getId(), tipo, email, unidade.getId());
 
         CertificadoEmitido certificado;
         if (existente.isPresent()) {
@@ -66,7 +66,7 @@ public class EmissaoService {
             certificado.registrarReemissao(nomeImpresso, selo);
         } else {
             certificado = repositorio.save(new CertificadoEmitido(
-                    edicao, tipo, cpf, nomeImpresso, unidade, selo, gerador.gerar()));
+                    edicao, tipo, email, nomeImpresso, unidade, selo, gerador.gerar()));
         }
 
         String codigo = certificado.getCodigoValidacao();
@@ -109,9 +109,9 @@ public class EmissaoService {
 
     @Transactional(readOnly = true)
     public Optional<CertificadoEmitido> jaEmitido(Long edicaoId, TipoCertificado tipo,
-                                                  String cpf, Long unidadeId) {
-        return repositorio.findByEdicaoIdAndTipoAndCpfEmissorAndUnidadeId(
-                edicaoId, tipo, cpf, unidadeId);
+                                                  String email, Long unidadeId) {
+        return repositorio.findByEdicaoIdAndTipoAndEmailEmissorAndUnidadeId(
+                edicaoId, tipo, email, unidadeId);
     }
 
     private String nomeDoArquivo(Edicao edicao, Selo selo, TipoCertificado tipo,

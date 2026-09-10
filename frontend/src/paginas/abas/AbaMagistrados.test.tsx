@@ -7,8 +7,9 @@ import { AbaMagistrados } from './AbaMagistrados'
 
 const MAGISTRADO: Magistrado = {
   id: 7,
-  cpf: '20450670252',
-  cpfFormatado: '204.506.702-52',
+  email: 'rafael.bittencourt@tjgo.example',
+  cpf: null,
+  cpfFormatado: null,
   nome: 'Rafael Siqueira Bittencourt',
   reconhecimentos: [
     { id: 1, unidadeId: 1, unidadeNome: '1ª Vara Cível da Comarca de Goiânia', selo: 'OURO' },

@@ -11,7 +11,7 @@ public interface UnidadeRepository extends JpaRepository<UnidadeJudiciaria, Long
     List<UnidadeJudiciaria> findAllByOrderByNomeAsc();
 
     /** Escopo do superior responsavel: e por aqui que ele ganha a unidade. */
-    boolean existsByIdAndResponsavelCpf(Long id, String cpf);
+    boolean existsByIdAndResponsavelEmail(Long id, String email);
 
-    List<UnidadeJudiciaria> findByResponsavelCpfOrderByNomeAsc(String cpf);
+    List<UnidadeJudiciaria> findByResponsavelEmailOrderByNomeAsc(String email);
 }

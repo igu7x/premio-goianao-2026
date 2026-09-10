@@ -27,8 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  * da <b>lista de servidores habilitados</b> daquela edicao (008) e nunca do
  * EGESP ao vivo — e o que permite reemitir uma edicao antiga com o quadro de
  * pessoal <b>daquela epoca</b>. E o nome impresso vem do <b>SSO</b>, porque a
- * lista registra quem pode emitir (CPF x unidade), nao a grafia oficial do nome
- * (006/RF-1, constituicao principio 3a).
+ * lista registra quem pode emitir (e-mail x unidade), nao a grafia oficial do
+ * nome (006/RF-1, constituicao principio 3a).
  */
 @Service
 public class EmissaoServidorService {
@@ -54,8 +54,8 @@ public class EmissaoServidorService {
     }
 
     @Transactional(readOnly = true)
-    public List<EdicaoOpcaoResposta> edicoesDisponiveis(String cpf) {
-        return habilitados.edicoesPublicadasHabilitadas(cpf).stream()
+    public List<EdicaoOpcaoResposta> edicoesDisponiveis(String email) {
+        return habilitados.edicoesPublicadasHabilitadas(email).stream()
                 .map(edicoes::buscar)
                 .sorted(Comparator.comparing(Edicao::getAno).reversed())
                 .map(EdicaoOpcaoResposta::de)
@@ -63,15 +63,15 @@ public class EmissaoServidorService {
     }
 
     /**
-     * Uma opcao por unidade em que o CPF esta habilitado <b>e</b> que foi
+     * Uma opcao por unidade em que o e-mail esta habilitado <b>e</b> que foi
      * reconhecida na edicao; cada uma com o maior selo daquela unidade.
      */
     @Transactional(readOnly = true)
-    public List<OpcaoEmissaoResposta> opcoes(Long edicaoId, String cpf) {
+    public List<OpcaoEmissaoResposta> opcoes(Long edicaoId, String email) {
         Edicao edicao = edicoes.resolverAlvo(edicaoId);
 
         List<OpcaoEmissaoResposta> opcoes = new ArrayList<>();
-        for (Long unidadeId : habilitados.unidadesHabilitadas(edicao.getId(), cpf)) {
+        for (Long unidadeId : habilitados.unidadesHabilitadas(edicao.getId(), email)) {
             Optional<Selo> maiorSelo = magistrados.maiorSeloDaUnidade(edicao.getId(), unidadeId);
             if (maiorSelo.isEmpty()) {
                 // Unidade que saiu da lista de reconhecidas: sem selo, nao emite.
@@ -79,7 +79,7 @@ public class EmissaoServidorService {
             }
             UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
             Optional<CertificadoEmitido> emitido =
-                    emissao.jaEmitido(edicao.getId(), TIPO, cpf, unidadeId);
+                    emissao.jaEmitido(edicao.getId(), TIPO, email, unidadeId);
 
             opcoes.add(new OpcaoEmissaoResposta(
                     unidadeId,
@@ -100,9 +100,9 @@ public class EmissaoServidorService {
     public EmissaoService.CertificadoGerado emitir(Long edicaoId, Long unidadeId,
                                                    UsuarioAutenticado usuario) {
         Edicao edicao = edicoes.resolverAlvo(edicaoId);
-        String cpf = usuario.cpf();
+        String email = usuario.email();
 
-        if (!habilitados.estaHabilitado(edicao.getId(), unidadeId, cpf)) {
+        if (!habilitados.estaHabilitado(edicao.getId(), unidadeId, email)) {
             throw new AcessoNegadoException(
                     "Você não consta na lista de servidores habilitados desta unidade"
                             + " na edição selecionada.");
@@ -115,7 +115,7 @@ public class EmissaoServidorService {
         UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
         String nomeImpresso = nomeParaImprimir(edicao.getId(), unidadeId, usuario);
 
-        return emissao.emitir(edicao, TIPO, cpf, nomeImpresso, unidade, maiorSelo);
+        return emissao.emitir(edicao, TIPO, email, nomeImpresso, unidade, maiorSelo);
     }
 
     /** Nome do SSO; so na ausencia dele recorre ao nome semeado na lista (006/RF-1). */
@@ -124,7 +124,7 @@ public class EmissaoServidorService {
         if (doSso != null) {
             return doSso;
         }
-        return habilitados.nomeSalvo(edicaoId, unidadeId, usuario.cpf())
+        return habilitados.nomeSalvo(edicaoId, unidadeId, usuario.email())
                 .map(Texto::aparar)
                 .orElse("Servidor");
     }

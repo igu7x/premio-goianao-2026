@@ -33,23 +33,23 @@ import org.springframework.http.MediaType;
 class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
 
     /**
-     * Deliberadamente diferente de {@code CPF_ADMIN}: o teste precisa provar que
+     * Deliberadamente diferente de {@code EMAIL_ADMIN}: o teste precisa provar que
      * ser administrador <b>não</b> abre o cadastro de unidades, e usar o mesmo
-     * CPF dos dois lados faria o teste concordar consigo mesmo.
+     * e-mail dos dois lados faria o teste concordar consigo mesmo.
      */
-    private static final String CPF_SUPER = "60840310641";
+    private static final String EMAIL_SUPER = "super@tjgo.example";
     /** Magistrado do provedor mockado que NÃO é reconhecido nas unidades do teste. */
-    private static final String CPF_CHEFE = "30980140323";
+    private static final String EMAIL_CHEFE = EMAIL_MAGISTRADO_2;
 
     @Autowired private UsuarioRepository usuarios;
 
     private Long superadmin() {
-        return usuarios.save(new Usuario(CPF_SUPER, "Super de Teste", "super@tjgo.jus.br",
+        return usuarios.save(new Usuario(EMAIL_SUPER, "Super de Teste", null,
                 Set.of(Papel.SUPERADMIN, Papel.ADMINISTRADOR))).getId();
     }
 
     private Long chefeMagistrado() {
-        return usuarios.save(new Usuario(CPF_CHEFE, "Helena Chefe", "chefe@tjgo.jus.br",
+        return usuarios.save(new Usuario(EMAIL_CHEFE, "Helena Chefe", null,
                 Set.of(Papel.MAGISTRADO))).getId();
     }
 
@@ -57,7 +57,7 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     private Long unidadeReconhecidaPorOutro(int ano, String nomeUnidade) {
         Edicao edicao = edicaoVigente(ano);
         magistrados.criar(edicao.getId(), new MagistradoRequisicao(
-                "20450670252", "Rafael Vencedor",
+                EMAIL_MAGISTRADO, "Rafael Vencedor", null,
                 List.of(new ReconhecimentoRequisicao(null, nomeUnidade, Selo.OURO))));
         return unidade(nomeUnidade).getId();
     }
@@ -71,20 +71,21 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
 
         // Antes da designação: a unidade não é dele.
         mvc.perform(get("/api/magistrado/servidores")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_CHEFE)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_CHEFE)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
 
         mvc.perform(put("/api/unidades/" + unidadeId + "/responsavel")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SUPER))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuarioId\":" + chefeId + "}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.responsavel.nome").value("Helena Chefe"));
+                .andExpect(jsonPath("$.responsavel.nome").value("Helena Chefe"))
+                .andExpect(jsonPath("$.responsavel.email").value(EMAIL_CHEFE));
 
         // Depois: a unidade aparece e ele pode editar.
         mvc.perform(get("/api/magistrado/servidores")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_CHEFE)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_CHEFE)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].unidadeId").value(unidadeId))
@@ -99,19 +100,19 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
         Long unidadeId = unidadeReconhecidaPorOutro(2071, "2ª Vara Cível da Comarca de Goiânia");
 
         mvc.perform(put("/api/unidades/" + unidadeId + "/responsavel")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SUPER))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuarioId\":" + chefeId + "}"))
                 .andExpect(status().isOk());
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .delete("/api/unidades/" + unidadeId + "/responsavel")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SUPER)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.responsavel").doesNotExist());
 
         mvc.perform(get("/api/magistrado/servidores")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_CHEFE)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_CHEFE)))
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
@@ -119,12 +120,12 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     @DisplayName("so magistrado pode responder por unidade — a tela liberada e a dele")
     void exigePapelDeMagistrado() throws Exception {
         superadmin();
-        Long semPapel = usuarios.save(new Usuario("50760980578", "Servidor Comum",
-                "servidor@tjgo.jus.br", Set.of(Papel.SERVIDOR))).getId();
+        Long semPapel = usuarios.save(new Usuario("servidor.comum@tjgo.example", "Servidor Comum",
+                null, Set.of(Papel.SERVIDOR))).getId();
         Long unidadeId = unidadeReconhecidaPorOutro(2072, "3ª Vara Criminal da Comarca de Goiânia");
 
         mvc.perform(put("/api/unidades/" + unidadeId + "/responsavel")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SUPER))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuarioId\":" + semPapel + "}"))
                 .andExpect(status().isUnprocessableEntity())
@@ -137,11 +138,11 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     void somenteSuperadmin() throws Exception {
         superadmin();
         mvc.perform(get("/api/unidades")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isForbidden());
 
         mvc.perform(get("/api/unidades")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SUPER)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
                 .andExpect(status().isOk());
     }
 }

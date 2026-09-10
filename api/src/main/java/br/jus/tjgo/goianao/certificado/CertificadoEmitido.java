@@ -42,8 +42,12 @@ public class CertificadoEmitido {
     @Column(name = "tipo", length = 20, nullable = false)
     private TipoCertificado tipo;
 
-    @Column(name = "cpf_emissor", length = 11, nullable = false)
-    private String cpfEmissor;
+    /**
+     * Quem emitiu, pelo e-mail corporativo (DI-24). A coluna {@code cpf_emissor}
+     * continua na tabela, nula daqui em diante, com o que foi gravado antes.
+     */
+    @Column(name = "email_emissor", length = 200, nullable = false)
+    private String emailEmissor;
 
     @Column(name = "nome_emissor", length = 200, nullable = false)
     private String nomeEmissor;
@@ -70,12 +74,12 @@ public class CertificadoEmitido {
 
     protected CertificadoEmitido() {}
 
-    public CertificadoEmitido(Edicao edicao, TipoCertificado tipo, String cpfEmissor,
+    public CertificadoEmitido(Edicao edicao, TipoCertificado tipo, String emailEmissor,
                               String nomeEmissor, UnidadeJudiciaria unidade, Selo selo,
                               String codigoValidacao) {
         this.edicao = edicao;
         this.tipo = tipo;
-        this.cpfEmissor = cpfEmissor;
+        this.emailEmissor = emailEmissor;
         this.nomeEmissor = nomeEmissor;
         this.unidade = unidade;
         this.selo = selo;
@@ -108,8 +112,8 @@ public class CertificadoEmitido {
         return tipo;
     }
 
-    public String getCpfEmissor() {
-        return cpfEmissor;
+    public String getEmailEmissor() {
+        return emailEmissor;
     }
 
     public String getNomeEmissor() {

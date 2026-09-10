@@ -54,11 +54,9 @@ primeiro acesso.
 - **Com a infra:** `OPENSHIFT_SSO_KEYCLOACK_URL` com `/auth`,
   `OPENSHIFT_SSO_KEYCLOACK_REDIRECT_URI` apontando para o callback da API,
   `GOIANAO_LOGIN_SENHA=true`, e o callback nas *Valid redirect URIs* do client.
-- **Identificação pelo SSO.** O realm não publica `cpf`. Em 2026-09-10 foi
-  pedido trocar a identificação para o **e-mail corporativo**. Ainda não se
-  decidiu se isso significa só *resolver* o CPF a partir do e-mail no login
-  (domínio continua indexado por CPF) ou fazer do e-mail a *chave* do domínio —
-  o que mudaria o princípio 3 da constituição e voltaria ao passo "Specify".
+- ~~**Identificação pelo SSO.**~~ Resolvido em 2026-09-10: o e-mail corporativo
+  virou a chave do domínio inteiro e o CPF ficou opcional. Ver DI-24 e
+  `2026-09-10-email-como-chave.md`.
 - **Hosts internos no repositório público.** Este diário evita citá-los, mas
   `variaveis-de-ambiente.md` e algumas mensagens de commit os citam. Decidir se
   sanitiza, coerente com a regra que manteve `SSO_E_OPENSHIFT_REFERENCIA.md` fora

@@ -54,6 +54,6 @@ class SsoDesligadoIT extends TesteDeIntegracao {
     void mockContinuaAtivo() throws Exception {
         mvc.perform(get("/api/auth/usuarios-mock"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].cpf").isNotEmpty());
+                .andExpect(jsonPath("$[0].email").isNotEmpty());
     }
 }

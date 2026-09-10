@@ -82,7 +82,7 @@ export function Verificar({ embutido = false }: { embutido?: boolean } = {}) {
       </h1>
       <p className="apoio" style={{ marginTop: 14, maxWidth: '54ch' }}>
         Informe o código impresso no certificado — ou leia o QR, que já traz o código. A
-        conferência não exige login e não exibe o CPF do reconhecido.
+        conferência não exige login e não exibe CPF nem e-mail do reconhecido.
       </p>
 
       <form className="conferencia-busca" onSubmit={enviar}>

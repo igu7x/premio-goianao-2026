@@ -30,20 +30,20 @@ class EmissaoServidorIT extends TesteDeIntegracao {
     @DisplayName("CA-1: unidade com Bronze e Ouro emite pelo maior selo")
     void aplicaMaiorSelo() throws Exception {
         Edicao edicao = edicaoComLayouts(2090);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.BRONZE);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO_2, "Helena", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.BRONZE);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_A, Selo.OURO);
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
-        habilitarServidor(edicao.getId(), unidade.getId(), CPF_SERVIDOR, "Marcos de Paula");
+        habilitarServidor(edicao.getId(), unidade.getId(), EMAIL_SERVIDOR, "Marcos de Paula");
         publicarEVigorar(edicao);
 
         mvc.perform(get("/api/servidor/certificados")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].selo").value("OURO"));
 
         mvc.perform(post("/api/servidor/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isOk())
@@ -58,12 +58,12 @@ class EmissaoServidorIT extends TesteDeIntegracao {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
         mvc.perform(get("/api/servidor/certificados")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ESTRANHO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ESTRANHO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
 
         mvc.perform(post("/api/servidor/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ESTRANHO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ESTRANHO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isForbidden());
@@ -76,7 +76,7 @@ class EmissaoServidorIT extends TesteDeIntegracao {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
         // A lista foi semeada com outra grafia; o SSO e que fornece o texto.
-        String tokenSso = token(CPF_SERVIDOR, "Marcos Vinicius de Paula");
+        String tokenSso = token(EMAIL_SERVIDOR, "Marcos Vinicius de Paula");
 
         MvcResult resultado = mvc.perform(post("/api/servidor/certificados/emitir")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenSso)
@@ -99,14 +99,14 @@ class EmissaoServidorIT extends TesteDeIntegracao {
     @DisplayName("CA-4: habilitado em duas unidades, ve uma opcao por unidade")
     void umaOpcaoPorUnidade() throws Exception {
         Edicao edicao = edicaoComLayouts(2093);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.DIAMANTE);
-        habilitarServidor(edicao.getId(), unidade(UNIDADE_A).getId(), CPF_SERVIDOR, "Marcos");
-        habilitarServidor(edicao.getId(), unidade(UNIDADE_C).getId(), CPF_SERVIDOR, "Marcos");
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.DIAMANTE);
+        habilitarServidor(edicao.getId(), unidade(UNIDADE_A).getId(), EMAIL_SERVIDOR, "Marcos");
+        habilitarServidor(edicao.getId(), unidade(UNIDADE_C).getId(), EMAIL_SERVIDOR, "Marcos");
         publicarEVigorar(edicao);
 
         mvc.perform(get("/api/servidor/certificados")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].selo").value("OURO"))
@@ -123,7 +123,7 @@ class EmissaoServidorIT extends TesteDeIntegracao {
 
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
         mvc.perform(post("/api/servidor/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isConflict());
@@ -133,12 +133,12 @@ class EmissaoServidorIT extends TesteDeIntegracao {
     @DisplayName("CA-6: edicao em rascunho bloqueia a emissao")
     void rascunhoBloqueia() throws Exception {
         Edicao edicao = edicaoComLayouts(2095);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
-        habilitarServidor(edicao.getId(), unidade.getId(), CPF_SERVIDOR, "Marcos");
+        habilitarServidor(edicao.getId(), unidade.getId(), EMAIL_SERVIDOR, "Marcos");
 
         mvc.perform(post("/api/servidor/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isConflict());
@@ -151,18 +151,18 @@ class EmissaoServidorIT extends TesteDeIntegracao {
 
         // Nova edicao vigente, e o servidor nao esta habilitado nela.
         Edicao nova = edicaoComLayouts(2097);
-        cadastrarMagistrado(nova.getId(), CPF_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
+        cadastrarMagistrado(nova.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
         publicarEVigorar(nova);
 
         mvc.perform(get("/api/servidor/certificados/edicoes")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].ano").value(2096));
 
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
         mvc.perform(post("/api/servidor/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(anterior.getId(), unidade.getId()))))
                 .andExpect(status().isOk())
@@ -176,11 +176,14 @@ class EmissaoServidorIT extends TesteDeIntegracao {
         Edicao edicao = cenarioComServidor(2098);
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
-        atuandoComo(CPF_ADMIN);
-        servidores.remover(edicao.getId(), unidade.getId(), CPF_SERVIDOR);
+        atuandoComo(EMAIL_ADMIN);
+        Long servidorId = servidores.listar(edicao.getId(), unidade.getId()).stream()
+                .filter(s -> s.getEmail().equals(EMAIL_SERVIDOR))
+                .findFirst().orElseThrow().getId();
+        servidores.remover(edicao.getId(), unidade.getId(), servidorId);
 
         mvc.perform(post("/api/servidor/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_SERVIDOR))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isForbidden());
@@ -189,8 +192,8 @@ class EmissaoServidorIT extends TesteDeIntegracao {
     /** Edicao vigente, UNIDADE_A com Ouro e o servidor habilitado nela. */
     private Edicao cenarioComServidor(int ano) {
         Edicao edicao = edicaoComLayouts(ano);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
-        habilitarServidor(edicao.getId(), unidade(UNIDADE_A).getId(), CPF_SERVIDOR, "M. V. PAULA");
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        habilitarServidor(edicao.getId(), unidade(UNIDADE_A).getId(), EMAIL_SERVIDOR, "M. V. PAULA");
         return publicarEVigorar(edicao);
     }
 

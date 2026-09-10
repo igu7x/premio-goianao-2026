@@ -19,7 +19,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 /**
- * Sessao stateless em JWT. O token carrega CPF, nome e os papeis, tem validade
+ * Sessao stateless em JWT. O token carrega e-mail (no subject), nome e os papeis, tem validade
  * de 8h e **nao ha refresh**: expirado, o usuario faz novo login (001/plan).
  */
 @Service
@@ -31,7 +31,7 @@ public class JwtService {
      * Ele existe para o desenvolvimento local funcionar sem configuracao, e
      * esta num repositorio publico — ou seja, e conhecido. Se subir assim fora
      * de desenvolvimento, qualquer pessoa que leia o codigo assina um token
-     * valido para qualquer CPF, inclusive o de um administrador.
+     * valido para qualquer e-mail, inclusive o de um administrador.
      */
     private static final String SEGREDO_DE_DESENVOLVIMENTO =
             "desenvolvimento-goianao-tjgo-chave-local-nao-use-em-producao";
@@ -68,7 +68,7 @@ public class JwtService {
     public String gerar(UsuarioAutenticado usuario) {
         Instant agora = Instant.now();
         return Jwts.builder()
-                .subject(usuario.cpf())
+                .subject(usuario.email())
                 .claim("nome", usuario.nome())
                 .claim("papeis", usuario.papeisComoTexto())
                 .issuer("goianao-tjgo")

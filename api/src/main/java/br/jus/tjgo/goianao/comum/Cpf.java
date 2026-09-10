@@ -1,8 +1,13 @@
 package br.jus.tjgo.goianao.comum;
 
+import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
+
 /**
  * Utilitarios de CPF. O CPF e dado sensivel (001/RNF-3, 007/RNF-2): nunca deve
  * aparecer em logs, URLs ou em payloads publicos — use {@link #mascarar}.
+ *
+ * <p>Desde a DI-24 o CPF <b>nao identifica ninguem</b>: a chave e o e-mail
+ * corporativo. Ele continua nos cadastros como dado opcional, so informativo.
  */
 public final class Cpf {
 
@@ -11,6 +16,21 @@ public final class Cpf {
     /** Remove qualquer formatacao, deixando apenas digitos. */
     public static String normalizar(String bruto) {
         return bruto == null ? null : bruto.replaceAll("\\D", "");
+    }
+
+    /**
+     * CPF opcional: em branco vira nulo; preenchido, precisa ser valido. Um CPF
+     * errado gravado "so para constar" e pior do que nenhum.
+     */
+    public static String opcional(String bruto) {
+        String cpf = normalizar(bruto);
+        if (cpf == null || cpf.isEmpty()) {
+            return null;
+        }
+        if (!valido(cpf)) {
+            throw new RegraDeNegocioException("CPF inválido.");
+        }
+        return cpf;
     }
 
     /** Valida os digitos verificadores do CPF. */
@@ -46,10 +66,13 @@ public final class Cpf {
                 + cpf.substring(6, 9) + '-' + cpf.substring(9);
     }
 
-    /** Mascara para exibicao/auditoria: {@code ***.000.000-**}. */
+    /** Mascara para exibicao/auditoria: {@code ***.000.000-**}; nulo quando nao ha CPF. */
     public static String mascarar(String bruto) {
         String cpf = normalizar(bruto);
-        if (cpf == null || cpf.length() != 11) {
+        if (cpf == null || cpf.isEmpty()) {
+            return null;
+        }
+        if (cpf.length() != 11) {
             return "***";
         }
         return "***." + cpf.substring(3, 6) + '.' + cpf.substring(6, 9) + "-**";

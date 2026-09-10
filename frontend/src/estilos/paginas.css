@@ -1291,7 +1291,7 @@
 
 .inclusao {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 150px auto;
   gap: var(--e3);
   align-items: end;
   padding: var(--e4);

@@ -1,7 +1,9 @@
 package br.jus.tjgo.goianao.comum;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,5 +53,25 @@ class CpfTest {
         // A mascara e o que pode aparecer em tela e auditoria (001/RNF-3).
         assertThat(Cpf.mascarar("10120230100")).isEqualTo("***.202.301-**");
         assertThat(Cpf.mascarar("123")).isEqualTo("***");
+    }
+
+    @Test
+    @DisplayName("sem CPF, a mascara e nula: o campo e opcional desde a DI-24")
+    void mascaraDeCpfAusente() {
+        assertThat(Cpf.mascarar(null)).isNull();
+        assertThat(Cpf.mascarar("")).isNull();
+        assertThat(Cpf.mascarar("  ")).isNull();
+    }
+
+    @Test
+    @DisplayName("opcional: em branco vira nulo, valido sai normalizado, invalido e recusado")
+    void opcional() {
+        assertThat(Cpf.opcional(null)).isNull();
+        assertThat(Cpf.opcional("   ")).isNull();
+        assertThat(Cpf.opcional("101.202.301-00")).isEqualTo("10120230100");
+
+        assertThatThrownBy(() -> Cpf.opcional("11111111111"))
+                .isInstanceOf(RegraDeNegocioException.class)
+                .hasMessage("CPF inválido.");
     }
 }

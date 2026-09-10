@@ -4,6 +4,8 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** onde esta spec identifica o magistrado pelo
+  CPF, leia-se **e-mail corporativo**.
 
 > Esta spec descreve **o quê** e **por quê**. NÃO inclui linguagem/framework.
 

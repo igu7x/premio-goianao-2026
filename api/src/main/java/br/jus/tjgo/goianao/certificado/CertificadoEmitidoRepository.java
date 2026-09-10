@@ -12,10 +12,10 @@ public interface CertificadoEmitidoRepository extends JpaRepository<CertificadoE
     boolean existsByCodigoValidacao(String codigoValidacao);
 
     /** O certificado logico: um por (edicao, tipo, pessoa, unidade). */
-    Optional<CertificadoEmitido> findByEdicaoIdAndTipoAndCpfEmissorAndUnidadeId(
-            Long edicaoId, TipoCertificado tipo, String cpfEmissor, Long unidadeId);
+    Optional<CertificadoEmitido> findByEdicaoIdAndTipoAndEmailEmissorAndUnidadeId(
+            Long edicaoId, TipoCertificado tipo, String emailEmissor, Long unidadeId);
 
-    List<CertificadoEmitido> findByCpfEmissorOrderByEmitidoEmDesc(String cpfEmissor);
+    List<CertificadoEmitido> findByEmailEmissorOrderByEmitidoEmDesc(String emailEmissor);
 
     List<CertificadoEmitido> findByEdicaoIdOrderByEmitidoEmDesc(Long edicaoId);
 

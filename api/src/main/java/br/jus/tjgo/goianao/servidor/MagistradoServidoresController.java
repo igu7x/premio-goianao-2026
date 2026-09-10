@@ -48,7 +48,7 @@ public class MagistradoServidoresController {
             @RequestParam(required = false) Long edicaoId) {
 
         Edicao edicao = edicoes.resolverAlvo(edicaoId);
-        String cpf = UsuarioAtual.obrigatorio().cpf();
+        String email = UsuarioAtual.obrigatorio().email();
 
         /*
          * As unidades do magistrado vêm de dois lugares, sem repetir:
@@ -62,10 +62,10 @@ public class MagistradoServidoresController {
          * um cartão que não leva a lugar algum seria pior do que omiti-lo.
          */
         Map<Long, String> unidades = new LinkedHashMap<>();
-        for (Reconhecimento r : magistrados.reconhecimentosDe(edicao.getId(), cpf)) {
+        for (Reconhecimento r : magistrados.reconhecimentosDe(edicao.getId(), email)) {
             unidades.putIfAbsent(r.getUnidade().getId(), r.getUnidade().getNome());
         }
-        for (UnidadeJudiciaria u : unidadesDoCadastro.unidadesSobResponsabilidade(cpf)) {
+        for (UnidadeJudiciaria u : unidadesDoCadastro.unidadesSobResponsabilidade(email)) {
             if (magistrados.unidadeEhReconhecida(edicao.getId(), u.getId())) {
                 unidades.putIfAbsent(u.getId(), u.getNome());
             }

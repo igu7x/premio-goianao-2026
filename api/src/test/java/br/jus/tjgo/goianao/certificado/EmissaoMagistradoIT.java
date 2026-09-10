@@ -32,13 +32,13 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
     @DisplayName("CA-1: as opcoes refletem as unidades reconhecidas, cada uma com seu selo")
     void opcoesRefletemReconhecimentos() throws Exception {
         Edicao edicao = edicaoComLayouts(2080);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael Siqueira Bittencourt",
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael Siqueira Bittencourt",
                 List.of(new ReconhecimentoRequisicao(null, UNIDADE_A, Selo.OURO),
                         new ReconhecimentoRequisicao(null, UNIDADE_B, Selo.BRONZE)));
         edicoes.tornarVigente(edicoes.publicar(edicao.getId()).getId());
 
         mvc.perform(get("/api/magistrado/certificados")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].selo").value("OURO"))
@@ -54,7 +54,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
         MvcResult resultado = mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isOk())
@@ -79,7 +79,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
         // O token traz outra grafia; o cadastro e que manda (005/RF-4).
-        String tokenComOutroNome = token(CPF_MAGISTRADO, "R. S. BITTENCOURT");
+        String tokenComOutroNome = token(EMAIL_MAGISTRADO, "R. S. BITTENCOURT");
 
         MvcResult resultado = mvc.perform(post("/api/magistrado/certificados/emitir")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenComOutroNome)
@@ -103,7 +103,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
         UnidadeJudiciaria outra = unidade(UNIDADE_C);
 
         mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), outra.getId()))))
                 .andExpect(status().isForbidden());
@@ -114,7 +114,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
     void semLayout() throws Exception {
         Edicao edicao = novaEdicao(2084);
         criarTodosOsLayouts(edicao);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
         edicoes.publicar(edicao.getId());
         edicoes.tornarVigente(edicao.getId());
 
@@ -125,7 +125,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
 
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
         mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isConflict())
@@ -133,7 +133,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
 
         mvc.perform(get("/api/magistrado/certificados")
                         .param("edicaoId", edicao.getId().toString())
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(jsonPath("$[0].layoutDisponivel").value(false));
     }
 
@@ -142,11 +142,11 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
     void rascunhoBloqueia() throws Exception {
         Edicao edicao = novaEdicao(2085);
         criarTodosOsLayouts(edicao);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
         mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isConflict())
@@ -161,13 +161,13 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
         String corpoRequisicao = corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()));
 
         String primeiro = mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON).content(corpoRequisicao))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getHeader("X-Codigo-Validacao");
 
         String segundo = mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON).content(corpoRequisicao))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getHeader("X-Codigo-Validacao");
@@ -176,7 +176,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
 
         mvc.perform(get("/api/magistrado/certificados")
                         .param("edicaoId", edicao.getId().toString())
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(jsonPath("$[0].jaEmitido").value(true))
                 .andExpect(jsonPath("$[0].totalEmissoes").value(2));
     }
@@ -188,14 +188,14 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
         edicaoVigente(2088);
 
         mvc.perform(get("/api/magistrado/certificados/edicoes")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].ano").value(2087));
 
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
         mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(anterior.getId(), unidade.getId()))))
                 .andExpect(status().isOk())
@@ -206,7 +206,7 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
     /** Edicao publicada e vigente, com o magistrado reconhecido em UNIDADE_A/Ouro. */
     private Edicao cenarioVigente(int ano) {
         Edicao edicao = edicaoComLayouts(ano);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael Siqueira Bittencourt",
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael Siqueira Bittencourt",
                 UNIDADE_A, Selo.OURO);
         edicoes.publicar(edicao.getId());
         return edicoes.tornarVigente(edicao.getId());

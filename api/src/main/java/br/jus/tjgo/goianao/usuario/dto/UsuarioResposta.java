@@ -8,9 +8,10 @@ import java.util.List;
 /**
  * Usuario como sai na API.
  *
- * <p>O CPF vai <b>mascarado</b>: quem administra usuarios precisa reconhecer a
- * pessoa na lista, nao coletar o documento dela. E o hash da senha nao aparece
- * em campo algum — nem mascarado.
+ * <p>O CPF, quando existe, vai <b>mascarado</b> (nulo quando nao foi
+ * informado): quem administra usuarios precisa reconhecer a pessoa na lista,
+ * nao coletar o documento dela. E o hash da senha nao aparece em campo algum —
+ * nem mascarado.
  */
 public record UsuarioResposta(
         Long id,

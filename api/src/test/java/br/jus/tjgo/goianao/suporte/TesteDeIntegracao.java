@@ -22,6 +22,7 @@ import br.jus.tjgo.goianao.magistrado.dto.MagistradoRequisicao;
 import br.jus.tjgo.goianao.magistrado.dto.ReconhecimentoRequisicao;
 import br.jus.tjgo.goianao.seguranca.JwtService;
 import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
+import br.jus.tjgo.goianao.servidor.ServidorHabilitado;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
 import br.jus.tjgo.goianao.unidade.UnidadeService;
@@ -51,12 +52,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public abstract class TesteDeIntegracao {
 
-    public static final String CPF_ADMIN = "10120230100";
-    public static final String CPF_MAGISTRADO = "20450670252";
-    public static final String CPF_MAGISTRADO_2 = "30980140323";
-    public static final String CPF_SERVIDOR = "50760980578";
-    public static final String CPF_SERVIDOR_2 = "60840310641";
-    public static final String CPF_ESTRANHO = "90170360954";
+    /*
+     * Identidades de teste, chaveadas pelo e-mail (DI-24). Dominio reservado
+     * .example (RFC 2606); os mesmos enderecos do provedor mockado, para que o
+     * login mock e o EGESP mock enxerguem as mesmas pessoas.
+     */
+    public static final String EMAIL_ADMIN = "ana.rebelo@tjgo.example";
+    public static final String EMAIL_MAGISTRADO = "rafael.bittencourt@tjgo.example";
+    public static final String EMAIL_MAGISTRADO_2 = "helena.aires@tjgo.example";
+    public static final String EMAIL_SERVIDOR = "marcos.paula@tjgo.example";
+    public static final String EMAIL_SERVIDOR_2 = "juliana.ferreira@tjgo.example";
+    public static final String EMAIL_ESTRANHO = "estranho@tjgo.example";
 
     public static final String UNIDADE_A = "1ª Vara Cível da Comarca de Goiânia";
     public static final String UNIDADE_B = "2ª Vara Cível da Comarca de Goiânia";
@@ -79,8 +85,8 @@ public abstract class TesteDeIntegracao {
 
     @BeforeEach
     void prepararAdministrador() {
-        if (!administradores.existsByCpf(CPF_ADMIN)) {
-            administradores.save(new Administrador(CPF_ADMIN, "Ana Cristina Marques Rebelo"));
+        if (!administradores.existsByEmail(EMAIL_ADMIN)) {
+            administradores.save(new Administrador(EMAIL_ADMIN, "Ana Cristina Marques Rebelo"));
         }
         SecurityContextHolder.clearContext();
     }
@@ -90,26 +96,25 @@ public abstract class TesteDeIntegracao {
     // ------------------------------------------------------------------
 
     /** Token real, com os papeis resolvidos a partir do estado atual do banco. */
-    protected String token(String cpf) {
-        String nome = "Usuario " + cpf;
-        return jwtService.gerar(new UsuarioAutenticado(cpf, nome, papeisResolver.resolver(cpf)));
+    protected String token(String email) {
+        return token(email, "Usuario " + email);
     }
 
-    protected String token(String cpf, String nome) {
-        return jwtService.gerar(new UsuarioAutenticado(cpf, nome, papeisResolver.resolver(cpf)));
+    protected String token(String email, String nome) {
+        return jwtService.gerar(new UsuarioAutenticado(email, nome, papeisResolver.resolver(email)));
     }
 
-    protected String bearer(String cpf) {
-        return "Bearer " + token(cpf);
+    protected String bearer(String email) {
+        return "Bearer " + token(email);
     }
 
     /**
      * Alguns servicos leem a identidade do contexto (auditoria, escopo do
      * magistrado). Quando a fixture os chama direto, o contexto precisa existir.
      */
-    protected void atuandoComo(String cpf) {
-        UsuarioAutenticado usuario = new UsuarioAutenticado(cpf, "Usuario " + cpf,
-                EnumSet.copyOf(papeisResolver.resolver(cpf)));
+    protected void atuandoComo(String email) {
+        UsuarioAutenticado usuario = new UsuarioAutenticado(email, "Usuario " + email,
+                EnumSet.copyOf(papeisResolver.resolver(email)));
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(usuario, null, usuario.authorities()));
     }
@@ -119,7 +124,7 @@ public abstract class TesteDeIntegracao {
     // ------------------------------------------------------------------
 
     protected Edicao novaEdicao(int ano) {
-        atuandoComo(CPF_ADMIN);
+        atuandoComo(EMAIL_ADMIN);
         return edicoes.criar(new CriarEdicaoRequisicao(ano, "Edicao de teste " + ano));
     }
 
@@ -158,27 +163,30 @@ public abstract class TesteDeIntegracao {
                         new AreaQr(280, 2080, 200))));
     }
 
-    protected MagistradoReconhecido cadastrarMagistrado(Long edicaoId, String cpf, String nome,
+    /** Cadastra o magistrado sem CPF: desde a DI-24 ele e opcional. */
+    protected MagistradoReconhecido cadastrarMagistrado(Long edicaoId, String email, String nome,
                                                         String unidade, Selo selo) {
-        atuandoComo(CPF_ADMIN);
-        return magistrados.criar(edicaoId, new MagistradoRequisicao(cpf, nome,
+        atuandoComo(EMAIL_ADMIN);
+        return magistrados.criar(edicaoId, new MagistradoRequisicao(email, nome, null,
                 List.of(new ReconhecimentoRequisicao(null, unidade, selo))));
     }
 
-    protected MagistradoReconhecido cadastrarMagistrado(Long edicaoId, String cpf, String nome,
+    protected MagistradoReconhecido cadastrarMagistrado(Long edicaoId, String email, String nome,
                                                         List<ReconhecimentoRequisicao> itens) {
-        atuandoComo(CPF_ADMIN);
-        return magistrados.criar(edicaoId, new MagistradoRequisicao(cpf, nome, itens));
+        atuandoComo(EMAIL_ADMIN);
+        return magistrados.criar(edicaoId, new MagistradoRequisicao(email, nome, null, itens));
     }
 
     protected UnidadeJudiciaria unidade(String nome) {
-        atuandoComo(CPF_ADMIN);
+        atuandoComo(EMAIL_ADMIN);
         return unidades.garantirDoEgesp(nome);
     }
 
-    protected void habilitarServidor(Long edicaoId, Long unidadeId, String cpf, String nome) {
-        atuandoComo(CPF_ADMIN);
-        servidores.incluir(edicaoId, unidadeId, cpf, nome);
+    /** Habilita o servidor sem CPF e devolve o item criado (a remocao e pelo id). */
+    protected ServidorHabilitado habilitarServidor(Long edicaoId, Long unidadeId, String email,
+                                                   String nome) {
+        atuandoComo(EMAIL_ADMIN);
+        return servidores.incluir(edicaoId, unidadeId, email, nome, null);
     }
 
     protected String corpo(Object objeto) {

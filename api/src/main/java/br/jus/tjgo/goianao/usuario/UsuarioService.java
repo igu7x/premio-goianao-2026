@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.usuario;
 
 import br.jus.tjgo.goianao.comum.Cpf;
+import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.erro.ConflitoException;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
@@ -9,7 +10,6 @@ import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
 import br.jus.tjgo.goianao.usuario.dto.AtualizarUsuarioRequisicao;
 import br.jus.tjgo.goianao.usuario.dto.UsuarioRequisicao;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,17 +34,14 @@ public class UsuarioService {
     }
 
     public Usuario criar(UsuarioRequisicao dados) {
-        String cpf = normalizarCpf(dados.cpf());
-        String email = normalizarEmail(dados.email());
+        String email = Email.exigir(dados.email());
+        String cpf = Cpf.opcional(dados.cpf());
 
-        if (repositorio.existsByCpf(cpf)) {
-            throw new ConflitoException("Já existe usuário com este CPF.");
-        }
         if (repositorio.existsByEmailIgnoreCase(email)) {
             throw new ConflitoException("Já existe usuário com este e-mail.");
         }
 
-        Usuario usuario = new Usuario(cpf, dados.nome().trim(), email, dados.papeis());
+        Usuario usuario = new Usuario(email, dados.nome().trim(), cpf, dados.papeis());
         usuario.definirLotacao(dados.unidadeLotacao(), areaDe(dados.papeis(), dados.areaAtuacao()));
         if (dados.senha() != null && !dados.senha().isBlank()) {
             usuario.definirSenhaHash(encoder.encode(dados.senha()));
@@ -54,17 +51,14 @@ public class UsuarioService {
 
     public Usuario atualizar(Long id, AtualizarUsuarioRequisicao dados) {
         Usuario usuario = buscar(id);
-        String email = normalizarEmail(dados.email());
-
-        repositorio.findByEmailIgnoreCase(email)
-                .filter(outro -> !outro.getId().equals(id))
-                .ifPresent(outro -> {
-                    throw new ConflitoException("Já existe usuário com este e-mail.");
-                });
+        // CPF em branco mantem o atual: a tela so conhece a versao mascarada.
+        String cpf = dados.cpf() == null || dados.cpf().isBlank()
+                ? usuario.getCpf()
+                : Cpf.opcional(dados.cpf());
 
         exigirQueSobreSuperadmin(usuario, dados.papeis());
 
-        usuario.alterarDados(dados.nome().trim(), email, dados.unidadeLotacao(),
+        usuario.alterarDados(dados.nome().trim(), cpf, dados.unidadeLotacao(),
                 areaDe(dados.papeis(), dados.areaAtuacao()), dados.papeis());
         if (dados.senha() != null && !dados.senha().isBlank()) {
             usuario.definirSenhaHash(encoder.encode(dados.senha()));
@@ -95,7 +89,7 @@ public class UsuarioService {
      * tem em maos — e o mesmo com que a pessoa entra.
      */
     public Usuario promoverASuperadmin(String email) {
-        Usuario usuario = repositorio.findByEmailIgnoreCase(normalizarEmail(email))
+        Usuario usuario = repositorio.findByEmailIgnoreCase(Email.normalizar(email))
                 .orElseThrow(() -> new NaoEncontradoException(
                         "Nenhum usuário cadastrado com este e-mail. Cadastre-o primeiro e depois "
                         + "promova."));
@@ -161,7 +155,7 @@ public class UsuarioService {
 
     /** Desativar a si mesmo tranca a pessoa para fora na mesma requisicao. */
     private void exigirQueNaoSejaEuMesmo(Usuario alvo) {
-        if (alvo.getCpf().equals(UsuarioAtual.obrigatorio().cpf())) {
+        if (alvo.getEmail().equalsIgnoreCase(UsuarioAtual.obrigatorio().email())) {
             throw new RegraDeNegocioException("Você não pode desativar o próprio usuário.");
         }
     }
@@ -172,17 +166,5 @@ public class UsuarioService {
             return null;
         }
         return area == null || area.isBlank() ? null : area.trim();
-    }
-
-    private String normalizarCpf(String bruto) {
-        String cpf = Cpf.normalizar(bruto);
-        if (!Cpf.valido(cpf)) {
-            throw new RegraDeNegocioException("CPF inválido.");
-        }
-        return cpf;
-    }
-
-    private String normalizarEmail(String bruto) {
-        return bruto.trim().toLowerCase(Locale.ROOT);
     }
 }

@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.servidor;
 
 import br.jus.tjgo.goianao.comum.Cpf;
+import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.comum.erro.AcessoNegadoException;
 import br.jus.tjgo.goianao.comum.erro.ConflitoException;
@@ -68,10 +69,11 @@ public class ServidorHabilitadoService {
         if (!edicao.isVigente()) {
             return false;
         }
-        boolean reconhecido = magistrados.reconhecimentosDe(edicao.getId(), usuario.cpf()).stream()
+        boolean reconhecido = magistrados.reconhecimentosDe(edicao.getId(), usuario.email())
+                .stream()
                 .anyMatch(r -> r.getUnidade().getId().equals(unidadeId));
 
-        return reconhecido || unidades.ehResponsavel(unidadeId, usuario.cpf());
+        return reconhecido || unidades.ehResponsavel(unidadeId, usuario.email());
     }
 
     private void exigirPermissao(Edicao edicao, Long unidadeId) {
@@ -105,24 +107,30 @@ public class ServidorHabilitadoService {
         exigirUnidadeReconhecida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
 
-        String autor = UsuarioAtual.cpfOuSistema();
+        String autor = UsuarioAtual.emailOuSistema();
         List<ServidorEgesp> doEgesp = egesp.listarServidoresPorUnidade(unidade.getNome());
 
         int incluidos = 0;
         int jaExistentes = 0;
         int preservadosRemovidos = 0;
+        int semEmail = 0;
 
         for (ServidorEgesp servidor : doEgesp) {
-            String cpf = Cpf.normalizar(servidor.cpf());
-            if (cpf == null || cpf.isBlank()) {
+            if (!Email.valido(servidor.email())) {
+                // Sem e-mail a pessoa nao seria reconhecida no login (DI-24).
+                // Conta, em vez de sumir: e o sinal de que o EGESP esta
+                // devolvendo cadastro incompleto.
+                semEmail++;
                 continue;
             }
+            String email = Email.normalizar(servidor.email());
+            String cpf = Cpf.valido(servidor.cpf()) ? Cpf.normalizar(servidor.cpf()) : null;
             Optional<ServidorHabilitado> existente =
-                    repositorio.findByEdicaoIdAndUnidadeIdAndCpf(edicaoId, unidadeId, cpf);
+                    repositorio.findByEdicaoIdAndUnidadeIdAndEmail(edicaoId, unidadeId, email);
 
             if (existente.isEmpty()) {
-                repositorio.save(new ServidorHabilitado(edicao, unidade, cpf,
-                        Texto.aparar(servidor.nome()), OrigemServidor.EGESP, autor));
+                repositorio.save(new ServidorHabilitado(edicao, unidade, email,
+                        Texto.aparar(servidor.nome()), cpf, OrigemServidor.EGESP, autor));
                 incluidos++;
             } else if (existente.get().isAtivo()) {
                 jaExistentes++;
@@ -136,56 +144,56 @@ public class ServidorHabilitadoService {
                 incluidos,
                 jaExistentes,
                 preservadosRemovidos,
+                semEmail,
                 (int) repositorio.countByEdicaoIdAndUnidadeIdAndAtivoTrue(edicaoId, unidadeId));
     }
 
     @Transactional
-    public ServidorHabilitado incluir(Long edicaoId, Long unidadeId, String cpfBruto, String nome) {
+    public ServidorHabilitado incluir(Long edicaoId, Long unidadeId, String emailBruto,
+                                      String nome, String cpfBruto) {
         Edicao edicao = edicoes.buscar(edicaoId);
         UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
         exigirUnidadeReconhecida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
 
-        String cpf = Cpf.normalizar(cpfBruto);
-        if (!Cpf.valido(cpf)) {
-            throw new RegraDeNegocioException("CPF inválido.");
-        }
+        String email = Email.exigir(emailBruto);
+        String cpf = Cpf.opcional(cpfBruto);
         String nomeLimpo = Texto.aparar(nome);
         if (nomeLimpo == null) {
             throw new RegraDeNegocioException("Informe o nome do servidor.");
         }
 
-        String autor = UsuarioAtual.cpfOuSistema();
+        String autor = UsuarioAtual.emailOuSistema();
         Optional<ServidorHabilitado> existente =
-                repositorio.findByEdicaoIdAndUnidadeIdAndCpf(edicaoId, unidadeId, cpf);
+                repositorio.findByEdicaoIdAndUnidadeIdAndEmail(edicaoId, unidadeId, email);
 
         if (existente.isPresent()) {
             ServidorHabilitado servidor = existente.get();
             if (servidor.isAtivo()) {
                 throw new ConflitoException(
-                        "Este CPF já consta na lista desta unidade nesta edição.");
+                        "Este e-mail já consta na lista desta unidade nesta edição.");
             }
             // Reativar e uma acao explicita do gestor, diferente da semeadura.
-            servidor.reativar(nomeLimpo, OrigemServidor.MANUAL, autor);
+            servidor.reativar(nomeLimpo, cpf, OrigemServidor.MANUAL, autor);
             return servidor;
         }
 
-        return repositorio.save(new ServidorHabilitado(edicao, unidade, cpf, nomeLimpo,
+        return repositorio.save(new ServidorHabilitado(edicao, unidade, email, nomeLimpo, cpf,
                 OrigemServidor.MANUAL, autor));
     }
 
+    /** Remocao logica, pelo id do item: dado pessoal nao vai na URL. */
     @Transactional
-    public void remover(Long edicaoId, Long unidadeId, String cpfBruto) {
+    public void remover(Long edicaoId, Long unidadeId, Long servidorId) {
         Edicao edicao = edicoes.buscar(edicaoId);
         exigirPermissao(edicao, unidadeId);
 
-        String cpf = Cpf.normalizar(cpfBruto);
         ServidorHabilitado servidor = repositorio
-                .findByEdicaoIdAndUnidadeIdAndCpf(edicaoId, unidadeId, cpf)
+                .findByIdAndEdicaoIdAndUnidadeId(servidorId, edicaoId, unidadeId)
                 .orElseThrow(() -> new br.jus.tjgo.goianao.comum.erro.NaoEncontradoException(
                         "Servidor não consta na lista desta unidade."));
 
-        servidor.desativar(UsuarioAtual.cpfOuSistema());
+        servidor.desativar(UsuarioAtual.emailOuSistema());
     }
 
     @Transactional(readOnly = true)
@@ -200,22 +208,23 @@ public class ServidorHabilitadoService {
     // ------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public boolean estaHabilitado(Long edicaoId, Long unidadeId, String cpf) {
-        return repositorio.existsByEdicaoIdAndUnidadeIdAndCpfAndAtivoTrue(edicaoId, unidadeId, cpf);
+    public boolean estaHabilitado(Long edicaoId, Long unidadeId, String email) {
+        return repositorio.existsByEdicaoIdAndUnidadeIdAndEmailAndAtivoTrue(
+                edicaoId, unidadeId, email);
     }
 
     @Transactional(readOnly = true)
-    public List<Long> unidadesHabilitadas(Long edicaoId, String cpf) {
-        return repositorio.unidadesHabilitadas(edicaoId, cpf);
+    public List<Long> unidadesHabilitadas(Long edicaoId, String email) {
+        return repositorio.unidadesHabilitadas(edicaoId, email);
     }
 
     @Transactional(readOnly = true)
-    public List<Long> edicoesPublicadasHabilitadas(String cpf) {
-        return repositorio.edicoesPublicadasHabilitadas(cpf);
+    public List<Long> edicoesPublicadasHabilitadas(String email) {
+        return repositorio.edicoesPublicadasHabilitadas(email);
     }
 
     @Transactional(readOnly = true)
-    public Optional<String> nomeSalvo(Long edicaoId, Long unidadeId, String cpf) {
-        return repositorio.nomeSalvo(edicaoId, unidadeId, cpf);
+    public Optional<String> nomeSalvo(Long edicaoId, Long unidadeId, String email) {
+        return repositorio.nomeSalvo(edicaoId, unidadeId, email);
     }
 }

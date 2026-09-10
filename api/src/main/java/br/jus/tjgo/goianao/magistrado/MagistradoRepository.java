@@ -10,15 +10,15 @@ public interface MagistradoRepository extends JpaRepository<MagistradoReconhecid
 
     List<MagistradoReconhecido> findByEdicaoIdOrderByNomeAsc(Long edicaoId);
 
-    Optional<MagistradoReconhecido> findByEdicaoIdAndCpf(Long edicaoId, String cpf);
+    Optional<MagistradoReconhecido> findByEdicaoIdAndEmail(Long edicaoId, String email);
 
-    boolean existsByEdicaoIdAndCpf(Long edicaoId, String cpf);
+    boolean existsByEdicaoIdAndEmail(Long edicaoId, String email);
 
-    boolean existsByCpf(String cpf);
+    boolean existsByEmail(String email);
 
-    /** Ids das edicoes publicadas em que o CPF tem reconhecimento (005/RF-1). */
+    /** Ids das edicoes publicadas em que o e-mail tem reconhecimento (005/RF-1). */
     @Query("select distinct m.edicao.id from MagistradoReconhecido m join m.reconhecimentos r"
-            + " where m.cpf = :cpf"
+            + " where m.email = :email"
             + " and m.edicao.status = br.jus.tjgo.goianao.edicao.StatusEdicao.PUBLICADA")
-    List<Long> edicoesPublicadasComReconhecimento(@Param("cpf") String cpf);
+    List<Long> edicoesPublicadasComReconhecimento(@Param("email") String email);
 }

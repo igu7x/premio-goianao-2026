@@ -1,7 +1,7 @@
 package br.jus.tjgo.goianao.auth.sso;
 
 import br.jus.tjgo.goianao.auth.IdentidadeAutenticada;
-import br.jus.tjgo.goianao.comum.Cpf;
+import br.jus.tjgo.goianao.comum.Email;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -55,7 +55,7 @@ public class ClienteKeycloak {
      * verificada.
      *
      * @throws SsoException quando o Keycloak recusa o codigo, quando o token
-     *                      nao passa na verificacao ou quando o CPF nao vem
+     *                      nao passa na verificacao ou quando o e-mail nao vem
      *                      em nenhum dos claims configurados
      */
     public IdentidadeAutenticada autenticar(String codigo) {
@@ -131,37 +131,31 @@ public class ClienteKeycloak {
     }
 
     /**
-     * Extrai CPF e nome dos claims.
+     * Extrai e-mail e nome dos claims.
      *
-     * O CPF e procurado nos claims configurados, em ordem, porque o nome dele
-     * depende do mapper do client e ainda nao foi confirmado pela infra. O
-     * valor e normalizado: o mapper pode entregar com pontuacao.
+     * O e-mail e a chave da pessoa em todo o dominio (DI-24). E procurado nos
+     * claims configurados, em ordem, e normalizado — o Keycloak devolve o que
+     * foi cadastrado, com a caixa que tiver.
      */
     private IdentidadeAutenticada identidadeDe(Jwt token) {
-        for (String claim : props.claimsCpf()) {
+        for (String claim : props.claimsEmail()) {
             Object valor = token.getClaim(claim);
-            if (valor == null) {
+            if (valor == null || !Email.valido(valor.toString())) {
                 continue;
             }
-            String cpf = Cpf.normalizar(valor.toString());
-            if (Cpf.valido(cpf)) {
-                // O NOME do claim, nunca o valor: CPF e dado pessoal e log de
-                // aplicacao costuma sair do perimetro (coletor, indice, backup).
-                // Saber qual claim funcionou responde, no primeiro login real, a
-                // pergunta que a infra nao soube responder -- e permite fixar a
-                // lista em OPENSHIFT_SSO_CLAIMS_CPF em vez de tentar varios.
-                log.info("CPF obtido do claim \"{}\".", claim);
-                Object nome = token.getClaim(props.claimNome());
-                return new IdentidadeAutenticada(
-                        cpf, nome != null ? nome.toString() : cpf);
-            }
+            // O NOME do claim, nunca o valor: e-mail e dado pessoal e log de
+            // aplicacao costuma sair do perimetro (coletor, indice, backup).
+            log.info("E-mail obtido do claim \"{}\".", claim);
+            String email = Email.normalizar(valor.toString());
+            Object nome = token.getClaim(props.claimNome());
+            return new IdentidadeAutenticada(email, nome != null ? nome.toString() : email);
         }
 
         // Mensagem util no diagnostico: diz onde procuramos e o que veio.
-        log.error("CPF ausente no id_token. Claims procurados: {}. Claims presentes: {}",
-                props.claimsCpf(), token.getClaims().keySet());
-        throw new SsoException("O login corporativo não informou o CPF. "
-                + "Peça à equipe do SSO para incluir o CPF nos dados do usuário.");
+        log.error("E-mail ausente no id_token. Claims procurados: {}. Claims presentes: {}",
+                props.claimsEmail(), token.getClaims().keySet());
+        throw new SsoException("O login corporativo não informou o e-mail. "
+                + "Peça à equipe do SSO para incluir o e-mail nos dados do usuário.");
     }
 
     private static String enc(String valor) {

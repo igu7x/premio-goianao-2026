@@ -61,13 +61,13 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   const entrarComSenha = useCallback(async (email: string, senha: string) => {
     const sessao = await api.post<Sessao>('/api/auth/login-senha', { email, senha })
     guardarToken(sessao.token)
-    setIdentidade({ cpf: sessao.cpf, nome: sessao.nome, papeis: sessao.papeis })
+    setIdentidade({ email: sessao.email, nome: sessao.nome, papeis: sessao.papeis })
   }, [])
 
   const entrar = useCallback(async (credencial: string) => {
     const sessao = await api.post<Sessao>('/api/auth/login', { credencial })
     guardarToken(sessao.token)
-    setIdentidade({ cpf: sessao.cpf, nome: sessao.nome, papeis: sessao.papeis })
+    setIdentidade({ email: sessao.email, nome: sessao.nome, papeis: sessao.papeis })
   }, [])
 
   /**

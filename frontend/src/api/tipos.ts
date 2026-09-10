@@ -14,23 +14,23 @@ export type Alinhamento = 'ESQUERDA' | 'CENTRO' | 'DIREITA'
 
 export type OrigemServidor = 'EGESP' | 'MANUAL'
 
+/** O e-mail corporativo é a chave da pessoa em todo o sistema (DI-24). */
 export interface Sessao {
   token: string
   expiraEmSegundos: number
-  cpf: string
+  email: string
   nome: string
   papeis: Papel[]
 }
 
 export interface Identidade {
-  cpf: string
+  email: string
   nome: string
   papeis: Papel[]
 }
 
 export interface UsuarioMock {
-  cpf: string
-  cpfFormatado: string
+  email: string
   nome: string
   papeis: Papel[]
 }
@@ -107,8 +107,10 @@ export interface Reconhecimento {
 
 export interface Magistrado {
   id: number
-  cpf: string
-  cpfFormatado: string
+  email: string
+  /** Opcional, só informativo. */
+  cpf: string | null
+  cpfFormatado: string | null
   nome: string
   reconhecimentos: Reconhecimento[]
 }
@@ -139,8 +141,10 @@ export interface RelatorioImportacao {
 export interface ServidorHabilitado {
   id: number
   /** Só vem preenchido para quem pode editar a lista; caso contrário, apenas o mascarado. */
-  cpf: string | null
-  cpfMascarado: string
+  email: string | null
+  emailMascarado: string
+  /** Opcional; quando existe, sempre mascarado. */
+  cpfMascarado: string | null
   nome: string
   origem: OrigemServidor
   ativo: boolean
@@ -163,6 +167,8 @@ export interface Semeadura {
   incluidos: number
   jaExistentes: number
   preservadosRemovidos: number
+  /** Vieram do EGESP sem e-mail: sem ele a pessoa não seria reconhecida no login. */
+  ignoradosSemEmail: number
   totalAtivos: number
 }
 
@@ -211,7 +217,8 @@ export interface Verificacao {
 /** Usuário do sistema, como o cadastro do superadministrador o devolve. */
 export interface Usuario {
   id: number
-  cpfMascarado: string
+  /** Nulo quando o CPF (opcional) não foi informado. */
+  cpfMascarado: string | null
   nome: string
   email: string
   unidadeLotacao: string | null

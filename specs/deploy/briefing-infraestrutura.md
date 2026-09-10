@@ -18,6 +18,11 @@ as artes dos certificados ficam no banco.
 ## As perguntas
 
 **1. Em qual claim do Keycloak vem o CPF?**
+
+> **Resolvida em 2026-09-10 (DI-24):** o realm não entrega CPF, e o sistema
+> passou a identificar as pessoas pelo e-mail corporativo, que ele entrega. Não
+> há mais o que perguntar à infra sobre isso. O texto abaixo fica como registro.
+
 A mais importante. Todo o domínio é indexado por CPF: magistrado reconhecido,
 servidor habilitado, certificado emitido. O outro sistema chaveia por e-mail e
 não sabe responder. Se o realm não expuser CPF, o plano B é resolvê-lo a partir

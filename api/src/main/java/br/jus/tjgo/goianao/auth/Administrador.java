@@ -8,15 +8,16 @@ import java.time.LocalDateTime;
 
 /**
  * Cadastro explicito de administradores (001/RF-4). Enquanto o SSO real nao
- * define uma claim de perfil, o papel ADMINISTRADOR vem desta lista.
+ * define uma claim de perfil, o papel ADMINISTRADOR vem desta lista — chaveada
+ * pelo e-mail corporativo (DI-24).
  */
 @Entity
 @Table(name = "administrador")
 public class Administrador {
 
     @Id
-    @Column(name = "cpf", length = 11, nullable = false)
-    private String cpf;
+    @Column(name = "email", length = 200, nullable = false)
+    private String email;
 
     @Column(name = "nome", length = 200, nullable = false)
     private String nome;
@@ -26,14 +27,14 @@ public class Administrador {
 
     protected Administrador() {}
 
-    public Administrador(String cpf, String nome) {
-        this.cpf = cpf;
+    public Administrador(String email, String nome) {
+        this.email = email;
         this.nome = nome;
         this.criadoEm = LocalDateTime.now();
     }
 
-    public String getCpf() {
-        return cpf;
+    public String getEmail() {
+        return email;
     }
 
     public String getNome() {

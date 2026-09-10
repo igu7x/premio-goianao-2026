@@ -31,12 +31,12 @@ public class EmissaoServidorController {
 
     @GetMapping("/edicoes")
     public List<EdicaoOpcaoResposta> edicoes() {
-        return servico.edicoesDisponiveis(UsuarioAtual.obrigatorio().cpf());
+        return servico.edicoesDisponiveis(UsuarioAtual.obrigatorio().email());
     }
 
     @GetMapping
     public List<OpcaoEmissaoResposta> opcoes(@RequestParam(required = false) Long edicaoId) {
-        return servico.opcoes(edicaoId, UsuarioAtual.obrigatorio().cpf());
+        return servico.opcoes(edicaoId, UsuarioAtual.obrigatorio().email());
     }
 
     @PostMapping("/emitir")

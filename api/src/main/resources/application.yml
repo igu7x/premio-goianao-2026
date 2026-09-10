@@ -63,7 +63,7 @@ goianao:
   # nenhum. A SENHA NAO FICA NO REPOSITORIO: vem de GOIANAO_SUPERADMIN_SENHA e
   # e gravada como hash BCrypt. Sem a variavel, nenhum superadmin e criado e o
   # log diz o que falta -- subir sem superadmin e melhor do que subir com uma
-  # senha que qualquer leitor do codigo conheceria.
+  # senha que qualquer leitor do codigo conheceria. O CPF e opcional.
   superadmin:
     email: ${GOIANAO_SUPERADMIN_EMAIL:}
     senha: ${GOIANAO_SUPERADMIN_SENHA:}
@@ -91,10 +91,10 @@ goianao:
     # que vai impresso no QR, entao acompanha BASE_VERIFICACAO por padrao e so
     # precisa de variavel propria se um dia forem endereços diferentes.
     url-frontend: ${GOIANAO_URL_FRONTEND:${GOIANAO_BASE_VERIFICACAO:http://localhost:5173}}
-    # Tentados em ordem ate achar um CPF valido. A infra ainda nao confirmou
-    # em qual claim ele vem; quando confirmar, basta definir OPENSHIFT_SSO_CLAIMS_CPF
-    # com o nome certo, sem alterar codigo.
-    claims-cpf: ${OPENSHIFT_SSO_CLAIMS_CPF:cpf,CPF,preferred_username}
+    # Tentados em ordem ate achar um e-mail valido -- ele e a chave da pessoa
+    # em todo o sistema (DI-24). O realm do tribunal publica `email`; se um
+    # client o entregar noutro claim, basta definir OPENSHIFT_SSO_CLAIMS_EMAIL.
+    claims-email: ${OPENSHIFT_SSO_CLAIMS_EMAIL:email,preferred_username}
     claim-nome: ${OPENSHIFT_SSO_CLAIMS_NAME:name}
   storage:
     # banco (padrao) ou filesystem. No OpenShift o pod nao tem disco que

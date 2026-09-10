@@ -125,11 +125,11 @@ export function Entrar() {
     }
   }
 
-  async function autenticar(cpf: string) {
-    setEntrando(cpf)
+  async function autenticar(email: string) {
+    setEntrando(email)
     setErro(null)
     try {
-      await entrar(cpf)
+      await entrar(email)
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Não foi possível entrar.')
       setEntrando(null)
@@ -264,15 +264,15 @@ export function Entrar() {
                   {usuarios.map((usuario) => (
                     <button
                       type="button"
-                      key={usuario.cpf}
+                      key={usuario.email}
                       className="usuario-opcao"
                       disabled={entrando !== null}
-                      onClick={() => void autenticar(usuario.cpf)}
+                      onClick={() => void autenticar(usuario.email)}
                     >
                       <span>
                         <span className="principal">{usuario.nome}</span>
                         <br />
-                        <span className="secundaria mono">{usuario.cpfFormatado}</span>
+                        <span className="secundaria mono">{usuario.email}</span>
                       </span>
                       <span className="papeis">
                         {usuario.papeis.map((papel) => (
@@ -280,7 +280,7 @@ export function Entrar() {
                             {ROTULO_PAPEL[papel]}
                           </span>
                         ))}
-                        {entrando === usuario.cpf ? (
+                        {entrando === usuario.email ? (
                           <span className="giro" />
                         ) : (
                           <Icone nome="seta" tamanho={16} />

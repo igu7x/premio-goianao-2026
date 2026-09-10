@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
  * tambem vem do cadastro, <b>nao</b> do SSO — como o cadastro e travado ao
  * publicar, reemitir uma edicao antiga imprime sempre a mesma grafia, ainda que
  * o nome no SSO mude depois (005/RF-4, constituicao principio 3a).
+ *
+ * <p>Quem e o magistrado, o SSO diz pelo e-mail corporativo (DI-24).
  */
 @Service
 public class EmissaoMagistradoService {
@@ -42,8 +44,8 @@ public class EmissaoMagistradoService {
 
     /** Edicoes publicadas em que o magistrado tem reconhecimento (005/RF-1). */
     @Transactional(readOnly = true)
-    public List<EdicaoOpcaoResposta> edicoesDisponiveis(String cpf) {
-        return magistrados.edicoesPublicadasDe(cpf).stream()
+    public List<EdicaoOpcaoResposta> edicoesDisponiveis(String email) {
+        return magistrados.edicoesPublicadasDe(email).stream()
                 .map(edicoes::buscar)
                 .sorted(Comparator.comparing(Edicao::getAno).reversed())
                 .map(EdicaoOpcaoResposta::de)
@@ -51,18 +53,18 @@ public class EmissaoMagistradoService {
     }
 
     @Transactional(readOnly = true)
-    public List<OpcaoEmissaoResposta> opcoes(Long edicaoId, String cpf) {
+    public List<OpcaoEmissaoResposta> opcoes(Long edicaoId, String email) {
         Edicao edicao = edicoes.resolverAlvo(edicaoId);
 
-        return magistrados.reconhecimentosDe(edicao.getId(), cpf).stream()
+        return magistrados.reconhecimentosDe(edicao.getId(), email).stream()
                 .sorted(Comparator.comparing(r -> r.getUnidade().getNome()))
-                .map(r -> montarOpcao(edicao, cpf, r))
+                .map(r -> montarOpcao(edicao, email, r))
                 .toList();
     }
 
-    private OpcaoEmissaoResposta montarOpcao(Edicao edicao, String cpf, Reconhecimento r) {
+    private OpcaoEmissaoResposta montarOpcao(Edicao edicao, String email, Reconhecimento r) {
         Optional<CertificadoEmitido> emitido = emissao.jaEmitido(
-                edicao.getId(), TIPO, cpf, r.getUnidade().getId());
+                edicao.getId(), TIPO, email, r.getUnidade().getId());
 
         return new OpcaoEmissaoResposta(
                 r.getUnidade().getId(),
@@ -76,24 +78,24 @@ public class EmissaoMagistradoService {
     }
 
     @Transactional
-    public EmissaoService.CertificadoGerado emitir(Long edicaoId, Long unidadeId, String cpf) {
+    public EmissaoService.CertificadoGerado emitir(Long edicaoId, Long unidadeId, String email) {
         Edicao edicao = edicoes.resolverAlvo(edicaoId);
 
         // A unidade tem que ser dele naquela edicao: nada vem por parametro
         // confiavel a nao ser o proprio identificador da unidade (005/RF-6).
         Reconhecimento reconhecimento = magistrados
-                .reconhecimentosDe(edicao.getId(), cpf).stream()
+                .reconhecimentosDe(edicao.getId(), email).stream()
                 .filter(r -> r.getUnidade().getId().equals(unidadeId))
                 .findFirst()
                 .orElseThrow(() -> new AcessoNegadoException(
                         "Você não foi reconhecido por esta unidade na edição selecionada."));
 
         MagistradoReconhecido cadastro = magistrados
-                .porCpfNaEdicao(edicao.getId(), cpf)
+                .porEmailNaEdicao(edicao.getId(), email)
                 .orElseThrow(() -> new AcessoNegadoException(
                         "Você não consta como reconhecido nesta edição."));
 
-        return emissao.emitir(edicao, TIPO, cpf, cadastro.getNome(),
+        return emissao.emitir(edicao, TIPO, email, cadastro.getNome(),
                 reconhecimento.getUnidade(), reconhecimento.getSelo());
     }
 }

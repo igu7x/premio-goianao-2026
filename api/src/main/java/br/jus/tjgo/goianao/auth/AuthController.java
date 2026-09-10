@@ -6,7 +6,6 @@ import br.jus.tjgo.goianao.auth.dto.LoginSenhaRequisicao;
 import br.jus.tjgo.goianao.auth.dto.SessaoResposta;
 import br.jus.tjgo.goianao.auth.dto.UsuarioMockResposta;
 import br.jus.tjgo.goianao.auth.sso.SsoProperties;
-import br.jus.tjgo.goianao.comum.Cpf;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.config.GoianaoProperties;
 import br.jus.tjgo.goianao.seguranca.JwtService;
@@ -83,7 +82,7 @@ public class AuthController {
 
     /**
      * Login por identidade de teste. <b>Nao pede credencial</b> — informado o
-     * CPF, a sessao e emitida.
+     * e-mail, a sessao e emitida.
      *
      * <p>So existe onde {@code goianao.login.mock} estiver ligado, o que
      * significa desenvolvimento. Num ambiente alcancavel de fora ele entrega o
@@ -93,17 +92,7 @@ public class AuthController {
     @PostMapping("/login")
     public SessaoResposta login(@Valid @RequestBody LoginRequisicao requisicao) {
         exigirMockHabilitado();
-        IdentidadeAutenticada identidade = identityProvider.autenticar(requisicao.credencial());
-        Set<Papel> papeis = papeisResolver.resolver(identidade.cpf());
-        UsuarioAutenticado usuario =
-                new UsuarioAutenticado(identidade.cpf(), identidade.nome(), papeis);
-
-        return new SessaoResposta(
-                jwtService.gerar(usuario),
-                jwtService.validade().toSeconds(),
-                usuario.cpf(),
-                usuario.nome(),
-                usuario.papeisComoTexto());
+        return sessaoDe(identityProvider.autenticar(requisicao.credencial()));
     }
 
 
@@ -123,13 +112,13 @@ public class AuthController {
     }
 
     private SessaoResposta sessaoDe(IdentidadeAutenticada identidade) {
-        Set<Papel> papeis = papeisResolver.resolver(identidade.cpf());
+        Set<Papel> papeis = papeisResolver.resolver(identidade.email());
         UsuarioAutenticado usuario =
-                new UsuarioAutenticado(identidade.cpf(), identidade.nome(), papeis);
+                new UsuarioAutenticado(identidade.email(), identidade.nome(), papeis);
         return new SessaoResposta(
                 jwtService.gerar(usuario),
                 jwtService.validade().toSeconds(),
-                usuario.cpf(),
+                usuario.email(),
                 usuario.nome(),
                 usuario.papeisComoTexto());
     }
@@ -145,17 +134,16 @@ public class AuthController {
         exigirMockHabilitado();
         return identityProvider.identidadesDisponiveis().stream()
                 .map(i -> new UsuarioMockResposta(
-                        i.cpf(),
-                        Cpf.formatar(i.cpf()),
+                        i.email(),
                         i.nome(),
-                        papeisResolver.resolver(i.cpf()).stream().map(Enum::name).sorted().toList()))
+                        papeisResolver.resolver(i.email()).stream().map(Enum::name).sorted().toList()))
                 .toList();
     }
 
     @GetMapping("/me")
     public IdentidadeResposta me() {
         UsuarioAutenticado usuario = UsuarioAtual.obrigatorio();
-        return new IdentidadeResposta(usuario.cpf(), usuario.nome(), usuario.papeisComoTexto());
+        return new IdentidadeResposta(usuario.email(), usuario.nome(), usuario.papeisComoTexto());
     }
 
     /**

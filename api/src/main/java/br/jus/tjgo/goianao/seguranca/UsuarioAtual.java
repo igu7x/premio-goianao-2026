@@ -6,7 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * Acesso a identidade da requisicao. Servicos usam este ponto — nunca um CPF
+ * Acesso a identidade da requisicao. Servicos usam este ponto — nunca um e-mail
  * vindo do corpo/query — para decidir o que o usuario pode emitir (005/RNF-1,
  * 006/RNF-1).
  */
@@ -27,8 +27,8 @@ public final class UsuarioAtual {
                 () -> new AcessoNegadoException("Nenhum usuário autenticado na requisição."));
     }
 
-    /** CPF do autor da operacao, para colunas de auditoria. */
-    public static String cpfOuSistema() {
-        return opcional().map(UsuarioAutenticado::cpf).orElse(null);
+    /** E-mail do autor da operacao, para colunas de auditoria. */
+    public static String emailOuSistema() {
+        return opcional().map(UsuarioAutenticado::email).orElse(null);
     }
 }

@@ -51,6 +51,9 @@ export function AbaServidores({ edicao }: { edicao: Edicao }) {
           dados.preservadosRemovidos > 0
             ? `${dados.preservadosRemovidos} removido(s) preservados fora da lista`
             : null,
+          dados.ignoradosSemEmail > 0
+            ? `${dados.ignoradosSemEmail} sem e-mail no EGESP, não incluído(s)`
+            : null,
           `total ativo: ${dados.totalAtivos}`,
         ]
           .filter(Boolean)

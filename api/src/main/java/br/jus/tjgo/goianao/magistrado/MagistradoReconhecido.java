@@ -23,7 +23,8 @@ import java.util.Optional;
 /**
  * Magistrado reconhecido em uma edicao. E a fonte da verdade sobre quem venceu
  * (constituicao, principio 2) e tambem a origem do <b>nome impresso</b> no
- * certificado de magistrado (005/RF-4) — o SSO fornece apenas o CPF.
+ * certificado de magistrado (005/RF-4) — o SSO fornece apenas o e-mail, que o
+ * identifica aqui (DI-24). O CPF e opcional e so informativo.
  */
 @Entity
 @Table(name = "magistrado_reconhecido")
@@ -37,7 +38,10 @@ public class MagistradoReconhecido {
     @JoinColumn(name = "edicao_id", nullable = false)
     private Edicao edicao;
 
-    @Column(name = "cpf", length = 11, nullable = false)
+    @Column(name = "email", length = 200, nullable = false)
+    private String email;
+
+    @Column(name = "cpf", length = 11)
     private String cpf;
 
     @Column(name = "nome", length = 200, nullable = false)
@@ -56,15 +60,21 @@ public class MagistradoReconhecido {
 
     protected MagistradoReconhecido() {}
 
-    public MagistradoReconhecido(Edicao edicao, String cpf, String nome) {
+    public MagistradoReconhecido(Edicao edicao, String email, String nome, String cpf) {
         this.edicao = edicao;
-        this.cpf = cpf;
+        this.email = email;
         this.nome = nome;
+        this.cpf = cpf;
         this.criadoEm = LocalDateTime.now();
     }
 
     public void renomear(String nome) {
         this.nome = nome;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+
+    public void definirCpf(String cpf) {
+        this.cpf = cpf;
         this.atualizadoEm = LocalDateTime.now();
     }
 
@@ -97,6 +107,10 @@ public class MagistradoReconhecido {
 
     public Edicao getEdicao() {
         return edicao;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public String getCpf() {

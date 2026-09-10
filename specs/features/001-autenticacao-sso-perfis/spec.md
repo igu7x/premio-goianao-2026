@@ -4,6 +4,9 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** onde esta spec diz que o SSO fornece o CPF e
+  que os papéis são resolvidos por ele, leia-se **e-mail corporativo**. O CPF
+  continua existindo como dado opcional, só informativo.
 
 > Esta spec descreve **o quê** e **por quê**. NÃO inclui linguagem, framework
 > ou detalhes de implementação — isso vai no `plan.md`.

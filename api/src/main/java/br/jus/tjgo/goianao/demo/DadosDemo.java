@@ -120,7 +120,7 @@ public class DadosDemo {
      */
     private void autenticarComoAdministradorDeCarga() {
         UsuarioAutenticado carga = new UsuarioAutenticado(
-                MockIdentityProvider.CPF_ADMIN,
+                MockIdentityProvider.EMAIL_ADMIN,
                 "Carga de demonstração",
                 EnumSet.of(Papel.ADMINISTRADOR));
         SecurityContextHolder.getContext().setAuthentication(
@@ -130,10 +130,10 @@ public class DadosDemo {
     @Transactional
     public void criarAdministradores() {
         administradores.save(new Administrador(
-                MockIdentityProvider.CPF_ADMIN, "Ana Cristina Marques Rebelo"));
+                MockIdentityProvider.EMAIL_ADMIN, "Ana Cristina Marques Rebelo"));
         // Acumula ADMINISTRADOR e MAGISTRADO: exercita a uniao de papeis (001/CA-4).
         administradores.save(new Administrador(
-                MockIdentityProvider.CPF_ADMIN_MAGISTRADO, "Otávio Lemos Peixoto"));
+                MockIdentityProvider.EMAIL_ADMIN_MAGISTRADO, "Otávio Lemos Peixoto"));
     }
 
     private Edicao criarEdicaoCompleta(int ano) {
@@ -197,21 +197,24 @@ public class DadosDemo {
      */
     private void criarReconhecidos(Long edicaoId) {
         magistrados.criar(edicaoId, new MagistradoRequisicao(
-                MockIdentityProvider.CPF_MAGISTRADO_1,
+                MockIdentityProvider.EMAIL_MAGISTRADO_1,
                 "Rafael Siqueira Bittencourt",
+                MockIdentityProvider.CPF_MAGISTRADO_1,
                 List.of(
                         new ReconhecimentoRequisicao(null, VARA_CIVEL_1, Selo.OURO),
                         new ReconhecimentoRequisicao(null, VARA_CIVEL_2, Selo.BRONZE),
                         new ReconhecimentoRequisicao(null, JUIZADO_ANAPOLIS, Selo.PRATA))));
 
         magistrados.criar(edicaoId, new MagistradoRequisicao(
-                MockIdentityProvider.CPF_MAGISTRADO_2,
+                MockIdentityProvider.EMAIL_MAGISTRADO_2,
                 "Helena Vasconcelos Aires",
+                MockIdentityProvider.CPF_MAGISTRADO_2,
                 List.of(new ReconhecimentoRequisicao(null, VARA_CRIMINAL_3, Selo.DIAMANTE))));
 
         magistrados.criar(edicaoId, new MagistradoRequisicao(
-                MockIdentityProvider.CPF_ADMIN_MAGISTRADO,
+                MockIdentityProvider.EMAIL_ADMIN_MAGISTRADO,
                 "Otávio Lemos Peixoto",
+                MockIdentityProvider.CPF_ADMIN_MAGISTRADO,
                 List.of(new ReconhecimentoRequisicao(null, VARA_CIVEL_1, Selo.BRONZE))));
     }
 

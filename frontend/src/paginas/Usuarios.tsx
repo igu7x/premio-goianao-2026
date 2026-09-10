@@ -64,9 +64,9 @@ export function Usuarios() {
             Usuários do sistema
           </h1>
           <p>
-            Quem entra, com que papel e lotado onde. O CPF é obrigatório porque é por ele que o
-            sistema liga a pessoa aos reconhecimentos, às listas de habilitados e aos certificados
-            emitidos.
+            Quem entra, com que papel e lotado onde. O e-mail corporativo é obrigatório porque é
+            por ele que o login reconhece a pessoa e o sistema a liga aos reconhecimentos, às
+            listas de habilitados e aos certificados emitidos.
           </p>
         </div>
         <div className="acoes">
@@ -126,7 +126,9 @@ export function Usuarios() {
                         {usuario.nome}
                       </div>
                       <div className="secundaria">{usuario.email}</div>
-                      <div className="secundaria mono">{usuario.cpfMascarado}</div>
+                      {usuario.cpfMascarado && (
+                        <div className="secundaria mono">{usuario.cpfMascarado}</div>
+                      )}
                     </td>
                     <td className="secundaria">
                       {usuario.unidadeLotacao ?? '—'}
@@ -222,9 +224,9 @@ function ModalUsuario({
   aoFechar: () => void
   aoSalvar: () => Promise<void>
 }) {
-  const [cpf, setCpf] = useState('')
+  const [email, setEmail] = useState('')
   const [nome, setNome] = useState(usuario?.nome ?? '')
-  const [email, setEmail] = useState(usuario?.email ?? '')
+  const [cpf, setCpf] = useState('')
   const [unidade, setUnidade] = useState(usuario?.unidadeLotacao ?? '')
   const [area, setArea] = useState(usuario?.areaAtuacao ?? '')
   const [papeis, setPapeis] = useState<Papel[]>(
@@ -245,12 +247,13 @@ function ModalUsuario({
   async function salvar() {
     setSalvando(true)
     setErro(null)
-    // Na edição o CPF não vai: ele é a chave que liga o usuário a tudo que já
-    // fez, e o contrato de atualização nem tem o campo.
+    // Na edição o e-mail não vai: ele é a chave que liga o usuário a tudo que
+    // já fez, e o contrato de atualização nem tem o campo. O CPF é opcional;
+    // em branco na edição, o servidor mantém o atual.
     const corpo = {
-      ...(usuario ? {} : { cpf }),
+      ...(usuario ? {} : { email }),
       nome,
-      email,
+      cpf: cpf || null,
       unidadeLotacao: unidade || null,
       areaAtuacao: ehMagistrado ? area || null : null,
       papeis,
@@ -274,8 +277,8 @@ function ModalUsuario({
       titulo={usuario ? `Editar ${usuario.nome}` : 'Novo usuário'}
       descricao={
         usuario
-          ? 'O CPF não muda: é a chave que liga o usuário a tudo que ele já fez no sistema.'
-          : 'O CPF é obrigatório — é por ele que o sistema encontra os reconhecimentos e certificados da pessoa.'
+          ? 'O e-mail não muda: é a chave que liga o usuário a tudo que ele já fez no sistema.'
+          : 'O e-mail corporativo é obrigatório — é por ele que o login reconhece a pessoa e o sistema encontra os reconhecimentos e certificados dela.'
       }
       aoFechar={aoFechar}
       rodape={
@@ -292,18 +295,25 @@ function ModalUsuario({
     >
       {erro && <Aviso tom="erro">{erro}</Aviso>}
 
-      {!usuario && (
-        <div className="campo">
-          <label htmlFor="cpf">CPF</label>
+      <div className="campo">
+        <label htmlFor="email-usuario">E-mail corporativo</label>
+        {usuario ? (
+          <input id="email-usuario" type="email" value={usuario.email} readOnly disabled />
+        ) : (
           <input
-            id="cpf"
-            className="mono"
-            placeholder="000.000.000-00"
-            value={cpf}
-            onChange={(evento) => setCpf(evento.target.value)}
+            id="email-usuario"
+            type="email"
+            placeholder="nome@tjgo.jus.br"
+            value={email}
+            onChange={(evento) => setEmail(evento.target.value)}
           />
-        </div>
-      )}
+        )}
+        <span className="campo-dica">
+          {usuario
+            ? 'É a chave do usuário e não muda.'
+            : 'O mesmo do login corporativo — é por ele que a pessoa é reconhecida ao entrar.'}
+        </span>
+      </div>
 
       <div className="campo">
         <label htmlFor="nome">Nome</label>
@@ -311,14 +321,19 @@ function ModalUsuario({
       </div>
 
       <div className="campo">
-        <label htmlFor="email-usuario">E-mail</label>
+        <label htmlFor="cpf">CPF (opcional)</label>
         <input
-          id="email-usuario"
-          type="email"
-          value={email}
-          onChange={(evento) => setEmail(evento.target.value)}
+          id="cpf"
+          className="mono"
+          placeholder={usuario?.cpfMascarado ?? '000.000.000-00'}
+          value={cpf}
+          onChange={(evento) => setCpf(evento.target.value)}
         />
-        <span className="campo-dica">É com ele que a pessoa entra no sistema.</span>
+        <span className="campo-dica">
+          {usuario?.cpfMascarado
+            ? 'Em branco mantém o atual. Só informativo.'
+            : 'Só informativo — o sistema não identifica ninguém pelo CPF.'}
+        </span>
       </div>
 
       <div className="campo">

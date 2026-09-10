@@ -91,15 +91,15 @@ public class UnidadeService {
         return unidade;
     }
 
-    /** Escopo: este CPF responde por esta unidade? */
+    /** Escopo: a pessoa deste e-mail responde por esta unidade? */
     @Transactional(readOnly = true)
-    public boolean ehResponsavel(Long unidadeId, String cpf) {
-        return repositorio.existsByIdAndResponsavelCpf(unidadeId, cpf);
+    public boolean ehResponsavel(Long unidadeId, String email) {
+        return repositorio.existsByIdAndResponsavelEmail(unidadeId, email);
     }
 
     @Transactional(readOnly = true)
-    public List<UnidadeJudiciaria> unidadesSobResponsabilidade(String cpf) {
-        return repositorio.findByResponsavelCpfOrderByNomeAsc(cpf);
+    public List<UnidadeJudiciaria> unidadesSobResponsabilidade(String email) {
+        return repositorio.findByResponsavelEmailOrderByNomeAsc(email);
     }
 
     @Transactional

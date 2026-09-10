@@ -7,6 +7,6 @@ package br.jus.tjgo.goianao.auth;
  */
 public interface MagistradoLookup {
 
-    /** Verdadeiro se o CPF consta como magistrado reconhecido em alguma edicao. */
-    boolean ehMagistradoReconhecido(String cpf);
+    /** Verdadeiro se o e-mail consta como magistrado reconhecido em alguma edicao. */
+    boolean ehMagistradoReconhecido(String email);
 }

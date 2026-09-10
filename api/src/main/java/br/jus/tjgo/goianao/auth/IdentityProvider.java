@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * Porta de autenticacao. A implementacao atual e um mock; a futura
  * ({@code SsoIdentityProvider}) fara OIDC/OAuth2 com fluxo Authorization Code,
- * lendo CPF e nome das claims do ID token — sem alterar este contrato
+ * lendo e-mail e nome das claims do ID token — sem alterar este contrato
  * (001/RF-2, 001/RNF-1).
  */
 public interface IdentityProvider {

@@ -4,6 +4,10 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** o magistrado é identificado pelo **e-mail
+  corporativo**, e não pelo CPF — no cadastro, na unicidade por edição e na
+  planilha (`email;nome;unidade;selo;cpf`, com o CPF opcional por último). O CPF
+  continua existindo como dado opcional, só informativo.
 
 > Esta spec descreve **o quê** e **por quê**. Inclui a seleção de unidades
 > judiciárias a partir da lista do EGESP, base para os reconhecimentos.

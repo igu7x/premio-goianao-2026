@@ -20,9 +20,11 @@ import java.util.Set;
 /**
  * Usuario do sistema: quem entra, com que papel e lotado onde.
  *
- * <p>O <b>CPF</b> e a chave que liga este cadastro ao resto do dominio —
- * magistrado reconhecido, servidor habilitado e certificado emitido sao todos
- * indexados por ele. Por isso e obrigatorio, mesmo que o login seja por e-mail.
+ * <p>O <b>e-mail corporativo</b> e a chave que liga este cadastro ao resto do
+ * dominio — magistrado reconhecido, servidor habilitado e certificado emitido
+ * sao todos indexados por ele, e e ele que o SSO entrega (DI-24). Por isso e
+ * obrigatorio, unico e nao muda depois do cadastro. O <b>CPF</b> e opcional e
+ * so informativo.
  *
  * <p>A <b>senha</b> e opcional por desenho: hoje se entra por e-mail e senha,
  * mas quando o SSO assumir a autenticacao os usuarios continuarao existindo,
@@ -36,7 +38,7 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "cpf", length = 11, nullable = false, unique = true)
+    @Column(name = "cpf", length = 11)
     private String cpf;
 
     @Column(name = "nome", length = 200, nullable = false)
@@ -74,19 +76,20 @@ public class Usuario {
         // exigido pelo JPA
     }
 
-    public Usuario(String cpf, String nome, String email, Set<Papel> papeis) {
-        this.cpf = cpf;
-        this.nome = nome;
+    public Usuario(String email, String nome, String cpf, Set<Papel> papeis) {
         this.email = email;
+        this.nome = nome;
+        this.cpf = cpf;
         this.papeis = EnumSet.copyOf(papeis);
         this.ativo = true;
         this.criadoEm = LocalDateTime.now();
     }
 
-    public void alterarDados(String nome, String email, String unidadeLotacao,
+    /** O e-mail fica de fora: ele e a chave, e troca-lo seria trocar a pessoa. */
+    public void alterarDados(String nome, String cpf, String unidadeLotacao,
                              String areaAtuacao, Set<Papel> papeis) {
         this.nome = nome;
-        this.email = email;
+        this.cpf = cpf;
         this.unidadeLotacao = unidadeLotacao;
         this.areaAtuacao = areaAtuacao;
         this.papeis = EnumSet.copyOf(papeis);

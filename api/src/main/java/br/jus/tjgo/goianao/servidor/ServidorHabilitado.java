@@ -40,7 +40,12 @@ public class ServidorHabilitado {
     @JoinColumn(name = "unidade_id", nullable = false)
     private UnidadeJudiciaria unidade;
 
-    @Column(name = "cpf", length = 11, nullable = false)
+    /** Chave da pessoa (DI-24). */
+    @Column(name = "email", length = 200, nullable = false)
+    private String email;
+
+    /** Opcional, so informativo. */
+    @Column(name = "cpf", length = 11)
     private String cpf;
 
     @Column(name = "nome", length = 200, nullable = false)
@@ -53,13 +58,13 @@ public class ServidorHabilitado {
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
-    @Column(name = "criado_por", length = 11)
+    @Column(name = "criado_por", length = 200)
     private String criadoPor;
 
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 
-    @Column(name = "atualizado_por", length = 11)
+    @Column(name = "atualizado_por", length = 200)
     private String atualizadoPor;
 
     @Column(name = "atualizado_em")
@@ -67,12 +72,13 @@ public class ServidorHabilitado {
 
     protected ServidorHabilitado() {}
 
-    public ServidorHabilitado(Edicao edicao, UnidadeJudiciaria unidade, String cpf, String nome,
-                              OrigemServidor origem, String autor) {
+    public ServidorHabilitado(Edicao edicao, UnidadeJudiciaria unidade, String email,
+                              String nome, String cpf, OrigemServidor origem, String autor) {
         this.edicao = edicao;
         this.unidade = unidade;
-        this.cpf = cpf;
+        this.email = email;
         this.nome = nome;
+        this.cpf = cpf;
         this.origem = origem;
         this.ativo = true;
         this.criadoPor = autor;
@@ -86,9 +92,12 @@ public class ServidorHabilitado {
     }
 
     /** Reativa um item removido — apenas por acao explicita, nunca por semeadura. */
-    public void reativar(String nome, OrigemServidor origem, String autor) {
+    public void reativar(String nome, String cpf, OrigemServidor origem, String autor) {
         this.ativo = true;
         this.nome = nome;
+        if (cpf != null) {
+            this.cpf = cpf;
+        }
         this.origem = origem;
         this.atualizadoPor = autor;
         this.atualizadoEm = LocalDateTime.now();
@@ -104,6 +113,10 @@ public class ServidorHabilitado {
 
     public UnidadeJudiciaria getUnidade() {
         return unidade;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public String getCpf() {

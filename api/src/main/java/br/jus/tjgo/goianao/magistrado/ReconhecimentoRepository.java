@@ -22,9 +22,9 @@ public interface ReconhecimentoRepository extends JpaRepository<Reconhecimento, 
     boolean existeNaEdicao(@Param("edicaoId") Long edicaoId, @Param("unidadeId") Long unidadeId);
 
     @Query("select r from Reconhecimento r join fetch r.unidade"
-            + " where r.magistrado.edicao.id = :edicaoId and r.magistrado.cpf = :cpf")
+            + " where r.magistrado.edicao.id = :edicaoId and r.magistrado.email = :email")
     List<Reconhecimento> doMagistradoNaEdicao(@Param("edicaoId") Long edicaoId,
-                                              @Param("cpf") String cpf);
+                                              @Param("email") String email);
 
     /**
      * Selos que uma unidade recebeu na edicao. A emissao do servidor calcula o

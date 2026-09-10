@@ -6,6 +6,6 @@ import java.util.List;
 public record SessaoResposta(
         String token,
         long expiraEmSegundos,
-        String cpf,
+        String email,
         String nome,
         List<String> papeis) {}

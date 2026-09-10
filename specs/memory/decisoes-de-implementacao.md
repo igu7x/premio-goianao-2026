@@ -288,6 +288,8 @@ depois do deploy.
 
 ## DI-15 — SSO com verificação de assinatura, e o CPF como configuração
 
+> A parte do CPF foi substituída pela DI-24: a chave passou a ser o e-mail.
+
 **Contexto.** O sistema irmão implementa o Keycloak à mão: decodifica o payload
 do token em base64 e confia nele, sem buscar JWKS nem conferir emissor e
 expiração — aceita, inclusive, um base64 puro como token. **Qualquer pessoa
@@ -479,6 +481,9 @@ marcar a caixa, salvar. Verificado em `LayoutIT`, inclusive o caso que não cabe
 
 ## DI-21 — Superadministrador e cadastro próprio de usuários
 
+> "O CPF é obrigatório no cadastro" foi substituído pela DI-24: obrigatório e
+> imutável agora é o e-mail; o CPF ficou opcional.
+
 **Contexto.** A identidade vinha inteira do provedor (mockado) e o papel de
 administrador era uma linha em `administrador`. Faltava quem conceda acesso: não
 havia como cadastrar uma pessoa, dizer o papel dela e a lotação.
@@ -590,3 +595,63 @@ ter sido reconhecido na unidade.
 
 **Pendente.** A importação da planilha de unidades (CSV) ainda não existe; hoje
 as unidades entram pelo cadastro de reconhecidos.
+
+---
+
+## DI-24 — O e-mail corporativo substitui o CPF como chave do domínio
+
+**Contexto.** Todo o domínio era indexado por CPF — usuário, administrador,
+magistrado reconhecido, servidor habilitado, certificado emitido (DI-15, DI-21).
+No primeiro login real em homologação, o Keycloak do tribunal devolveu e-mail,
+nome e `preferred_username`, e nada de CPF; o discovery do realm já não o
+listava. Com o CPF como chave, ninguém que entrasse pelo SSO seria reconhecido:
+o login parava em "O login corporativo não informou o CPF".
+
+**Decisão.** O e-mail corporativo passa a ser a chave em todo o domínio, e não
+só no login. É gravado sempre normalizado (minúsculas, sem espaços nas pontas).
+O CPF fica como dado **opcional, sem unicidade e só informativo** — nos cadastros
+de usuário, magistrado e servidor, e como última coluna, opcional, da planilha.
+Nada no sistema procura alguém pelo CPF.
+
+**Alternativa descartada.** Manter o domínio em CPF e só *traduzir* e-mail em
+CPF no login. Seria uma mudança menor, mas só funcionaria para quem está no
+cadastro de usuários: os servidores habilitados — milhares, vindos do EGESP —
+não teriam de onde tirar essa correspondência, e o sistema continuaria
+dependendo de um dado que o SSO não entrega.
+
+**O e-mail não muda depois do cadastro.** É o mesmo raciocínio que valia para o
+CPF: ele liga a pessoa a tudo que ela já fez, e trocá-lo seria trocar a pessoa
+mantendo o registro. No usuário, o campo saiu do contrato de edição; no
+magistrado, a edição (só possível em rascunho) recusa e-mail diferente — remove
+e inclui de novo.
+
+**Migração 010.** Acrescenta as colunas de e-mail, refaz as chaves únicas e
+torna o CPF anulável. As linhas anteriores recebem o e-mail do cadastro de
+usuários quando o CPF bate; sem correspondência, `<cpf>@cpf.invalid` — domínio
+reservado (RFC 2606), que nenhum SSO entrega. A linha é preservada, continua
+ligada aos certificados que já emitiu (o mesmo CPF gera o mesmo endereço nas
+quatro tabelas) e ninguém entra por ela. O código de validação dos certificados
+não muda.
+
+**SSO.** `goianao.sso.claims-email` (`OPENSHIFT_SSO_CLAIMS_EMAIL`), padrão
+`email,preferred_username`: vale o primeiro claim que contiver um e-mail válido.
+`OPENSHIFT_SSO_CLAIMS_CPF` deixou de ser lida. Nenhuma variável nova é exigida —
+o padrão atende o realm do tribunal.
+
+**EGESP.** A integração passa a precisar do e-mail de cada servidor. Quem vier
+sem ele não entra na lista — não seria reconhecido no login — e a semeadura
+informa quantos ficaram de fora (`ignoradosSemEmail`), em vez de descartá-los em
+silêncio.
+
+**Dado pessoal.** O e-mail herda as regras que valiam para o CPF: completo só
+para quem pode editar a lista de habilitados, mascarado (`t***@dominio`) para
+quem só consulta (DI-10), e fora da conferência pública. E fora da URL: a
+remoção de servidor da lista passou a ser pelo id do item — antes, o CPF ia no
+caminho e, com ele, para o log de acesso.
+
+**Consequência.** Muda o princípio 3 da constituição, emendado com a
+justificativa. As specs das features 001 e 004 a 009 descrevem o CPF como
+identificador: receberam uma nota de emenda apontando para cá, em vez de serem
+reescritas. A planilha de reconhecidos mudou de formato
+(`email;nome;unidade;selo;cpf`); uma planilha no formato antigo é recusada
+inteira, com a explicação, em vez de voltar com um erro por linha.

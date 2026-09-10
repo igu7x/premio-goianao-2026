@@ -7,4 +7,4 @@ import java.util.List;
  * papeis apenas para orientar quem esta testando; a autorizacao real e sempre
  * recalculada no backend a cada login.
  */
-public record UsuarioMockResposta(String cpf, String cpfFormatado, String nome, List<String> papeis) {}
+public record UsuarioMockResposta(String email, String nome, List<String> papeis) {}

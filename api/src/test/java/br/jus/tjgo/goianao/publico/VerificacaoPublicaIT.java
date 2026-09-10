@@ -10,9 +10,13 @@ import br.jus.tjgo.goianao.certificado.EmissaoService;
 import br.jus.tjgo.goianao.certificado.dto.EmitirRequisicao;
 import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.edicao.Edicao;
+import br.jus.tjgo.goianao.magistrado.dto.MagistradoRequisicao;
+import br.jus.tjgo.goianao.magistrado.dto.ReconhecimentoRequisicao;
 import br.jus.tjgo.goianao.suporte.TesteDeIntegracao;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
+import java.util.List;
 import org.assertj.core.api.Assertions;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,10 +26,13 @@ import org.springframework.http.MediaType;
 @DisplayName("Validacao publica de certificado (feature 007)")
 class VerificacaoPublicaIT extends TesteDeIntegracao {
 
+    /** O magistrado do cenario tem CPF, para provar que ele nao vaza. */
+    private static final String CPF_DO_MAGISTRADO = "20450670252";
+
     @Autowired private EmissaoService emissao;
 
     @Test
-    @DisplayName("CA-1 e CA-5: codigo valido devolve os dados, e nenhum CPF aparece")
+    @DisplayName("CA-1 e CA-5: codigo valido devolve os dados, e nem CPF nem e-mail aparecem")
     void codigoValido() throws Exception {
         String codigo = emitirCertificado(2100);
 
@@ -38,10 +45,12 @@ class VerificacaoPublicaIT extends TesteDeIntegracao {
                 .andExpect(jsonPath("$.selo").value("OURO"))
                 .andExpect(jsonPath("$.tipo").value("MAGISTRADO"))
                 .andExpect(jsonPath("$.emitidoEm").exists())
-                // Nenhum campo de CPF, em nenhuma forma (007/RNF-2).
+                // Nenhum dado pessoal alem do nome, em nenhuma forma (007/RNF-2).
                 .andExpect(jsonPath("$.cpf").doesNotExist())
-                .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString(CPF_MAGISTRADO))));
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(content().string(Matchers.not(Matchers.containsString(CPF_DO_MAGISTRADO))))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("506.702"))))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("@tjgo"))));
     }
 
     @Test
@@ -91,12 +100,12 @@ class VerificacaoPublicaIT extends TesteDeIntegracao {
         String requisicao = corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()));
 
         String codigo = mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON).content(requisicao))
                 .andReturn().getResponse().getHeader("X-Codigo-Validacao");
 
         mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON).content(requisicao))
                 .andExpect(status().isOk());
 
@@ -111,7 +120,7 @@ class VerificacaoPublicaIT extends TesteDeIntegracao {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
 
         return mvc.perform(post("/api/magistrado/certificados/emitir")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_MAGISTRADO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new EmitirRequisicao(edicao.getId(), unidade.getId()))))
                 .andExpect(status().isOk())
@@ -120,8 +129,10 @@ class VerificacaoPublicaIT extends TesteDeIntegracao {
 
     private Edicao cenario(int ano) {
         Edicao edicao = edicaoComLayouts(ano);
-        cadastrarMagistrado(edicao.getId(), CPF_MAGISTRADO, "Rafael Siqueira Bittencourt",
-                UNIDADE_A, Selo.OURO);
+        atuandoComo(EMAIL_ADMIN);
+        magistrados.criar(edicao.getId(), new MagistradoRequisicao(EMAIL_MAGISTRADO,
+                "Rafael Siqueira Bittencourt", CPF_DO_MAGISTRADO,
+                List.of(new ReconhecimentoRequisicao(null, UNIDADE_A, Selo.OURO))));
         edicoes.publicar(edicao.getId());
         return edicoes.tornarVigente(edicao.getId());
     }

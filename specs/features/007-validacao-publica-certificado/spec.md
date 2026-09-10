@@ -4,6 +4,9 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** a pessoa passou a ser identificada pelo
+  e-mail corporativo. A regra de não expor dado pessoal na conferência pública
+  vale para ele como valia para o CPF: nenhum dos dois aparece.
 
 > Esta spec descreve **o quê** e **por quê**.
 

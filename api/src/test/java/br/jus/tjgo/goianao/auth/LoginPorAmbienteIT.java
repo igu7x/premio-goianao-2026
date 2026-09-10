@@ -36,7 +36,7 @@ class LoginPorAmbienteIT extends TesteDeIntegracao {
     void mockDesligadoNaoExiste() throws Exception {
         mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"credencial\":\"" + CPF_ADMIN + "\"}"))
+                        .content("{\"credencial\":\"" + EMAIL_ADMIN + "\"}"))
                 .andExpect(status().isNotFound());
     }
 

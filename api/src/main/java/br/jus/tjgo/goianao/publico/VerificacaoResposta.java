@@ -7,8 +7,8 @@ import java.time.LocalDateTime;
 
 /**
  * Resultado da conferencia publica. Traz o minimo necessario para atestar a
- * autenticidade e <b>nao inclui CPF</b> — minimizacao de dado pessoal, ja que o
- * endpoint e aberto (007/RNF-2, CA-5).
+ * autenticidade e <b>nao inclui CPF nem e-mail</b> — minimizacao de dado
+ * pessoal, ja que o endpoint e aberto (007/RNF-2, CA-5).
  */
 public record VerificacaoResposta(
         boolean valido,

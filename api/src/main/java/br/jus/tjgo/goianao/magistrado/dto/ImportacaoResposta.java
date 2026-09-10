@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Relatorio da importacao em lote (004/RF-11). A transacao e <b>por
- * magistrado</b>: um CPF com qualquer linha invalida e rejeitado inteiro e
+ * magistrado</b>: um e-mail com qualquer linha invalida e rejeitado inteiro e
  * reportado, enquanto os demais sao persistidos — assim o lote nao se perde por
  * um erro isolado nem fica pela metade (004/RNF-3).
  */

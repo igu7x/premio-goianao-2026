@@ -24,9 +24,10 @@
 | `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID` | não¹ | |
 | `OPENSHIFT_SSO_KEYCLOACK_SECRET` | não¹ | |
 | `OPENSHIFT_SSO_KEYCLOACK_REDIRECT_URI` | não¹ | |
-| `OPENSHIFT_SSO_CLAIMS_CPF` | não | Lista separada por vírgula, tentada em ordem. Padrão `cpf,CPF,preferred_username`. **Ainda não sabemos em qual claim o CPF vem** — quando a infra confirmar, é só definir esta variável. |
+| `OPENSHIFT_SSO_CLAIMS_EMAIL` | não | Lista separada por vírgula, tentada em ordem até achar um e-mail válido. Padrão `email,preferred_username`, que atende o realm do tribunal — **não precisa ser definida**. O e-mail é a chave da pessoa em todo o sistema (DI-24). |
+| ~~`OPENSHIFT_SSO_CLAIMS_CPF`~~ | — | Não é mais lida desde 2026-09-10 (DI-24). Se existir no ambiente, é ignorada. |
 | `OPENSHIFT_SSO_CLAIMS_NAME` | não | Padrão `name`. |
-| `GOIANAO_SUPERADMIN_EMAIL` / `_SENHA` / `_CPF` / `_NOME` | 1ª subida | Cria o primeiro superadministrador quando não existe nenhum. A senha é gravada como hash BCrypt e **não fica no repositório**. Podem ser removidas depois da primeira subida. |
+| `GOIANAO_SUPERADMIN_EMAIL` / `_SENHA` / `_NOME` | 1ª subida | Cria o primeiro superadministrador quando não existe nenhum. A senha é gravada como hash BCrypt e **não fica no repositório**. Podem ser removidas depois da primeira subida. `_CPF` é opcional. |
 
 ¹ As cinco de SSO são obrigatórias **juntas**: faltando qualquer uma, o SSO fica
 desligado e vale o login mockado. É por isso que a aplicação aceita também a
@@ -178,7 +179,12 @@ OPENSHIFT_SSO_KEYCLOACK_URL=https://sso.tjgo.jus.br/auth
 Os caminhos que a aplicação monta (`issuer + /protocol/openid-connect/...`)
 batem exatamente com os do discovery, então nada além da base precisa mudar.
 
-### O CPF continua sem resposta — mas a pergunta ficou mais precisa
+### O CPF não vem — e deixou de ser necessário
+
+> **Resolvido em 2026-09-10 (DI-24).** O sistema passou a identificar as
+> pessoas pelo **e-mail corporativo**, que o realm publica. As perguntas abaixo
+> ficam como registro de por que se chegou a essa decisão; não há mais nada a
+> pedir à infra sobre CPF.
 
 O `claims_supported` do realm lista apenas:
 
@@ -222,7 +228,7 @@ GOIANAO_LOGIN_SENHA=true
 ```
 
 O login mockado **não pode** ser ligado fora de desenvolvimento: informado o
-CPF, a sessão é emitida sem senha, e `/api/auth/usuarios-mock` publica as
+e-mail, a sessão é emitida sem senha, e `/api/auth/usuarios-mock` publica as
 identidades disponíveis — uma delas administrador. A aplicação **recusa
 iniciar** com `GOIANAO_LOGIN_MOCK=true` fora dos perfis `dev`/`test`, no mesmo
 espírito da recusa por segredo de JWT público.
@@ -236,21 +242,23 @@ produção.
 
 ## O primeiro superadministrador
 
-Criado na subida, quando não existe nenhum. As quatro variáveis vão no ambiente
-da **API**:
+Criado na subida, quando não existe nenhum. As variáveis vão no ambiente da
+**API**:
 
 ```
 GOIANAO_SUPERADMIN_EMAIL=teixeiraigor09@gmail.com
 GOIANAO_SUPERADMIN_SENHA=<a senha>
-GOIANAO_SUPERADMIN_CPF=71198182105
 GOIANAO_SUPERADMIN_NOME=Igor Freitas Costa Cupertino Teixeira
 ```
+
+`GOIANAO_SUPERADMIN_CPF` também existe, mas é opcional desde a DI-24: quem
+identifica o superadministrador é o e-mail.
 
 A senha é gravada como **hash BCrypt**; o valor em claro não é guardado nem
 registrado em log. Ela nunca entra no repositório — por isso vem de variável, e
 o ideal é criá-la como Secret no cluster, não em ConfigMap.
 
-Depois da primeira subida bem-sucedida as quatro podem ser removidas: o usuário
+Depois da primeira subida bem-sucedida todas podem ser removidas: o usuário
 já está no banco. Se não forem, não há efeito — a criação só ocorre quando não
 existe superadministrador algum.
 

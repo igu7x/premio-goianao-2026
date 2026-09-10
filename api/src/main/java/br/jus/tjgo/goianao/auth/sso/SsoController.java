@@ -102,9 +102,9 @@ public class SsoController {
 
         try {
             IdentidadeAutenticada identidade = keycloak.autenticar(codigo);
-            Set<Papel> papeis = papeisResolver.resolver(identidade.cpf());
+            Set<Papel> papeis = papeisResolver.resolver(identidade.email());
             UsuarioAutenticado usuario =
-                    new UsuarioAutenticado(identidade.cpf(), identidade.nome(), papeis);
+                    new UsuarioAutenticado(identidade.email(), identidade.nome(), papeis);
 
             return paraFrontend("token=" + enc(jwtService.gerar(usuario)), state);
         } catch (SsoException e) {

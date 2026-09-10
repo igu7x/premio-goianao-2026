@@ -136,7 +136,7 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
               <thead>
                 <tr>
                   <th>Magistrado</th>
-                  <th>CPF</th>
+                  <th>E-mail</th>
                   <th>Reconhecimentos</th>
                   <th className="direita">Ações</th>
                 </tr>
@@ -152,7 +152,12 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
                         {magistrado.reconhecimentos.length} reconhecimento(s)
                       </div>
                     </td>
-                    <td className="secundaria mono">{magistrado.cpfFormatado}</td>
+                    <td className="secundaria">
+                      {magistrado.email}
+                      {magistrado.cpfFormatado && (
+                        <div className="secundaria mono">{magistrado.cpfFormatado}</div>
+                      )}
+                    </td>
                     <td>
                       <div style={{ display: 'grid', gap: 6 }}>
                         {magistrado.reconhecimentos.map((r) => (
@@ -283,8 +288,9 @@ function ModalMagistrado({
   aoFechar: () => void
   aoSalvar: () => Promise<void>
 }) {
-  const [cpf, setCpf] = useState('')
+  const [email, setEmail] = useState('')
   const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
   const [linhas, setLinhas] = useState<LinhaReconhecimento[]>([
     { unidadeNome: '', selo: 'OURO' },
   ])
@@ -296,8 +302,9 @@ function ModalMagistrado({
     setErro(null)
     try {
       await api.post(`/api/edicoes/${edicaoId}/magistrados`, {
-        cpf,
+        email,
         nome,
+        cpf: cpf || null,
         reconhecimentos: linhas
           .filter((linha) => linha.unidadeNome)
           .map((linha) => ({ unidadeNome: linha.unidadeNome, selo: linha.selo })),
@@ -329,19 +336,33 @@ function ModalMagistrado({
 
       <div className="linha-campos">
         <div className="campo">
-          <label htmlFor="cpf">CPF</label>
+          <label htmlFor="email">E-mail corporativo</label>
           <input
-            id="cpf"
-            className="mono"
-            value={cpf}
-            placeholder="000.000.000-00"
-            onChange={(evento) => setCpf(evento.target.value)}
+            id="email"
+            type="email"
+            value={email}
+            placeholder="nome@tjgo.jus.br"
+            onChange={(evento) => setEmail(evento.target.value)}
           />
         </div>
         <div className="campo">
           <label htmlFor="nome">Nome completo</label>
           <input id="nome" value={nome} onChange={(evento) => setNome(evento.target.value)} />
         </div>
+      </div>
+
+      <div className="campo">
+        <label htmlFor="cpf">CPF (opcional)</label>
+        <input
+          id="cpf"
+          className="mono"
+          value={cpf}
+          placeholder="000.000.000-00"
+          onChange={(evento) => setCpf(evento.target.value)}
+        />
+        <span className="campo-dica">
+          Quem identifica o magistrado no login é o e-mail; o CPF é só informativo.
+        </span>
       </div>
 
       <fieldset>
@@ -531,7 +552,7 @@ function ModalImportacao({
   return (
     <Modal
       titulo="Importar reconhecidos"
-      descricao="Planilha CSV com as colunas cpf, nome, unidade e selo."
+      descricao="Planilha CSV com as colunas email, nome, unidade e selo — e, se quiser, cpf por último."
       aoFechar={aoFechar}
       rodape={
         <>
@@ -560,8 +581,8 @@ function ModalImportacao({
           onChange={(evento) => setArquivo(evento.target.files?.[0] ?? null)}
         />
         <span className="campo-dica">
-          Várias linhas com o mesmo CPF viram um magistrado com várias unidades. Um magistrado com
-          qualquer linha inválida é recusado inteiro e aparece no relatório; os demais entram.
+          Várias linhas com o mesmo e-mail viram um magistrado com várias unidades. Um magistrado
+          com qualquer linha inválida é recusado inteiro e aparece no relatório; os demais entram.
         </span>
       </div>
 

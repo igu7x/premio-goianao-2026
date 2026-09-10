@@ -28,10 +28,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code curl https://sso.tjgo.jus.br/auth/realms/<realm>/.well-known/openid-configuration},
  * que devolve 200 com o sufixo e 404 sem ele.
  *
- * <b>O CPF nao tem claim garantido.</b> Depende do mapper configurado no
- * client, e o outro sistema do tribunal chaveia por e-mail, entao nao serve de
- * referencia. Por isso {@link #claimsCpf()} e uma lista tentada em ordem: assim
- * a resposta da infra vira alteracao de ConfigMap, nao de codigo.
+ * <b>O realm nao publica CPF.</b> O discovery lista {@code email},
+ * {@code preferred_username} e {@code name}, e nada de CPF — foi isso que levou
+ * o sistema a chavear pelo e-mail corporativo (DI-24), como o outro sistema do
+ * tribunal ja fazia. Ainda assim {@link #claimsEmail()} e uma lista tentada em
+ * ordem: se um client entregar o e-mail noutro claim, a correcao e de
+ * ConfigMap, nao de codigo.
  *
  * @param url          base do Keycloak, <b>incluindo</b> {@code /auth}
  * @param realm        realm do tribunal
@@ -39,7 +41,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param clientSecret segredo do client (vem de Secret, nunca versionado)
  * @param redirectUri  URI de callback registrada no client
  * @param urlFrontend  para onde devolver o navegador apos autenticar
- * @param claimsCpf    claims tentados, em ordem, ate achar o CPF
+ * @param claimsEmail  claims tentados, em ordem, ate achar um e-mail valido
  * @param claimNome    claim do nome de exibicao
  */
 @ConfigurationProperties(prefix = "goianao.sso")
@@ -50,15 +52,17 @@ public record SsoProperties(
         String clientSecret,
         String redirectUri,
         String urlFrontend,
-        List<String> claimsCpf,
+        List<String> claimsEmail,
         String claimNome) {
 
     private static final Logger log = LoggerFactory.getLogger(SsoProperties.class);
 
     public SsoProperties {
-        claimsCpf = (claimsCpf == null || claimsCpf.isEmpty())
-                ? List.of("cpf", "CPF", "preferred_username")
-                : claimsCpf;
+        // preferred_username fica de reserva: em alguns realms o login e o
+        // proprio e-mail. Quando nao e, a validacao de formato o descarta.
+        claimsEmail = (claimsEmail == null || claimsEmail.isEmpty())
+                ? List.of("email", "preferred_username")
+                : claimsEmail;
         claimNome = (claimNome == null || claimNome.isBlank()) ? "name" : claimNome;
         url = comEsquema(url == null ? null : url.replaceAll("/+$", ""), "url");
         redirectUri = comEsquema(redirectUri, "redirect-uri");

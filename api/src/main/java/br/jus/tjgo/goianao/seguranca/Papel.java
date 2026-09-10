@@ -1,7 +1,7 @@
 package br.jus.tjgo.goianao.seguranca;
 
 /**
- * Perfis de acesso (constituicao, principio 6). Um mesmo CPF pode acumular mais
+ * Perfis de acesso (constituicao, principio 6). Uma mesma pessoa pode acumular mais
  * de um papel; nesse caso as capacidades sao a <b>uniao</b> dos papeis, sem
  * "atuar como" (001/RF-3).
  *

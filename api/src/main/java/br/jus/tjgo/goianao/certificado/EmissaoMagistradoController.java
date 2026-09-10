@@ -31,18 +31,18 @@ public class EmissaoMagistradoController {
 
     @GetMapping("/edicoes")
     public List<EdicaoOpcaoResposta> edicoes() {
-        return servico.edicoesDisponiveis(UsuarioAtual.obrigatorio().cpf());
+        return servico.edicoesDisponiveis(UsuarioAtual.obrigatorio().email());
     }
 
     @GetMapping
     public List<OpcaoEmissaoResposta> opcoes(@RequestParam(required = false) Long edicaoId) {
-        return servico.opcoes(edicaoId, UsuarioAtual.obrigatorio().cpf());
+        return servico.opcoes(edicaoId, UsuarioAtual.obrigatorio().email());
     }
 
     @PostMapping("/emitir")
     public ResponseEntity<byte[]> emitir(@Valid @RequestBody EmitirRequisicao requisicao) {
         EmissaoService.CertificadoGerado gerado = servico.emitir(
-                requisicao.edicaoId(), requisicao.unidadeId(), UsuarioAtual.obrigatorio().cpf());
+                requisicao.edicaoId(), requisicao.unidadeId(), UsuarioAtual.obrigatorio().email());
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

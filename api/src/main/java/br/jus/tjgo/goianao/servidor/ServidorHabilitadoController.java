@@ -77,15 +77,18 @@ public class ServidorHabilitadoController {
             @PathVariable Long edicaoId,
             @PathVariable Long unidadeId,
             @Valid @RequestBody IncluirServidorRequisicao requisicao) {
-        // Quem chegou aqui passou pela guarda de escopo, entao pode ver o CPF.
+        // Quem chegou aqui passou pela guarda de escopo, entao pode ver o e-mail.
         return ServidorHabilitadoResposta.de(
-                servico.incluir(edicaoId, unidadeId, requisicao.cpf(), requisicao.nome()), true);
+                servico.incluir(edicaoId, unidadeId, requisicao.email(), requisicao.nome(),
+                        requisicao.cpf()),
+                true);
     }
 
-    @DeleteMapping("/{cpf}")
+    /** Pelo id do item, e nao pelo e-mail: dado pessoal nao vai na URL (e no log de acesso). */
+    @DeleteMapping("/{servidorId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remover(@PathVariable Long edicaoId, @PathVariable Long unidadeId,
-                        @PathVariable String cpf) {
-        servico.remover(edicaoId, unidadeId, cpf);
+                        @PathVariable Long servidorId) {
+        servico.remover(edicaoId, unidadeId, servidorId);
     }
 }

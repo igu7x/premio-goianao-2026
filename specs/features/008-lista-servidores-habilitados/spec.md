@@ -4,6 +4,10 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** a lista registra **e-mail × unidade**, e não
+  CPF × unidade; o EGESP precisa fornecer o e-mail de cada servidor, e quem vier
+  sem ele fica de fora, contado no resultado da semeadura. O e-mail completo só
+  aparece para quem pode editar a lista; o CPF é opcional e sai mascarado.
 
 > Esta spec descreve **o quê** e **por quê**.
 

@@ -14,9 +14,10 @@ import org.springframework.stereotype.Component;
  * uma lotacao deterministica — semear a mesma unidade duas vezes produz sempre
  * o mesmo resultado.
  *
- * <p>Os CPFs sao ficticios: validos apenas quanto aos digitos verificadores.
- * Alguns servidores do login mock aparecem em unidades especificas para que os
- * cenarios das features 006 e 008 possam ser exercitados ponta a ponta.
+ * <p>Os e-mails usam o dominio reservado {@code .example} e os CPFs sao
+ * ficticios, validos apenas quanto aos digitos verificadores. Alguns servidores
+ * do login mock aparecem em unidades especificas para que os cenarios das
+ * features 006 e 008 possam ser exercitados ponta a ponta.
  */
 @Component
 public class MockEgespClient implements EgespClient {
@@ -67,21 +68,23 @@ public class MockEgespClient implements EgespClient {
         LOTACOES_FIXAS.put(
                 Texto.canonicalizar("1ª Vara Cível da Comarca de Goiânia"),
                 List.of(
-                        new ServidorEgesp(MockIdentityProvider.CPF_SERVIDOR_1,
-                                "Marcos Vinícius de Paula"),
-                        new ServidorEgesp(MockIdentityProvider.CPF_SERVIDOR_MULTI,
-                                "Carla Menezes do Amaral")));
+                        new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_1,
+                                "Marcos Vinícius de Paula", MockIdentityProvider.CPF_SERVIDOR_1),
+                        new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_MULTI,
+                                "Carla Menezes do Amaral",
+                                MockIdentityProvider.CPF_SERVIDOR_MULTI)));
         LOTACOES_FIXAS.put(
                 Texto.canonicalizar("3ª Vara Criminal da Comarca de Goiânia"),
-                List.of(new ServidorEgesp(MockIdentityProvider.CPF_SERVIDOR_2,
-                        "Juliana Prado Ferreira")));
+                List.of(new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_2,
+                        "Juliana Prado Ferreira", MockIdentityProvider.CPF_SERVIDOR_2)));
         LOTACOES_FIXAS.put(
                 Texto.canonicalizar("Juizado Especial Cível da Comarca de Anápolis"),
                 List.of(
-                        new ServidorEgesp(MockIdentityProvider.CPF_SERVIDOR_3,
-                                "Tiago Nunes Barbosa"),
-                        new ServidorEgesp(MockIdentityProvider.CPF_SERVIDOR_MULTI,
-                                "Carla Menezes do Amaral")));
+                        new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_3,
+                                "Tiago Nunes Barbosa", MockIdentityProvider.CPF_SERVIDOR_3),
+                        new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_MULTI,
+                                "Carla Menezes do Amaral",
+                                MockIdentityProvider.CPF_SERVIDOR_MULTI)));
     }
 
     @Override
@@ -114,12 +117,21 @@ public class MockEgespClient implements EgespClient {
             int passo = Math.abs(semente + i * 7919);
             String nome = PRENOMES[passo % PRENOMES.length] + " "
                     + SOBRENOMES[(passo / 13) % SOBRENOMES.length];
-            String cpf = cpfDeterministico(passo);
-            if (servidores.stream().noneMatch(s -> s.cpf().equals(cpf))) {
-                servidores.add(new ServidorEgesp(cpf, nome));
+            String email = emailDeterministico(nome, passo);
+            if (servidores.stream().noneMatch(s -> s.email().equals(email))) {
+                servidores.add(new ServidorEgesp(email, nome, cpfDeterministico(passo)));
             }
         }
         return List.copyOf(servidores);
+    }
+
+    /**
+     * {@code nome.sobrenome.NN@tjgo.example}. O sufixo evita que homonimos de
+     * unidades diferentes virem, por acaso, a mesma pessoa.
+     */
+    private static String emailDeterministico(String nome, int semente) {
+        String local = Texto.canonicalizar(nome).replaceAll("[^a-z0-9]+", ".");
+        return local + "." + (semente % 100) + "@tjgo.example";
     }
 
     /**

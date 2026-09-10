@@ -19,7 +19,7 @@ public class MagistradoLookupJpa implements MagistradoLookup {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean ehMagistradoReconhecido(String cpf) {
-        return cpf != null && repositorio.existsByCpf(cpf);
+    public boolean ehMagistradoReconhecido(String email) {
+        return email != null && repositorio.existsByEmail(email);
     }
 }

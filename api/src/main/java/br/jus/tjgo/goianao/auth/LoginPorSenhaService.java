@@ -51,7 +51,7 @@ public class LoginPorSenhaService {
                 usuario.getSenhaHash())) {
             throw recusar();
         }
-        return new IdentidadeAutenticada(usuario.getCpf(), usuario.getNome());
+        return new IdentidadeAutenticada(usuario.getEmail(), usuario.getNome());
     }
 
     private CredenciaisInvalidasException recusar() {

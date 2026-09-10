@@ -22,7 +22,7 @@ class EdicaoIT extends TesteDeIntegracao {
     @DisplayName("CA-1: a edicao criada nasce em RASCUNHO")
     void criaEmRascunho() throws Exception {
         mvc.perform(post("/api/edicoes")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new CriarEdicaoRequisicao(2031, "Edicao de teste"))))
                 .andExpect(status().isCreated())
@@ -38,7 +38,7 @@ class EdicaoIT extends TesteDeIntegracao {
         novaEdicao(2032);
 
         mvc.perform(post("/api/edicoes")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new CriarEdicaoRequisicao(2032, "Outra"))))
                 .andExpect(status().isConflict())
@@ -52,7 +52,7 @@ class EdicaoIT extends TesteDeIntegracao {
         Edicao nova = edicaoPublicada(2034);
 
         mvc.perform(post("/api/edicoes/" + nova.getId() + "/vigente")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.vigente").value(true));
 
@@ -86,13 +86,13 @@ class EdicaoIT extends TesteDeIntegracao {
         Edicao edicao = novaEdicao(2038);
 
         mvc.perform(post("/api/edicoes")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ESTRANHO))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ESTRANHO))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo(new CriarEdicaoRequisicao(2039, null))))
                 .andExpect(status().isForbidden());
 
         mvc.perform(post("/api/edicoes/" + edicao.getId() + "/publicar")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ESTRANHO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ESTRANHO)))
                 .andExpect(status().isForbidden());
     }
 
@@ -109,7 +109,7 @@ class EdicaoIT extends TesteDeIntegracao {
         criarLayout(edicao, Selo.OURO, TipoCertificado.MAGISTRADO);
 
         mvc.perform(post("/api/edicoes/" + edicao.getId() + "/publicar")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detalhes.length()").value(7))
                 .andExpect(jsonPath("$.detalhes[0]").value("Bronze / Magistrado"));
@@ -121,7 +121,7 @@ class EdicaoIT extends TesteDeIntegracao {
         Edicao edicao = edicaoComLayouts(2041);
 
         mvc.perform(post("/api/edicoes/" + edicao.getId() + "/publicar")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLICADA"))
                 .andExpect(jsonPath("$.emitivel").value(true));
@@ -133,7 +133,7 @@ class EdicaoIT extends TesteDeIntegracao {
         Edicao rascunho = novaEdicao(2042);
 
         mvc.perform(post("/api/edicoes/" + rascunho.getId() + "/vigente")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isConflict());
     }
 }

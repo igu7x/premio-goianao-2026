@@ -32,7 +32,7 @@ public record GoianaoProperties(
      *              desenvolvimento e em homologacao, onde nem todo mundo tem
      *              conta no Keycloak de teste. Em producao vale so o SSO.
      * @param mock  login por identidade de teste, que <b>dispensa credencial</b>:
-     *              basta informar o CPF e o sistema emite a sessao. Serve ao
+     *              basta informar o e-mail e o sistema emite a sessao. Serve ao
      *              desenvolvimento sem SSO e a nada mais — habilita-lo num
      *              ambiente alcancavel de fora entrega o sistema a quem quiser,
      *              porque {@code /api/auth/usuarios-mock} lista as identidades

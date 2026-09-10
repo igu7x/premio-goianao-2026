@@ -38,7 +38,7 @@ class LayoutIT extends TesteDeIntegracao {
         mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
                         .file(arte())
                         .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, false))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.selo").value("OURO"))
                 .andExpect(jsonPath("$.tipo").value("SERVIDOR"))
@@ -55,13 +55,13 @@ class LayoutIT extends TesteDeIntegracao {
         mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
                         .file(arte())
                         .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, false))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isConflict());
 
         mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
                         .file(arte())
                         .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, true))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isCreated());
     }
 
@@ -74,7 +74,7 @@ class LayoutIT extends TesteDeIntegracao {
         MvcResult resultado = mvc.perform(
                         post("/api/edicoes/" + edicao.getId() + "/layouts/" + layout.getId()
                                 + "/preview")
-                                .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                                .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(corpo(new PreviewRequisicao(
                                         "Fulano de Tal", "Vara Unica de Teste", "TEST-0000-0001"))))
@@ -98,7 +98,7 @@ class LayoutIT extends TesteDeIntegracao {
         criarLayout(edicao, Selo.DIAMANTE, TipoCertificado.SERVIDOR);
 
         mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.layouts.length()").value(1))
                 .andExpect(jsonPath("$.pendencias.length()").value(7))
@@ -113,7 +113,7 @@ class LayoutIT extends TesteDeIntegracao {
         Edicao edicao = novaEdicao(2064);
 
         mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ESTRANHO)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ESTRANHO)))
                 .andExpect(status().isForbidden());
     }
 
@@ -127,11 +127,11 @@ class LayoutIT extends TesteDeIntegracao {
         mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
                         .file(arte())
                         .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, true))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().is2xxSuccessful());
 
         mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(jsonPath("$.editavel").value(true));
     }
 
@@ -152,13 +152,13 @@ class LayoutIT extends TesteDeIntegracao {
         mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/layouts")
                         .file(arte())
                         .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, true))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.mensagem",
                         org.hamcrest.Matchers.containsString("travados")));
 
         mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(jsonPath("$.editavel").value(false));
     }
 
@@ -171,7 +171,7 @@ class LayoutIT extends TesteDeIntegracao {
                         .file(new MockMultipartFile("imagem", "arte.png",
                                 MediaType.IMAGE_PNG_VALUE, ArteDeTeste.retrato()))
                         .file(dados(Selo.OURO, TipoCertificado.SERVIDOR, false))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isUnprocessableEntity());
     }
 
@@ -191,7 +191,7 @@ class LayoutIT extends TesteDeIntegracao {
                         .file(arte())
                         .file(new MockMultipartFile("dados", "", MediaType.APPLICATION_JSON_VALUE,
                                 corpo(requisicao).getBytes()))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isUnprocessableEntity());
     }
 
@@ -223,7 +223,7 @@ class LayoutIT extends TesteDeIntegracao {
                 new AreaCodigo(100, 700, 500, 40, Alinhamento.CENTRO, null)));
 
         mvc.perform(put("/api/edicoes/" + edicao.getId() + "/layouts/areas")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo))
                 .andExpect(status().isOk())
@@ -231,7 +231,7 @@ class LayoutIT extends TesteDeIntegracao {
 
         // As oito passam a compartilhar exatamente a mesma posicao: e o ponto.
         mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(jsonPath("$.layouts[0].areaNome.y").value(200))
                 .andExpect(jsonPath("$.layouts[7].areaNome.y").value(200))
                 .andExpect(jsonPath("$.layouts[7].areaCodigo.alinhamento").value("CENTRO"));
@@ -249,7 +249,7 @@ class LayoutIT extends TesteDeIntegracao {
                 new AreaCodigo(100, 700, 500, 40, Alinhamento.CENTRO, null)));
 
         mvc.perform(put("/api/edicoes/" + edicao.getId() + "/layouts/areas")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo))
                 .andExpect(status().isUnprocessableEntity())
@@ -257,7 +257,7 @@ class LayoutIT extends TesteDeIntegracao {
                         org.hamcrest.Matchers.containsString("Nenhum layout foi alterado")));
 
         mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(CPF_ADMIN)))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(jsonPath("$.layouts[0].areaNome.y").value(org.hamcrest.Matchers.not(999000)));
     }
 }

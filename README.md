@@ -36,17 +36,21 @@ Para começar do zero, apague a pasta `api/data/`.
 
 ### Identidades de teste
 
-CPFs fictícios (válidos apenas quanto aos dígitos verificadores):
+A pessoa é identificada pelo **e-mail corporativo** (DI-24). Os de teste usam o
+domínio reservado `tjgo.example` e não pertencem a ninguém:
 
-| CPF | Nome | Papéis |
+| E-mail | Nome | Papéis |
 |---|---|---|
-| 101.202.301-00 | Ana Cristina Marques Rebelo | Administrador |
-| 403.105.204-95 | Otávio Lemos Peixoto | Administrador + Magistrado |
-| 204.506.702-52 | Rafael Siqueira Bittencourt | Magistrado (3 unidades) |
-| 309.801.403-23 | Helena Vasconcelos Aires | Magistrado (Diamante) |
-| 507.609.805-78 | Marcos Vinícius de Paula | Servidor |
-| 805.307.208-92 | Carla Menezes do Amaral | Servidor (2 unidades) |
-| 901.703.609-54 | Eduardo Rocha Teixeira | Servidor sem vínculo |
+| ana.rebelo@tjgo.example | Ana Cristina Marques Rebelo | Administrador |
+| otavio.peixoto@tjgo.example | Otávio Lemos Peixoto | Administrador + Magistrado |
+| rafael.bittencourt@tjgo.example | Rafael Siqueira Bittencourt | Magistrado (3 unidades) |
+| helena.aires@tjgo.example | Helena Vasconcelos Aires | Magistrado (Diamante) |
+| marcos.paula@tjgo.example | Marcos Vinícius de Paula | Servidor |
+| carla.amaral@tjgo.example | Carla Menezes do Amaral | Servidor (2 unidades) |
+| eduardo.teixeira@tjgo.example | Eduardo Rocha Teixeira | Servidor sem vínculo |
+
+Quem tem `api/data/` de antes de 10/09/2026 guarda a carga antiga, feita com
+CPFs: apague a pasta para a carga ser refeita com os e-mails.
 
 Otávio existe para exercitar o **acúmulo de papéis**: ele vê os menus de
 administrador e de magistrado ao mesmo tempo. Eduardo existe para o caminho
@@ -55,8 +59,8 @@ negativo: nenhuma opção de emissão.
 ### Testes
 
 ```bash
-cd api      && mvn test       # 153 testes (unitários e de integração)
-cd frontend && npm test       # 11 testes de componente (Vitest)
+cd api      && mvn test       # 196 testes (unitários e de integração)
+cd frontend && npm test       # 16 testes de componente (Vitest)
 cd frontend && npm run lint   # checagem de tipos
 ```
 
@@ -210,7 +214,7 @@ de ambiente:
 | `OPENSHIFT_SSO_CLIENT_ID` | client id | vazio |
 | `OPENSHIFT_SSO_SECRET` | client secret | vazio |
 | `OPENSHIFT_SSO_KEYCLOAK_REDIRECT_URI` | callback registrado no client | vazio |
-| `GOIANAO_SSO_CLAIMS_CPF` | claims tentados até achar o CPF | `cpf,CPF,preferred_username` |
+| `OPENSHIFT_SSO_CLAIMS_EMAIL` | claims tentados até achar o e-mail, que é a chave da pessoa | `email,preferred_username` |
 
 > **Em produção, defina `GOIANAO_JWT_SEGREDO`.** O valor padrão existe apenas
 > para o ambiente local e está versionado — sem a variável, a aplicação **sobe

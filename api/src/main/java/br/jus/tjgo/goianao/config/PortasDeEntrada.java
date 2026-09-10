@@ -28,7 +28,7 @@ public class PortasDeEntrada {
         if (props.login().mock() && !desenvolvimento) {
             throw new IllegalStateException(
                     "GOIANAO_LOGIN_MOCK=true fora de desenvolvimento. O login mockado dispensa "
-                    + "credencial: informado o CPF, a sessão é emitida — e /api/auth/usuarios-mock "
+                    + "credencial: informado o e-mail, a sessão é emitida — e /api/auth/usuarios-mock "
                     + "lista as identidades disponíveis, uma delas administrador. Remova a "
                     + "variável.");
         }
@@ -40,7 +40,7 @@ public class PortasDeEntrada {
             log.info("Login por e-mail e senha HABILITADO (goianao.login.senha=true).");
         }
         if (props.login().mock()) {
-            log.warn("Login mockado HABILITADO: qualquer CPF conhecido entra sem credencial.");
+            log.warn("Login mockado HABILITADO: qualquer e-mail de teste entra sem credencial.");
         }
         if (!props.login().senha() && !props.login().mock()) {
             log.info("Apenas SSO como porta de entrada.");

@@ -4,6 +4,8 @@
 - **Status:** aprovada
 - **Autor(es):** equipe Goianão
 - **Data:** 2026-05-31
+- **Emenda (2026-09-10, DI-24):** onde esta spec diz que o SSO identifica o
+  magistrado pelo CPF, leia-se **e-mail corporativo**.
 
 > Esta spec descreve **o quê** e **por quê**. Inclui o motor de geração do
 > certificado (composição nome+unidade sobre a arte → PDF), compartilhado com a

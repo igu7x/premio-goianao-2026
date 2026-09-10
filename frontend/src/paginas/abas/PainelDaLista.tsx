@@ -20,8 +20,9 @@ interface Props {
 export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
   const [lista, setLista] = useState<ListaHabilitados | null>(null)
   const [erro, setErro] = useState<string | null>(null)
-  const [cpf, setCpf] = useState('')
+  const [email, setEmail] = useState('')
   const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [mostrarInativos, setMostrarInativos] = useState(false)
 
@@ -41,9 +42,10 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
     setOcupado(true)
     setErro(null)
     try {
-      await api.post(caminho, { cpf, nome })
-      setCpf('')
+      await api.post(caminho, { email, nome, cpf: cpf || null })
+      setEmail('')
       setNome('')
+      setCpf('')
       await recarregar()
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao incluir o servidor.')
@@ -52,11 +54,12 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
     }
   }
 
-  async function remover(cpfAlvo: string) {
+  /** Pelo id do item: dado pessoal não vai na URL. */
+  async function remover(servidorId: number) {
     setOcupado(true)
     setErro(null)
     try {
-      await api.remover(`${caminho}/${cpfAlvo}`)
+      await api.remover(`${caminho}/${servidorId}`)
       await recarregar()
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao remover o servidor.')
@@ -107,13 +110,13 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
           {lista.podeEditar ? (
             <div className="inclusao">
               <div className="campo">
-                <label htmlFor="cpf-servidor">CPF</label>
+                <label htmlFor="email-servidor">E-mail corporativo</label>
                 <input
-                  id="cpf-servidor"
-                  className="mono"
-                  placeholder="000.000.000-00"
-                  value={cpf}
-                  onChange={(evento) => setCpf(evento.target.value)}
+                  id="email-servidor"
+                  type="email"
+                  placeholder="nome@tjgo.jus.br"
+                  value={email}
+                  onChange={(evento) => setEmail(evento.target.value)}
                 />
               </div>
               <div className="campo">
@@ -124,10 +127,20 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
                   onChange={(evento) => setNome(evento.target.value)}
                 />
               </div>
+              <div className="campo">
+                <label htmlFor="cpf-servidor">CPF (opcional)</label>
+                <input
+                  id="cpf-servidor"
+                  className="mono"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(evento) => setCpf(evento.target.value)}
+                />
+              </div>
               <button
                 type="button"
                 className="botao"
-                disabled={ocupado || !cpf || !nome}
+                disabled={ocupado || !email || !nome}
                 onClick={() => void incluir()}
               >
                 <Icone nome="mais" tamanho={16} />
@@ -152,7 +165,7 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
                 <thead>
                   <tr>
                     <th>Servidor</th>
-                    <th>CPF</th>
+                    <th>E-mail</th>
                     <th>Origem</th>
                     <th>Incluído em</th>
                     {lista.podeEditar && <th className="direita">Ação</th>}
@@ -161,8 +174,13 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
                 <tbody>
                   {visiveis.map((servidor) => (
                     <tr key={servidor.id} style={{ opacity: servidor.ativo ? 1 : 0.5 }}>
-                      <td className="principal">{servidor.nome}</td>
-                      <td className="secundaria mono">{servidor.cpfMascarado}</td>
+                      <td>
+                        <div className="principal">{servidor.nome}</div>
+                        {servidor.cpfMascarado && (
+                          <div className="secundaria mono">{servidor.cpfMascarado}</div>
+                        )}
+                      </td>
+                      <td className="secundaria">{servidor.email ?? servidor.emailMascarado}</td>
                       <td>
                         <span className="etiqueta">
                           {servidor.origem === 'EGESP' ? 'EGESP' : 'Manual'}
@@ -171,12 +189,12 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
                       <td className="secundaria">{formatarData(servidor.criadoEm)}</td>
                       {lista.podeEditar && (
                         <td className="direita">
-                          {servidor.ativo && servidor.cpf ? (
+                          {servidor.ativo ? (
                             <button
                               type="button"
                               className="botao botao-perigo botao-pequeno"
                               disabled={ocupado}
-                              onClick={() => void remover(servidor.cpf as string)}
+                              onClick={() => void remover(servidor.id)}
                             >
                               Remover
                             </button>
