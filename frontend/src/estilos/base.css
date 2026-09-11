@@ -610,15 +610,19 @@ textarea {
   box-shadow: var(--sombra-1), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
+/*
+ * A página ocupa a área de conteúdo inteira até 1680px e, acima disso, fica
+ * centrada. Com o limite em 1200px e sem centralizar, um monitor de 1920px
+ * deixava uma faixa vazia de ~450px à direita, e o conteúdo parecia deslocado
+ * em relação à barra do topo, que vai de ponta a ponta. Texto corrido não
+ * estica junto: parágrafos têm limite próprio em `ch`.
+ */
 .pagina {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1680px;
+  margin-inline: auto;
   padding: var(--e7);
   animation: surgir var(--lento) var(--entrada) both;
-}
-
-.pagina-larga {
-  max-width: 1400px;
 }
 
 .cabecalho-pagina {

@@ -93,7 +93,7 @@ export function EdicaoDetalhe() {
   }
 
   return (
-    <div className="pagina pagina-larga">
+    <div className="pagina">
       <Trilha para="/edicoes" rotulo="Edições" atual={`Edição ${edicao.ano}`} />
 
       <header className="cabecalho-pagina">

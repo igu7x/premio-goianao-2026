@@ -119,6 +119,24 @@ O cliente HTTP promove `http://` para `https://` quando a própria página está
 HTTPS, com aviso no console — rede de proteção para a configuração errada, não
 substituto dela.
 
+## O certificado das Routes (2026-09-11)
+
+No Edge, a tela de login dizia "Nenhuma forma de acesso disponível". O console
+mostrava a causa real: `ERR_CERT_AUTHORITY_INVALID` na chamada a
+`/api/auth/situacao`. As Routes usam um certificado de uma autoridade em que o
+navegador não confia. No frontend a pessoa vê o aviso e clica em "continuar";
+na API, que tem endereço próprio e é chamada em segundo plano, o navegador
+simplesmente recusa, sem perguntar nada. No Chrome funcionava porque a exceção
+para a API já tinha sido aceita antes naquela máquina.
+
+- **Contorno, por navegador:** abrir uma vez o endereço da API, aceitar o aviso
+  e recarregar o frontend. A tela de login agora explica isso e traz o link,
+  em vez de dizer que não há forma de acesso.
+- **Correção de verdade, com a infra:** as Routes precisam de certificado de
+  uma autoridade confiável nas máquinas do tribunal (o curinga do tribunal, ou
+  a CA interna distribuída por política). Em produção isso é obrigatório: não
+  dá para pedir a cada magistrado e servidor que aceite exceção de certificado.
+
 ## As duas variáveis de SSO que erraram no primeiro login
 
 **`OPENSHIFT_SSO_KEYCLOACK_URL`** veio sem `https://`. O `Location` do

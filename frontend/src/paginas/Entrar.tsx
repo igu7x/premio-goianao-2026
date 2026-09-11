@@ -53,6 +53,7 @@ export function Entrar() {
   const navegar = useNavigate()
 
   const [situacao, setSituacao] = useState<SituacaoLogin | null>(null)
+  const [semServidor, setSemServidor] = useState(false)
   const [usuarios, setUsuarios] = useState<UsuarioMock[] | null>(null)
   const [entrando, setEntrando] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -95,7 +96,13 @@ export function Entrar() {
     api
       .get<SituacaoLogin>('/api/auth/situacao')
       .then(setSituacao)
-      .catch(() => setSituacao({ sso: false, senha: false, mock: false }))
+      .catch((e: unknown) => {
+        // ErroApi = a API respondeu, com erro. Qualquer outra coisa (TypeError
+        // "Failed to fetch") = a chamada nem chegou: certificado recusado,
+        // rede, CORS. Sao problemas diferentes e merecem avisos diferentes.
+        setSemServidor(!(e instanceof ErroApi))
+        setSituacao({ sso: false, senha: false, mock: false })
+      })
   }, [])
 
   // A lista mockada só existe onde o login mockado está ligado.
@@ -297,7 +304,26 @@ export function Entrar() {
               diz o que houve. Acontece quando o SSO ainda não foi configurado e
               nada mais foi habilitado — ou quando a consulta de situação falhou
               e assumimos o conjunto mais restrito. */}
-          {situacao && !situacao.sso && !situacao.senha && !situacao.mock && (
+          {/* A chamada nem chegou à API. Em homologação o motivo mais comum é o
+              certificado: a API tem endereço próprio, o navegador não confia
+              nele e, como é uma chamada de fundo, não oferece o "continuar
+              assim mesmo" — a falha é silenciosa. Abrir o endereço uma vez
+              resolve naquele navegador. */}
+          {semServidor && (
+            <Aviso tom="erro" titulo="Não foi possível falar com o servidor">
+              <p>
+                O navegador não conseguiu chegar ao serviço do sistema. Se ele avisar que a
+                conexão não é segura,{' '}
+                <a href={urlDaApi('/api/auth/situacao')} target="_blank" rel="noreferrer">
+                  abra este endereço
+                </a>
+                , aceite o aviso e depois recarregue esta página. Persistindo, procure a equipe
+                responsável pelo sistema.
+              </p>
+            </Aviso>
+          )}
+
+          {situacao && !semServidor && !situacao.sso && !situacao.senha && !situacao.mock && (
             <Aviso tom="atencao" titulo="Nenhuma forma de acesso disponível">
               <p>
                 Este ambiente ainda não tem o login corporativo configurado. Procure a equipe
