@@ -48,6 +48,14 @@
   z-index: 1;
 }
 
+.entrada-brasao {
+  display: block;
+  width: auto;
+  height: 88px;
+  margin-bottom: var(--e5);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+}
+
 .entrada-apresentacao h1 {
   position: relative;
   z-index: 1;
@@ -842,6 +850,25 @@
 
 .conferencia-topo .marca-orgao {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.conferencia-topo-marca {
+  display: flex;
+  align-items: center;
+  gap: var(--e4);
+}
+
+.conferencia-topo-marca .marca-brasao {
+  height: 60px;
+  margin-bottom: 0;
+}
+
+.conferencia-selo {
+  display: block;
+  width: 200px;
+  max-width: 60%;
+  height: auto;
+  margin: var(--e6) auto 0;
 }
 
 .conferencia-corpo {

@@ -287,11 +287,19 @@ textarea {
   background: currentColor;
 }
 
-.regua span {
+/* Vazio, o miolo é um losango; com texto ("ou entre como"), é um rótulo. Sem
+   essa distinção o texto era espremido nos 5px do losango e girado junto. */
+.regua span:empty {
   width: 5px;
   height: 5px;
   background: currentColor;
   transform: rotate(45deg);
+}
+
+.regua span:not(:empty) {
+  font-size: 12px;
+  color: var(--tinta-2);
+  white-space: nowrap;
 }
 
 /* ------------------------------------------------------------------ */
@@ -437,6 +445,19 @@ textarea {
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.45);
   transition: color var(--medio) var(--suave);
+}
+
+/*
+ * Brasão do TJGO, colorido. Sobre o verde-escuro o contorno preto dele some,
+ * mas as cores seguram a leitura; a sombra o descola do fundo. É o único
+ * elemento colorido da lateral além do filete dourado.
+ */
+.marca-brasao {
+  display: block;
+  width: auto;
+  height: 52px;
+  margin-bottom: var(--e4);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
 .marca:hover .marca-orgao {

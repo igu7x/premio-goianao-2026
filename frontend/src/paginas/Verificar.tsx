@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErroApi, urlDaApi } from '../api/cliente'
+import brasao from '../assets/brasao-tjgo.png'
+import logoTjgo from '../assets/logo-tjgo.png'
 import type { Verificacao } from '../api/tipos'
 import { Aviso, Carregando, formatarDataHora } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
@@ -185,9 +187,14 @@ export function Verificar({ embutido = false }: { embutido?: boolean } = {}) {
   return (
     <div className="conferencia">
       <header className="conferencia-topo">
-        <span className="marca-orgao">Tribunal de Justiça do Estado de Goiás</span>
-        <div className="marca-nome" style={{ fontSize: 26 }}>
-          Prêmio Goianão
+        <div className="conferencia-topo-marca">
+          <img src={brasao} alt="" className="marca-brasao" />
+          <div>
+            <span className="marca-orgao">Tribunal de Justiça do Estado de Goiás</span>
+            <div className="marca-nome" style={{ fontSize: 26 }}>
+              Prêmio Goianão
+            </div>
+          </div>
         </div>
       </header>
 
@@ -201,6 +208,15 @@ export function Verificar({ embutido = false }: { embutido?: boolean } = {}) {
         <p className="apoio" style={{ textAlign: 'center' }}>
           <Link to="/entrar">Entrar no sistema</Link> para emitir seus certificados.
         </p>
+
+        {/* A logo completa só cabe aqui: é o único trecho de fundo claro, e o
+            texto dela é preto. É também a página que o QR abre — quem confere
+            um certificado vê de quem ele é. */}
+        <img
+          src={logoTjgo}
+          alt="Poder Judiciário — Tribunal de Justiça do Estado de Goiás"
+          className="conferencia-selo"
+        />
       </main>
     </div>
   )

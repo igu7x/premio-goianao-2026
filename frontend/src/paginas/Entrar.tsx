@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { api, ErroApi, urlDaApi } from '../api/cliente'
+import brasao from '../assets/brasao-tjgo.png'
 import type { Papel, Selo, UsuarioMock } from '../api/tipos'
 import { Aviso, Carregando } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
@@ -148,6 +149,7 @@ export function Entrar() {
       <section className="entrada-apresentacao">
         <div>
           <div className="entrada-marca">
+            <img src={brasao} alt="" className="entrada-brasao" />
             <span className="marca-orgao">Tribunal de Justiça do Estado de Goiás</span>
           </div>
           <h1>

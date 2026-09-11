@@ -4,6 +4,7 @@ import { api } from '../api/cliente'
 import type { Edicao } from '../api/tipos'
 import { useSessao } from '../sessao/SessaoContexto'
 import { Icone, type NomeDeIcone } from './Icone'
+import brasao from '../assets/brasao-tjgo.png'
 
 interface ItemDeMenu {
   para: string
@@ -109,6 +110,8 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
     <div className="aplicacao">
       <aside className="lateral">
         <NavLink to="/" className="marca">
+          {/* alt vazio: o nome do tribunal já vem logo abaixo, em texto. */}
+          <img src={brasao} alt="" className="marca-brasao" />
           <span className="marca-orgao">Tribunal de Justiça de Goiás</span>
           <span className="marca-nome">Prêmio Goianão</span>
         </NavLink>
