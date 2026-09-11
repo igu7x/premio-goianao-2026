@@ -43,17 +43,19 @@
   pointer-events: none;
 }
 
+/* Brasão e nome do tribunal centrados no painel, como num timbre. */
 .entrada-marca {
   position: relative;
   z-index: 1;
+  text-align: center;
 }
 
 .entrada-brasao {
   display: block;
   width: auto;
-  height: 88px;
-  margin-bottom: var(--e5);
-  opacity: 0.92;
+  height: 104px;
+  margin: 0 auto var(--e5);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
 }
 
 .entrada-apresentacao h1 {

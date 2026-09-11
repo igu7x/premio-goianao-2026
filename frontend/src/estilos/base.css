@@ -448,17 +448,16 @@ textarea {
 }
 
 /*
- * Brasão do TJGO em versão monocromática clara, como gravura: os traços do
- * desenho viram linhas claras e as áreas brancas ficam vazadas. O colorido
- * original brigava com o verde-escuro. A logo colorida aparece só onde o fundo
- * é claro (rodapé da conferência pública).
+ * Brasão do TJGO, colorido como o tribunal o usa — a versão monocromática foi
+ * testada e recusada. A sombra o descola do verde-escuro, onde o contorno
+ * preto do desenho some.
  */
 .marca-brasao {
   display: block;
   width: auto;
   height: 52px;
   margin-bottom: var(--e4);
-  opacity: 0.92;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
 .marca:hover .marca-orgao {
