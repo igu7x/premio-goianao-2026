@@ -412,15 +412,22 @@ textarea {
   border-right: 1px solid rgba(0, 0, 0, 0.2);
 }
 
+/* Brasão e nome centrados, como no painel de entrada. */
 .marca {
   display: block;
   padding: 0 var(--e5) var(--e5);
   color: #fff;
+  text-align: center;
   text-decoration: none;
   position: relative;
 }
 
-/* Filete dourado sob a marca: a única vez que o ouro aparece na lateral. */
+.marca .marca-brasao {
+  margin-inline: auto;
+}
+
+/* Filete dourado sob a marca: a única vez que o ouro aparece na lateral.
+   Acende no centro e some para os lados, acompanhando a marca centrada. */
 .marca::after {
   content: "";
   position: absolute;
@@ -428,7 +435,7 @@ textarea {
   right: var(--e5);
   bottom: 0;
   height: 1px;
-  background: linear-gradient(90deg, var(--ouro), transparent 70%);
+  background: linear-gradient(90deg, transparent, var(--ouro), transparent);
   opacity: 0.55;
 }
 
