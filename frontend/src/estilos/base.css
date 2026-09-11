@@ -448,16 +448,17 @@ textarea {
 }
 
 /*
- * Brasão do TJGO, colorido. Sobre o verde-escuro o contorno preto dele some,
- * mas as cores seguram a leitura; a sombra o descola do fundo. É o único
- * elemento colorido da lateral além do filete dourado.
+ * Brasão do TJGO em versão monocromática clara, como gravura: os traços do
+ * desenho viram linhas claras e as áreas brancas ficam vazadas. O colorido
+ * original brigava com o verde-escuro. A logo colorida aparece só onde o fundo
+ * é claro (rodapé da conferência pública).
  */
 .marca-brasao {
   display: block;
   width: auto;
   height: 52px;
   margin-bottom: var(--e4);
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+  opacity: 0.92;
 }
 
 .marca:hover .marca-orgao {
