@@ -147,11 +147,12 @@ export function Entrar() {
   return (
     <div className="entrada">
       <section className="entrada-apresentacao">
-        <div>
-          <div className="entrada-marca">
-            <img src={brasao} alt="" className="entrada-brasao" />
-            <span className="marca-orgao">Tribunal de Justiça do Estado de Goiás</span>
-          </div>
+        <div className="entrada-marca">
+          <img src={brasao} alt="" className="entrada-brasao" />
+          <span className="marca-orgao">Tribunal de Justiça do Estado de Goiás</span>
+        </div>
+
+        <div className="entrada-chamada">
           <h1>
             Prêmio
             <br />
