@@ -5,49 +5,54 @@ import br.jus.tjgo.goianao.comum.Texto;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementacao mockada do EGESP (constituicao: integracoes mockadas nesta
- * fase). Devolve um conjunto plausivel de unidades do TJGO e, para cada uma,
- * uma lotacao deterministica — semear a mesma unidade duas vezes produz sempre
- * o mesmo resultado.
+ * Implementacao mockada do RH, usada em desenvolvimento e nos testes. Devolve um
+ * conjunto plausivel de unidades do TJGO e, para cada uma, uma lotacao
+ * deterministica — semear a mesma unidade duas vezes produz sempre o mesmo
+ * resultado.
  *
  * <p>Os e-mails usam o dominio reservado {@code .example} e os CPFs sao
- * ficticios, validos apenas quanto aos digitos verificadores. Alguns servidores
- * do login mock aparecem em unidades especificas para que os cenarios das
- * features 006 e 008 possam ser exercitados ponta a ponta.
+ * ficticios, validos apenas quanto aos digitos verificadores. Codigos e
+ * matriculas tambem sao inventados, mas estaveis: e o que permite exercitar a
+ * tela de sincronizacao (010) sem a API corporativa.
  */
 @Component
 public class MockEgespClient implements EgespClient {
 
+    /** Codigo da unidade de fachada que "contem" as demais, para a hierarquia. */
+    public static final long CODIGO_RAIZ = 900_000_000L;
+
     private static final List<UnidadeEgesp> UNIDADES = List.of(
-            new UnidadeEgesp("1ª Vara Cível da Comarca de Goiânia", "Goiânia"),
-            new UnidadeEgesp("2ª Vara Cível da Comarca de Goiânia", "Goiânia"),
-            new UnidadeEgesp("3ª Vara Criminal da Comarca de Goiânia", "Goiânia"),
-            new UnidadeEgesp("Vara da Fazenda Pública Estadual da Comarca de Goiânia",
-                    "Goiânia"),
-            new UnidadeEgesp("Vara de Execuções Penais da Comarca de Goiânia",
-                    "Goiânia"),
-            new UnidadeEgesp("Juizado da Infância e da Juventude da Comarca de Goiânia",
-                    "Goiânia"),
-            new UnidadeEgesp("2ª Vara de Família e Sucessões da Comarca de Goiânia",
-                    "Goiânia"),
-            new UnidadeEgesp(
-                    "1ª Vara de Família e Sucessões da Comarca de Aparecida de Goiânia",
+            unidade(1, "1ª Vara Cível da Comarca de Goiânia", "Goiânia"),
+            unidade(2, "2ª Vara Cível da Comarca de Goiânia", "Goiânia"),
+            unidade(3, "3ª Vara Criminal da Comarca de Goiânia", "Goiânia"),
+            unidade(4, "Vara da Fazenda Pública Estadual da Comarca de Goiânia", "Goiânia"),
+            unidade(5, "Vara de Execuções Penais da Comarca de Goiânia", "Goiânia"),
+            unidade(6, "Juizado da Infância e da Juventude da Comarca de Goiânia", "Goiânia"),
+            unidade(7, "2ª Vara de Família e Sucessões da Comarca de Goiânia", "Goiânia"),
+            unidade(8, "1ª Vara de Família e Sucessões da Comarca de Aparecida de Goiânia",
                     "Aparecida de Goiânia"),
-            new UnidadeEgesp("2ª Vara Cível da Comarca de Aparecida de Goiânia",
+            unidade(9, "2ª Vara Cível da Comarca de Aparecida de Goiânia",
                     "Aparecida de Goiânia"),
-            new UnidadeEgesp("Juizado Especial Cível da Comarca de Anápolis", "Anápolis"),
-            new UnidadeEgesp("1ª Vara Criminal da Comarca de Anápolis", "Anápolis"),
-            new UnidadeEgesp("2ª Vara Cível da Comarca de Rio Verde", "Rio Verde"),
-            new UnidadeEgesp("Vara Única da Comarca de Pirenopolis", "Pirenopolis"),
-            new UnidadeEgesp("1ª Vara Criminal da Comarca de Luziânia", "Luziânia"),
-            new UnidadeEgesp("Vara Única da Comarca de Cristalina", "Cristalina"),
-            new UnidadeEgesp("1ª Vara Cível da Comarca de Catalão", "Catalão"),
-            new UnidadeEgesp("Juizado Especial Criminal da Comarca de Itumbiara", "Itumbiara"),
-            new UnidadeEgesp("Vara Única da Comarca de Porangatu", "Porangatu"));
+            unidade(10, "Juizado Especial Cível da Comarca de Anápolis", "Anápolis"),
+            unidade(11, "1ª Vara Criminal da Comarca de Anápolis", "Anápolis"),
+            unidade(12, "2ª Vara Cível da Comarca de Rio Verde", "Rio Verde"),
+            unidade(13, "Vara Única da Comarca de Pirenopolis", "Pirenopolis"),
+            unidade(14, "1ª Vara Criminal da Comarca de Luziânia", "Luziânia"),
+            unidade(15, "Vara Única da Comarca de Cristalina", "Cristalina"),
+            unidade(16, "1ª Vara Cível da Comarca de Catalão", "Catalão"),
+            unidade(17, "Juizado Especial Criminal da Comarca de Itumbiara", "Itumbiara"),
+            unidade(18, "Vara Única da Comarca de Porangatu", "Porangatu"));
+
+    private static UnidadeEgesp unidade(int sequencial, String nome, String comarca) {
+        return new UnidadeEgesp(CODIGO_RAIZ + sequencial, nome, comarca, CODIGO_RAIZ);
+    }
 
     private static final String[] PRENOMES = {
         "Adriana", "Bruno", "Camila", "Daniel", "Elaine", "Fábio", "Gabriela", "Henrique",
@@ -69,22 +74,25 @@ public class MockEgespClient implements EgespClient {
                 Texto.canonicalizar("1ª Vara Cível da Comarca de Goiânia"),
                 List.of(
                         new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_1,
-                                "Marcos Vinícius de Paula", MockIdentityProvider.CPF_SERVIDOR_1),
+                                "Marcos Vinícius de Paula", MockIdentityProvider.CPF_SERVIDOR_1,
+                                5_240_001L),
                         new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_MULTI,
                                 "Carla Menezes do Amaral",
-                                MockIdentityProvider.CPF_SERVIDOR_MULTI)));
+                                MockIdentityProvider.CPF_SERVIDOR_MULTI, 5_240_002L)));
         LOTACOES_FIXAS.put(
                 Texto.canonicalizar("3ª Vara Criminal da Comarca de Goiânia"),
                 List.of(new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_2,
-                        "Juliana Prado Ferreira", MockIdentityProvider.CPF_SERVIDOR_2)));
+                        "Juliana Prado Ferreira", MockIdentityProvider.CPF_SERVIDOR_2,
+                        5_240_003L)));
         LOTACOES_FIXAS.put(
                 Texto.canonicalizar("Juizado Especial Cível da Comarca de Anápolis"),
                 List.of(
                         new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_3,
-                                "Tiago Nunes Barbosa", MockIdentityProvider.CPF_SERVIDOR_3),
+                                "Tiago Nunes Barbosa", MockIdentityProvider.CPF_SERVIDOR_3,
+                                5_240_004L),
                         new ServidorEgesp(MockIdentityProvider.EMAIL_SERVIDOR_MULTI,
                                 "Carla Menezes do Amaral",
-                                MockIdentityProvider.CPF_SERVIDOR_MULTI)));
+                                MockIdentityProvider.CPF_SERVIDOR_MULTI, 5_240_002L)));
     }
 
     @Override
@@ -119,10 +127,58 @@ public class MockEgespClient implements EgespClient {
                     + SOBRENOMES[(passo / 13) % SOBRENOMES.length];
             String email = emailDeterministico(nome, passo);
             if (servidores.stream().noneMatch(s -> s.email().equals(email))) {
-                servidores.add(new ServidorEgesp(email, nome, cpfDeterministico(passo)));
+                servidores.add(new ServidorEgesp(email, nome, cpfDeterministico(passo),
+                        6_000_000L + (passo % 900_000L)));
             }
         }
         return List.copyOf(servidores);
+    }
+
+    @Override
+    public List<UnidadeEgesp> hierarquia(long codigoUnidade) {
+        if (codigoUnidade == CODIGO_RAIZ) {
+            return UNIDADES;
+        }
+        return unidadePorCodigo(codigoUnidade).map(List::of).orElseGet(List::of);
+    }
+
+    @Override
+    public Optional<UnidadeEgesp> unidadePorCodigo(long codigoUnidade) {
+        return UNIDADES.stream()
+                .filter(u -> u.codigo() != null && u.codigo() == codigoUnidade)
+                .findFirst();
+    }
+
+    @Override
+    public List<LotadoEgesp> lotados(long codigoUnidade) {
+        return unidadePorCodigo(codigoUnidade)
+                .map(u -> listarServidoresPorUnidade(u.nome()).stream()
+                        .map(s -> new LotadoEgesp(s.matricula(), s.nome(), "ESTATUTÁRIO",
+                                codigoUnidade))
+                        .toList())
+                .orElseGet(List::of);
+    }
+
+    @Override
+    public Optional<ServidorEgesp> servidorPorMatricula(long matricula) {
+        return todosOsServidores()
+                .filter(s -> s.matricula() != null && s.matricula() == matricula)
+                .findFirst();
+    }
+
+    @Override
+    public Optional<ServidorEgesp> servidorPorLogin(String loginAd) {
+        if (loginAd == null || loginAd.isBlank()) {
+            return Optional.empty();
+        }
+        String prefixo = loginAd.trim().toLowerCase(Locale.ROOT);
+        return todosOsServidores()
+                .filter(s -> s.email() != null && s.email().startsWith(prefixo + "@"))
+                .findFirst();
+    }
+
+    private Stream<ServidorEgesp> todosOsServidores() {
+        return UNIDADES.stream().flatMap(u -> listarServidoresPorUnidade(u.nome()).stream());
     }
 
     /**

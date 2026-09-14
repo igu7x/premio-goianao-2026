@@ -57,6 +57,13 @@ public class Usuario {
     @Column(name = "area_atuacao", length = 150)
     private String areaAtuacao;
 
+    /** Matricula no RH e login de rede, preenchidos pela integracao (010). */
+    @Column(name = "matricula")
+    private Long matricula;
+
+    @Column(name = "login_ad", length = 100)
+    private String loginAd;
+
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
@@ -110,6 +117,41 @@ public class Usuario {
     public void definirLotacao(String unidadeLotacao, String areaAtuacao) {
         this.unidadeLotacao = unidadeLotacao;
         this.areaAtuacao = areaAtuacao;
+    }
+
+    /**
+     * Dados que o RH manda no login (010).
+     *
+     * <p>O e-mail fica de fora: ele e a chave da pessoa (DI-24), e troca-lo
+     * seria trocar a pessoa. Papeis, responsabilidade por unidade e area de
+     * atuacao tambem: sao decisoes do superadministrador, nao do RH.
+     */
+    public void atualizarPeloRh(String nome, String cpf, Long matricula, String loginAd,
+                                String unidadeLotacao) {
+        if (nome != null && !nome.isBlank()) {
+            this.nome = nome;
+        }
+        if (cpf != null && !cpf.isBlank()) {
+            this.cpf = cpf;
+        }
+        if (matricula != null) {
+            this.matricula = matricula;
+        }
+        if (loginAd != null && !loginAd.isBlank()) {
+            this.loginAd = loginAd;
+        }
+        if (unidadeLotacao != null && !unidadeLotacao.isBlank()) {
+            this.unidadeLotacao = unidadeLotacao;
+        }
+        this.atualizadoEm = LocalDateTime.now();
+    }
+
+    public Long getMatricula() {
+        return matricula;
+    }
+
+    public String getLoginAd() {
+        return loginAd;
     }
 
     /** Recebe o hash pronto: a entidade nunca vê a senha em claro. */

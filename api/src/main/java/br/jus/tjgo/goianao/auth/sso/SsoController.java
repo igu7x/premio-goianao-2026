@@ -13,6 +13,7 @@ import java.util.Base64;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,13 +45,16 @@ public class SsoController {
     private final ClienteKeycloak keycloak;
     private final PapeisResolver papeisResolver;
     private final JwtService jwtService;
+    private final ApplicationEventPublisher eventos;
 
     public SsoController(SsoProperties props, ClienteKeycloak keycloak,
-                         PapeisResolver papeisResolver, JwtService jwtService) {
+                         PapeisResolver papeisResolver, JwtService jwtService,
+                         ApplicationEventPublisher eventos) {
         this.props = props;
         this.keycloak = keycloak;
         this.papeisResolver = papeisResolver;
         this.jwtService = jwtService;
+        this.eventos = eventos;
     }
 
     /** Diz ao frontend se deve mostrar o botao de SSO ou a lista mockada. */
@@ -105,6 +109,10 @@ public class SsoController {
             Set<Papel> papeis = papeisResolver.resolver(identidade.email());
             UsuarioAutenticado usuario =
                     new UsuarioAutenticado(identidade.email(), identidade.nome(), papeis);
+
+            // O cadastro e atualizado pelo RH depois, fora deste caminho: o
+            // login nao espera por sistema de terceiro (010/RNF-2).
+            eventos.publishEvent(new LoginPeloSso(identidade.email()));
 
             return paraFrontend("token=" + enc(jwtService.gerar(usuario)), state);
         } catch (SsoException e) {

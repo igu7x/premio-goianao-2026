@@ -24,3 +24,4 @@ databaseChangeLog:
   - include: { file: db/changelog/008-responsavel-pela-unidade.sql }
   - include: { file: db/changelog/009-superadministrador-inicial.sql }
   - include: { file: db/changelog/010-email-como-chave.sql }
+  - include: { file: db/changelog/011-codigos-do-siedos.sql }

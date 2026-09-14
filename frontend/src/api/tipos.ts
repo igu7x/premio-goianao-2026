@@ -238,3 +238,51 @@ export interface Unidade {
   /** Quem responde pela unidade; nulo enquanto ninguém foi designado. */
   responsavel: { id: number; nome: string; email: string } | null
 }
+
+/* ------------------------------------------------------------------ */
+/* Sincronização com o RH (feature 010)                                */
+/* ------------------------------------------------------------------ */
+
+/** Como cada linha se compara com o RH. Cada situação pede uma ação diferente
+ *  — nenhuma, corrigir, criar ou desvincular. */
+export type ItemSincronizacao = 'SINCRONIZADO' | 'DESATUALIZADO' | 'SO_NA_API' | 'ORFAO'
+
+/** Só diz ligada ou desligada: endereço e credencial da API corporativa não
+ *  passam pelo navegador. */
+export interface SituacaoIntegracao {
+  ligada: boolean
+  origemDosDados: string
+}
+
+export interface UnidadeComparada {
+  situacao: ItemSincronizacao
+  codigo: number | null
+  /** Nulo quando a unidade só existe no RH. */
+  unidadeId: number | null
+  /** O nome gravado aqui — é ele que sai impresso no certificado. */
+  nomeNoSistema: string | null
+  nomeNaApi: string | null
+  comarca: string | null
+}
+
+export interface ServidorComparado {
+  situacao: ItemSincronizacao
+  matricula: number | null
+  nome: string
+  /** Inteiro: a tela é exclusiva do superadministrador, que já pode editar a lista (DI-10). */
+  email: string | null
+  /** O que a desvinculação usa — dado pessoal não vai na URL. */
+  servidorHabilitadoId: number | null
+  /** Nulo quando a pessoa ainda não está na lista da edição. */
+  origem: OrigemServidor | null
+  /** Sem e-mail no RH ninguém é reconhecido no login (DI-24). */
+  semEmailNaApi: boolean
+}
+
+export interface ComparacaoServidores {
+  unidadeId: number
+  unidadeNome: string
+  codigo: number | null
+  responsavelSugerido: string | null
+  servidores: ServidorComparado[]
+}

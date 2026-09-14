@@ -48,6 +48,10 @@ public class ServidorHabilitado {
     @Column(name = "cpf", length = 11)
     private String cpf;
 
+    /** Matricula no RH; reencontra a pessoa na API corporativa (010). */
+    @Column(name = "matricula")
+    private Long matricula;
+
     @Column(name = "nome", length = 200, nullable = false)
     private String nome;
 
@@ -115,8 +119,16 @@ public class ServidorHabilitado {
         return unidade;
     }
 
+    public void definirMatricula(Long matricula) {
+        this.matricula = matricula;
+    }
+
     public String getEmail() {
         return email;
+    }
+
+    public Long getMatricula() {
+        return matricula;
     }
 
     public String getCpf() {

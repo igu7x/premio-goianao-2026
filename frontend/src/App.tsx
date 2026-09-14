@@ -7,6 +7,7 @@ import { Entrar } from './paginas/Entrar'
 import { Inicio } from './paginas/Inicio'
 import { MeusCertificados } from './paginas/MeusCertificados'
 import { MinhasUnidades } from './paginas/MinhasUnidades'
+import { Sincronizacao } from './paginas/Sincronizacao'
 import { Unidades } from './paginas/Unidades'
 import { Usuarios } from './paginas/Usuarios'
 import { Verificar } from './paginas/Verificar'
@@ -109,6 +110,14 @@ export function App() {
           element={
             <Exige papeis={['SUPERADMIN']}>
               <Unidades />
+            </Exige>
+          }
+        />
+        <Route
+          path="/sincronizacao"
+          element={
+            <Exige papeis={['SUPERADMIN']}>
+              <Sincronizacao />
             </Exige>
           }
         />

@@ -96,6 +96,17 @@ goianao:
     # client o entregar noutro claim, basta definir OPENSHIFT_SSO_CLAIMS_EMAIL.
     claims-email: ${OPENSHIFT_SSO_CLAIMS_EMAIL:email,preferred_username}
     claim-nome: ${OPENSHIFT_SSO_CLAIMS_NAME:name}
+  # API corporativa do TJGO (ConnectTJ), que le o SIEDOS e o cadastro de
+  # pessoal. Vazio ate o client existir: sem as quatro propriedades a
+  # integracao fica desligada e valem os dados mockados -- o mesmo criterio do
+  # SSO. O token e obtido por client_credentials e vale 5 minutos.
+  connecttj:
+    url: ${GOIANAO_CONNECTTJ_URL:}
+    token-url: ${GOIANAO_CONNECTTJ_TOKEN_URL:}
+    client-id: ${GOIANAO_CONNECTTJ_CLIENT_ID:}
+    client-secret: ${GOIANAO_CONNECTTJ_SECRET:}
+    # Quantos lotados por pagina ao varrer uma unidade.
+    tamanho-pagina: ${GOIANAO_CONNECTTJ_TAMANHO_PAGINA:100}
   storage:
     # banco (padrao) ou filesystem. No OpenShift o pod nao tem disco que
     # sobreviva ao restart, e a arte precisa durar tanto quanto o certificado

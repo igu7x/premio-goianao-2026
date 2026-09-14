@@ -19,7 +19,11 @@ interface GrupoDeMenu {
 
 /** Rótulo do topo: diz em que parte do sistema a pessoa está. */
 function contexto(caminho: string): string {
-  if (caminho.startsWith('/usuarios') || caminho.startsWith('/unidades')) {
+  if (
+    caminho.startsWith('/usuarios') ||
+    caminho.startsWith('/unidades') ||
+    caminho.startsWith('/sincronizacao')
+  ) {
     return 'Superadministração'
   }
   if (caminho.startsWith('/verificar')) return 'Conferência pública'
@@ -69,6 +73,7 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
       itens: [
         { para: '/usuarios', rotulo: 'Usuários do sistema', icone: 'equipe' },
         { para: '/unidades', rotulo: 'Unidades', icone: 'edicoes' },
+        { para: '/sincronizacao', rotulo: 'Sincronização com o RH', icone: 'trocar' },
       ],
     })
   }

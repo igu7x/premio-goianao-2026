@@ -284,3 +284,28 @@ Sem essas variáveis a aplicação sobe normalmente e o log diz que nenhum
 superadministrador foi cadastrado. Como o login por senha depende de alguém
 existir no cadastro, sem elas não há como entrar em homologação a não ser pelo
 SSO.
+
+## API corporativa do TJGO — ConnectTJ (2026-09-14)
+
+A integração com o RH (unidades, lotações e dados cadastrais) fala com a API
+ConnectTJ, que lê o SIEDOS. **As quatro primeiras são obrigatórias juntas:**
+faltando qualquer uma, a integração se declara desligada, o sistema usa os dados
+mockados e o log diz o que falta — a aplicação não deixa de subir por isso.
+
+| Variável | Obrigatória | O que é |
+| --- | --- | --- |
+| `GOIANAO_CONNECTTJ_URL` | não¹ | Base da API, com esquema (homologação: `https://connecttj-api-stag.tjgo.jus.br`). |
+| `GOIANAO_CONNECTTJ_TOKEN_URL` | não¹ | Endereço do token no Keycloak. O token é obtido por `client_credentials` e vale 5 minutos. |
+| `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão na API. |
+| `GOIANAO_CONNECTTJ_SECRET` | não¹ | Segredo do client. **Secret, nunca ConfigMap.** |
+| `GOIANAO_CONNECTTJ_TAMANHO_PAGINA` | não | Lotados por página ao varrer uma unidade. Padrão `100`. |
+
+¹ Juntas: sem as quatro, valem os dados mockados.
+
+**O que ainda falta pedir:** o client (id e secret) e a confirmação de qual
+realm emite o token para esta API — o exemplo recebido cita `DG-TST`, e o SSO do
+sistema usa `tjgo.gov-tst`. Sem token, a API responde 401 até em homologação.
+
+**Como conferir sem acesso ao cluster:** `GET <api>/api/sincronizacao/situacao`
+(exige superadministrador) responde `"ligada": true` quando a integração está
+configurada.

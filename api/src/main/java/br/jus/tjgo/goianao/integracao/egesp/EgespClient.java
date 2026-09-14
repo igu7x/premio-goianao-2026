@@ -1,23 +1,47 @@
 package br.jus.tjgo.goianao.integracao.egesp;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Porta de acesso ao EGESP (sistema de RH). Isolada atras de interface para que
- * a troca do mock pela integracao real nao afete o dominio (constituicao,
- * principio 7).
+ * Porta de acesso ao RH do tribunal (EGESP/SIEDOS, hoje exposto pela API
+ * ConnectTJ). Isolada atras de interface para que a troca do mock pela
+ * integracao real nao afete o dominio (constituicao, principio 7).
  *
- * <p>E usada em dois momentos e <b>nunca</b> na emissao: para listar as unidades
- * que o administrador seleciona (004/RF-1) e para semear a lista de servidores
- * habilitados de uma unidade (008/RF-1). A emissao do servidor le a lista ja
- * persistida (006/RNF-2), o que mantem a reemissao de edicoes antigas fiel ao
- * que valia naquela epoca.
+ * <p><b>Nunca e chamada na emissao.</b> Serve para listar unidades (004/RF-1),
+ * semear a lista de servidores habilitados (008/RF-1), alimentar a tela de
+ * sincronizacao (010) e atualizar o cadastro de quem acabou de entrar. A
+ * emissao le a lista ja persistida (006/RNF-2), o que mantem a reemissao de
+ * edicoes antigas fiel ao que valia naquela epoca.
  */
 public interface EgespClient {
 
     /** Unidades judiciarias do TJGO; {@code filtro} opcional por trecho do nome. */
     List<UnidadeEgesp> listarUnidades(String filtro);
 
-    /** Servidores lotados na unidade, identificada pelo nome vindo do EGESP. */
+    /** Servidores lotados na unidade, identificada pelo nome vindo do RH. */
     List<ServidorEgesp> listarServidoresPorUnidade(String nomeUnidade);
+
+    /** A unidade e toda a sua arvore de subordinadas. */
+    List<UnidadeEgesp> hierarquia(long codigoUnidade);
+
+    Optional<UnidadeEgesp> unidadePorCodigo(long codigoUnidade);
+
+    /** Responsavel que o RH registra para a unidade; entra na tela como sugestao. */
+    default Optional<ResponsavelEgesp> responsavelDaUnidade(long codigoUnidade) {
+        return Optional.empty();
+    }
+
+    /** Lotados diretos da unidade, ja com todas as paginas percorridas. */
+    List<LotadoEgesp> lotados(long codigoUnidade);
+
+    Optional<ServidorEgesp> servidorPorMatricula(long matricula);
+
+    /** {@code loginAd} e o prefixo do e-mail corporativo. */
+    Optional<ServidorEgesp> servidorPorLogin(String loginAd);
+
+    /** Falso quando a integracao real nao esta configurada e vale o mock. */
+    default boolean integracaoReal() {
+        return false;
+    }
 }

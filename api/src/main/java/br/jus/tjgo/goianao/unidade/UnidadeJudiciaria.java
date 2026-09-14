@@ -35,6 +35,17 @@ public class UnidadeJudiciaria {
     @Column(name = "nome_canonico", length = 300, nullable = false)
     private String nomeCanonico;
 
+    /**
+     * Codigo da unidade no SIEDOS. Nulo enquanto ela nao foi casada com a API
+     * corporativa (010): o cadastro nasceu do nome, e e o nome canonico que
+     * continua carregando a unicidade.
+     */
+    @Column(name = "codigo_siedos")
+    private Long codigoSiedos;
+
+    @Column(name = "comarca", length = 150)
+    private String comarca;
+
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
@@ -59,6 +70,35 @@ public class UnidadeJudiciaria {
         this.nomeCanonico = Texto.canonicalizar(nomeDoEgesp);
         this.ativo = true;
         this.criadoEm = LocalDateTime.now();
+    }
+
+    /**
+     * Adota o nome que a API corporativa passou a usar.
+     *
+     * <p>Sempre por acao explicita do superadministrador (010): este nome vai
+     * impresso no certificado, e trocar sozinho o texto de um documento ja
+     * emitido seria inaceitavel. Quem ja emitiu nao e afetado — o certificado
+     * guarda o que foi impresso.
+     */
+    public void renomear(String nomeDoSiedos) {
+        this.nome = nomeDoSiedos;
+        this.nomeCanonico = Texto.canonicalizar(nomeDoSiedos);
+    }
+
+    /** Casa a unidade com a API corporativa. O nome impresso nao muda aqui. */
+    public void vincularAoSiedos(Long codigoSiedos, String comarca) {
+        this.codigoSiedos = codigoSiedos;
+        if (comarca != null && !comarca.isBlank()) {
+            this.comarca = comarca;
+        }
+    }
+
+    public Long getCodigoSiedos() {
+        return codigoSiedos;
+    }
+
+    public String getComarca() {
+        return comarca;
     }
 
     public void designarResponsavel(Usuario responsavel) {

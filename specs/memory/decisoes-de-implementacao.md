@@ -655,3 +655,54 @@ identificador: receberam uma nota de emenda apontando para cá, em vez de serem
 reescritas. A planilha de reconhecidos mudou de formato
 (`email;nome;unidade;selo;cpf`); uma planilha no formato antigo é recusada
 inteira, com a explicação, em vez de voltar com um erro por linha.
+
+---
+
+## DI-25 — A integração com o RH entra por comparação, não por carga
+
+**Contexto.** Unidades e lotações vinham de um mock. A API corporativa do TJGO
+(ConnectTJ, que lê o SIEDOS) expõe os dados de verdade, mas fala outra língua:
+identifica unidade por **código** e pessoa por **matrícula**, enquanto aqui a
+unidade é casada pelo nome e a pessoa é o **e-mail** (DI-24). Pior: a listagem
+de lotados **não traz e-mail**.
+
+**Decisão.** A porta `EgespClient` ganhou os métodos que a integração exige e
+uma segunda implementação (`ConnectTjEgespClient`); o mock continua sendo o que
+roda em dev e nos testes. A ponte entre os dois mundos são três colunas novas
+(migração 011): `codigo_siedos` e `comarca` na unidade, `matricula` no servidor
+habilitado e no usuário, mais `login_ad` no usuário. Nenhuma delas vira chave.
+
+**O e-mail é resolvido pela matrícula.** A listagem de lotados não o traz, mas
+existe `buscar-por-matricula`, que devolve `endEmail`. Assim a lista nasce
+completa. A alternativa — gravar a pessoa "pendente, sem e-mail", esperando o
+primeiro login dela — deixaria linhas meio-cadastradas que não emitem e que a
+tela teria de explicar; foi descartada quando o Swagger mostrou o endpoint.
+
+**Comparar não grava.** A tela mostra quatro situações (sincronizado,
+desatualizado, só na API, órfão) e cada alteração é um clique, uma de cada vez.
+É o nome impresso em certificado e o direito de emitir que estão em jogo: carga
+automática erra em silêncio. Pelo mesmo motivo, órfão de origem `MANUAL` não
+ganha botão de remover — inclusão manual é ajuste humano, e a regra da 008 diz
+que ele prevalece sobre o RH.
+
+**Casamento em duas etapas.** Primeiro pelo código; quando ele ainda é nulo —
+que é o caso de todo o cadastro atual —, pelo nome canônico, gravando o código
+a partir daí. Recriar o cadastro para introduzir o código perderia os
+reconhecimentos e certificados já ligados a ele.
+
+**O login atualiza cadastro, nunca elegibilidade.** Depois do SSO, um evento
+assíncrono busca a pessoa por `login-ad` e atualiza nome, CPF, matrícula, login
+de rede e lotação. Não toca em `servidor_habilitado`: quem pode emitir é
+snapshot da edição (constituição, princípio 3b), e uma rotina de login que
+habilitasse alguém quebraria a fidelidade da reemissão de edições antigas. A
+rotina é assíncrona e silenciosa — o RH é sistema de terceiro e não pode
+atrasar nem derrubar o login.
+
+**Ligar é configuração.** Sem as quatro variáveis do client, a integração se
+declara desligada e valem os dados mockados, com o motivo no log. Mesmo
+critério do SSO: variável ausente derruba a funcionalidade, não o pod.
+
+**Consequência.** A tela é exclusiva do superadministrador. O token vale 5
+minutos: fica em cache e é renovado no vencimento e no primeiro 401, com uma
+única retentativa — insistir transformaria erro de credencial em tempestade de
+requisições. Verificado em `SincronizacaoIT` e `ConnectTjEgespClientTest`.

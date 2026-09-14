@@ -133,7 +133,14 @@ async function json<T>(resposta: Response): Promise<T> {
   if (resposta.status === 204) {
     return undefined as T
   }
-  return (await resposta.json()) as T
+  /*
+   * Corpo vazio tambem acontece fora do 204: a inclusao de servidor pela
+   * sincronizacao (010) responde 201 e mais nada. `resposta.json()` estoura um
+   * SyntaxError ali, e a tela relataria falha depois de uma gravacao que deu
+   * certo — o pior erro possivel, porque leva a repetir a operacao.
+   */
+  const texto = await resposta.text()
+  return (texto ? JSON.parse(texto) : undefined) as T
 }
 
 export const api = {

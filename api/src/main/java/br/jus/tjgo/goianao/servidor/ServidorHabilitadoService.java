@@ -129,8 +129,11 @@ public class ServidorHabilitadoService {
                     repositorio.findByEdicaoIdAndUnidadeIdAndEmail(edicaoId, unidadeId, email);
 
             if (existente.isEmpty()) {
-                repositorio.save(new ServidorHabilitado(edicao, unidade, email,
-                        Texto.aparar(servidor.nome()), cpf, OrigemServidor.EGESP, autor));
+                ServidorHabilitado novo = repositorio.save(new ServidorHabilitado(edicao, unidade,
+                        email, Texto.aparar(servidor.nome()), cpf, OrigemServidor.EGESP, autor));
+                // De onde a linha veio no RH: e por ela que a tela de
+                // sincronizacao reencontra a pessoa quando o nome muda (010).
+                novo.definirMatricula(servidor.matricula());
                 incluidos++;
             } else if (existente.get().isAtivo()) {
                 jaExistentes++;
@@ -148,9 +151,25 @@ public class ServidorHabilitadoService {
                 (int) repositorio.countByEdicaoIdAndUnidadeIdAndAtivoTrue(edicaoId, unidadeId));
     }
 
+    /**
+     * Inclusao feita a mao pelo administrador ou pelo magistrado responsavel.
+     * Origem MANUAL: e o ajuste humano que a semeadura nunca desfaz (008).
+     */
     @Transactional
     public ServidorHabilitado incluir(Long edicaoId, Long unidadeId, String emailBruto,
                                       String nome, String cpfBruto) {
+        return incluir(edicaoId, unidadeId, emailBruto, nome, cpfBruto, OrigemServidor.MANUAL);
+    }
+
+    /**
+     * Mesma inclusao, com a origem declarada. A tela de sincronizacao (010) usa
+     * {@code EGESP}: o que veio do RH precisa continuar reconhecivel como tal,
+     * senao uma pessoa trazida pela sincronizacao passaria a ser tratada como
+     * ajuste manual e ficaria protegida de correcoes futuras.
+     */
+    @Transactional
+    public ServidorHabilitado incluir(Long edicaoId, Long unidadeId, String emailBruto,
+                                      String nome, String cpfBruto, OrigemServidor origem) {
         Edicao edicao = edicoes.buscar(edicaoId);
         UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
         exigirUnidadeReconhecida(edicaoId, unidadeId);
@@ -174,12 +193,12 @@ public class ServidorHabilitadoService {
                         "Este e-mail já consta na lista desta unidade nesta edição.");
             }
             // Reativar e uma acao explicita do gestor, diferente da semeadura.
-            servidor.reativar(nomeLimpo, cpf, OrigemServidor.MANUAL, autor);
+            servidor.reativar(nomeLimpo, cpf, origem, autor);
             return servidor;
         }
 
         return repositorio.save(new ServidorHabilitado(edicao, unidade, email, nomeLimpo, cpf,
-                OrigemServidor.MANUAL, autor));
+                origem, autor));
     }
 
     /** Remocao logica, pelo id do item: dado pessoal nao vai na URL. */

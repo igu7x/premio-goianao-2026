@@ -10,6 +10,9 @@ public interface UnidadeRepository extends JpaRepository<UnidadeJudiciaria, Long
 
     List<UnidadeJudiciaria> findAllByOrderByNomeAsc();
 
+    /** Casamento com a API corporativa (010), depois que o codigo foi gravado. */
+    Optional<UnidadeJudiciaria> findByCodigoSiedos(Long codigoSiedos);
+
     /** Escopo do superior responsavel: e por aqui que ele ganha a unidade. */
     boolean existsByIdAndResponsavelEmail(Long id, String email);
 

@@ -110,12 +110,9 @@
 }
 
 .entrada-selo {
-  align-items: center;
-}
-
-.entrada-selo {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
   font-size: 10.5px;
   font-weight: 600;
@@ -1454,3 +1451,77 @@
 }
 
 .entrada-credenciais .campo { margin: 0; }
+
+/* ================================================================== */
+/* Sincronização com o RH                                              */
+/* ================================================================== */
+
+/*
+ * As quatro situações usam os tons de estado, nunca o ouro: aqui o ouro é
+ * reconhecimento, e uma unidade desatualizada não é conquista nenhuma. O
+ * sincronizado fica em verde discreto porque é o caso de não fazer nada — quem
+ * abre a tela precisa que o olho caia no que pede decisão.
+ */
+.etiqueta-sincronizado {
+  border-color: rgba(26, 101, 64, 0.28);
+  background: var(--sucesso-fundo);
+  color: var(--sucesso);
+}
+
+.etiqueta-desatualizado {
+  border-color: rgba(125, 90, 16, 0.3);
+  background: var(--aviso-fundo);
+  color: var(--aviso);
+}
+
+.etiqueta-so-na-api {
+  border-color: rgba(28, 90, 75, 0.3);
+  background: var(--verde-claro);
+  color: var(--verde-2);
+}
+
+.etiqueta-orfao {
+  border-color: rgba(147, 38, 31, 0.26);
+  background: var(--erro-fundo);
+  color: var(--erro);
+}
+
+/* Código e edição lado a lado com o botão: são uma pergunta só, e separá-los
+   em linhas sugeriria que a edição também filtra as unidades — ela não filtra,
+   só vale para a comparação de servidores. */
+.sincronizacao-consulta {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) auto;
+  gap: var(--e4);
+  align-items: start;
+}
+
+.sincronizacao-consulta > .botao {
+  margin-top: 26px;
+}
+
+@media (max-width: 640px) {
+  .sincronizacao-consulta {
+    grid-template-columns: 1fr;
+  }
+
+  .sincronizacao-consulta > .botao {
+    margin-top: 0;
+  }
+}
+
+/*
+ * A ressalva fica colada no botão, não no rodapé do bloco.
+ *
+ * O que estes botões mexem — nome impresso em certificado, direito de emitir —
+ * não se explica a três parágrafos de distância: quando a pessoa chega ao
+ * clique, o aviso já saiu da tela.
+ */
+.sincronizacao-acao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  max-width: 30ch;
+  text-align: right;
+}
