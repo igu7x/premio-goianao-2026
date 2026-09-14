@@ -79,7 +79,10 @@ public class AtualizacaoPeloRh {
                 null);
     }
 
-    /** O login de rede e o que vem antes do arroba (confirmado com a equipe da API). */
+    /**
+     * O login de rede e o que vem antes do arroba — confirmado em 2026-09-14,
+     * inclusive para magistrados. Nao ha excecao a tratar.
+     */
     private String prefixoDoEmail(String email) {
         int arroba = email.indexOf('@');
         return arroba < 1 ? email : email.substring(0, arroba);

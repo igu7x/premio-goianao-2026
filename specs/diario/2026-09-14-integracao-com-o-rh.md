@@ -55,6 +55,7 @@ vizinhos.
 - **Com a infra/equipe da API:** client (id e secret) e o realm que emite o
   token; endereço da API em produção; e confirmação do código da unidade raiz a
   varrer.
-- **`loginAd`:** assumido como o prefixo do e-mail. Confirmar para magistrados.
+- ~~**`loginAd`**~~ — confirmado no mesmo dia: é sempre o prefixo do e-mail
+  corporativo, inclusive para magistrados.
 - **Sem agendamento:** a sincronização é manual, pela tela. Se o tribunal quiser
   varredura periódica, é decidir a janela e quem responde pelos conflitos.

@@ -147,5 +147,5 @@ sem clique.
 - [NEEDS CLARIFICATION: endereço da API em produção]
 - [NEEDS CLARIFICATION: código da unidade raiz a varrer para chegar às unidades
   judiciárias do prêmio]
-- [NEEDS CLARIFICATION: o login de rede é sempre o prefixo do e-mail, inclusive
-  para magistrados]
+- ~~o login de rede é sempre o prefixo do e-mail~~ — **respondido em 2026-09-14:
+  sim, inclusive para magistrados.**

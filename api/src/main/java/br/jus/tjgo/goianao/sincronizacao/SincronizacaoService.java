@@ -311,7 +311,7 @@ public class SincronizacaoService {
                 lista.totalAtivos());
     }
 
-    /** O login de rede e o que vem antes do arroba. */
+    /** O login de rede e o que vem antes do arroba (confirmado em 2026-09-14). */
     private String loginDe(String email) {
         int arroba = email.indexOf('@');
         return arroba < 1 ? null : email.substring(0, arroba);
