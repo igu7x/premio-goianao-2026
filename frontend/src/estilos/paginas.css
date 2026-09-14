@@ -1525,3 +1525,37 @@
   max-width: 30ch;
   text-align: right;
 }
+
+/*
+ * Chamada da importação em lote, no topo do painel da unidade.
+ *
+ * O que ela faz — criar usuário, que é conceder acesso, e habilitar todo mundo
+ * de uma vez — fica escrito ao lado do botão. Num aviso no rodapé ninguém leria
+ * antes de clicar, e esta é a ação de maior volume da tela.
+ */
+.sincronizacao-importacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e4);
+  padding: var(--e4);
+  background: var(--superficie-2);
+  border: 1px solid var(--traco);
+  border-radius: var(--raio-g);
+}
+
+.sincronizacao-importacao p {
+  margin-top: 5px;
+  max-width: 62ch;
+}
+
+.sincronizacao-importacao .botao {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .sincronizacao-importacao {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

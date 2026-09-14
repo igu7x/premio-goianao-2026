@@ -286,3 +286,25 @@ export interface ComparacaoServidores {
   responsavelSugerido: string | null
   servidores: ServidorComparado[]
 }
+
+/**
+ * Resultado da importação da unidade inteira.
+ *
+ * Os números são o que permite conferir a conta depois: `preservadosRemovidos`
+ * e `semEmail` explicam por que o total de habilitados não bate com o de
+ * lotados no RH.
+ */
+export interface ImportacaoDaUnidade {
+  lotadosNoRh: number
+  /** Não existiam no cadastro de usuários e foram criados com papel de servidor. */
+  usuariosCriados: number
+  /** Já existiam; receberam os dados do RH — o papel deles não muda. */
+  usuariosAtualizados: number
+  habilitadosIncluidos: number
+  jaHabilitados: number
+  /** Removidos à mão antes: a importação não os ressuscita. */
+  preservadosRemovidos: number
+  /** Sem e-mail corporativo no RH — não seriam reconhecidos no login (DI-24). */
+  semEmail: number
+  totalAtivos: number
+}

@@ -107,8 +107,31 @@ public class ServidorHabilitadoService {
         exigirUnidadeReconhecida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
 
+        return mesclar(edicao, unidade, egesp.listarServidoresPorUnidade(unidade.getNome()));
+    }
+
+    /**
+     * Mesma mesclagem, com a lotacao ja em maos.
+     *
+     * <p>Existe para a importacao da unidade (010), que resolve o e-mail de cada
+     * matricula antes de comecar: sem isto, buscar a lotacao de novo dobraria as
+     * chamadas a API corporativa para obter exatamente a mesma lista.
+     */
+    @Transactional
+    public SemeaduraResposta semearCom(Long edicaoId, Long unidadeId,
+                                       List<ServidorEgesp> doEgesp) {
+        Edicao edicao = edicoes.buscar(edicaoId);
+        UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
+        exigirUnidadeReconhecida(edicaoId, unidadeId);
+        exigirPermissao(edicao, unidadeId);
+        return mesclar(edicao, unidade, doEgesp);
+    }
+
+    private SemeaduraResposta mesclar(Edicao edicao, UnidadeJudiciaria unidade,
+                                      List<ServidorEgesp> doEgesp) {
+        Long edicaoId = edicao.getId();
+        Long unidadeId = unidade.getId();
         String autor = UsuarioAtual.emailOuSistema();
-        List<ServidorEgesp> doEgesp = egesp.listarServidoresPorUnidade(unidade.getNome());
 
         int incluidos = 0;
         int jaExistentes = 0;

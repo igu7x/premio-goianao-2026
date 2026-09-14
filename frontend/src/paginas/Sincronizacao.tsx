@@ -3,6 +3,7 @@ import { api, ErroApi } from '../api/cliente'
 import type {
   ComparacaoServidores,
   Edicao,
+  ImportacaoDaUnidade,
   ItemSincronizacao,
   ServidorComparado,
   SituacaoIntegracao,
@@ -382,6 +383,29 @@ export function Sincronizacao() {
   )
 }
 
+/**
+ * Resumo da importação em uma linha.
+ *
+ * Preservados e sem e-mail só aparecem quando existem: são eles que explicam a
+ * conta não fechar entre lotados no RH e habilitados: sem essa pista, o número
+ * menor parece falha da importação.
+ */
+function resumoDaImportacao(resumo: ImportacaoDaUnidade): string {
+  return [
+    `${resumo.usuariosCriados} usuário(s) criado(s)`,
+    `${resumo.usuariosAtualizados} atualizado(s)`,
+    `${resumo.habilitadosIncluidos} habilitado(s)`,
+    resumo.jaHabilitados > 0 ? `${resumo.jaHabilitados} já constavam` : null,
+    resumo.preservadosRemovidos > 0
+      ? `${resumo.preservadosRemovidos} preservado(s) fora da lista (removidos à mão antes)`
+      : null,
+    resumo.semEmail > 0 ? `${resumo.semEmail} sem e-mail no RH` : null,
+    `total ativo: ${resumo.totalAtivos}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 /** O que cada situação significa do lado das pessoas. */
 const EXPLICACAO_SERVIDOR: Record<ItemSincronizacao, string> = {
   DESATUALIZADO: 'Está na lista, mas com nome ou matrícula diferentes do RH.',
@@ -411,6 +435,8 @@ function PainelDeServidores({
   const [comparacao, setComparacao] = useState<ComparacaoServidores | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [aplicando, setAplicando] = useState<number | null>(null)
+  const [confirmandoImportacao, setConfirmandoImportacao] = useState(false)
+  const [importando, setImportando] = useState(false)
   const avisos = useAvisos()
 
   const recarregar = useCallback(async () => {
@@ -465,9 +491,44 @@ function PainelDeServidores({
     }
   }
 
+  async function importar() {
+    setImportando(true)
+    setErro(null)
+    try {
+      const resumo = await api.post<ImportacaoDaUnidade>(`${BASE}/unidades/${unidadeId}/importar`, {
+        edicaoId,
+      })
+      setConfirmandoImportacao(false)
+      avisos.sucesso(
+        `${comparacao?.unidadeNome ?? 'Unidade'} importada do RH`,
+        resumoDaImportacao(resumo),
+      )
+      await recarregar()
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao importar a unidade.')
+    } finally {
+      setImportando(false)
+    }
+  }
+
   const ordenados = comparacao
     ? ORDEM.flatMap((grupo) => comparacao.servidores.filter((s) => s.situacao === grupo))
     : []
+
+  // Órfão é justamente quem não veio do RH: o resto da lista é a lotação que a
+  // importação vai percorrer.
+  const lotadosNoRh = comparacao?.servidores.filter((s) => s.situacao !== 'ORFAO').length ?? 0
+
+  /*
+   * Com a confirmação aberta, Esc é resposta à pergunta dela. Os dois modais
+   * escutam a tecla no documento: sem esta guarda, cancelar a importação
+   * fecharia junto o painel da unidade e a pessoa perderia a comparação.
+   */
+  const fecharPainel = useCallback(() => {
+    if (!confirmandoImportacao) {
+      aoFechar()
+    }
+  }, [confirmandoImportacao, aoFechar])
 
   return (
     <Modal
@@ -478,7 +539,7 @@ function PainelDeServidores({
           ? 'Lotação do RH cruzada com a lista de habilitados da edição.'
           : `Edição ${edicaoAno}. Lotação do RH cruzada com a lista de habilitados — nada aqui foi gravado pela comparação.`
       }
-      aoFechar={aoFechar}
+      aoFechar={fecharPainel}
       rodape={
         <button type="button" className="botao botao-neutro" onClick={aoFechar}>
           Fechar
@@ -498,6 +559,29 @@ function PainelDeServidores({
               superadministrador, na tela Unidades.
             </Aviso>
           )}
+
+          <div className="sincronizacao-importacao">
+            <div>
+              <strong>Importar unidade inteira</strong>
+              <p className="secundaria">
+                Percorre de uma vez {lotadosNoRh > 0 ? `os ${lotadosNoRh} lotados` : 'os lotados'}{' '}
+                que o RH aponta para esta unidade: cria no cadastro de usuários quem ainda não
+                existe, com papel de servidor, e habilita todos
+                {edicaoAno === null ? ' na edição escolhida' : ` na edição ${edicaoAno}`}. Não
+                altera o papel de quem já está cadastrado e não traz de volta quem foi removido da
+                lista à mão.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="botao"
+              disabled={importando}
+              onClick={() => setConfirmandoImportacao(true)}
+            >
+              <Icone nome="semear" tamanho={16} />
+              Importar unidade inteira
+            </button>
+          </div>
 
           {ordenados.length === 0 ? (
             <EstadoVazio
@@ -556,6 +640,78 @@ function PainelDeServidores({
           )}
         </>
       )}
+
+      {confirmandoImportacao && (
+        <ModalDeImportacao
+          unidadeNome={comparacao?.unidadeNome ?? 'esta unidade'}
+          edicaoAno={edicaoAno}
+          lotadosNoRh={lotadosNoRh}
+          importando={importando}
+          aoFechar={() => setConfirmandoImportacao(false)}
+          aoConfirmar={() => void importar()}
+        />
+      )}
+    </Modal>
+  )
+}
+
+/**
+ * Confirmação da importação em lote.
+ *
+ * É a única ação da tela que mexe em muita gente de uma vez — e a única que
+ * cria usuário, isto é, concede acesso. Pedir confirmação aqui não é
+ * formalidade: é o intervalo entre ler quantas pessoas serão criadas e criá-las.
+ */
+function ModalDeImportacao({
+  unidadeNome,
+  edicaoAno,
+  lotadosNoRh,
+  importando,
+  aoFechar,
+  aoConfirmar,
+}: {
+  unidadeNome: string
+  edicaoAno: number | null
+  lotadosNoRh: number
+  importando: boolean
+  aoFechar: () => void
+  aoConfirmar: () => void
+}) {
+  return (
+    <Modal
+      titulo="Importar a unidade inteira?"
+      descricao={`${unidadeNome}${edicaoAno === null ? '' : `, edição ${edicaoAno}`}.`}
+      aoFechar={aoFechar}
+      rodape={
+        <>
+          <button
+            type="button"
+            className="botao botao-neutro"
+            disabled={importando}
+            onClick={aoFechar}
+          >
+            Cancelar
+          </button>
+          <button type="button" className="botao" disabled={importando} onClick={aoConfirmar}>
+            {importando && <span className="giro" />}
+            {importando ? 'Importando…' : 'Importar'}
+          </button>
+        </>
+      }
+    >
+      <Aviso tom="atencao" titulo={`${lotadosNoRh} pessoa(s) lotada(s) segundo o RH`}>
+        <ul>
+          <li>Quem ainda não tem cadastro é criado como usuário, com papel de servidor.</li>
+          <li>Quem já está cadastrado recebe os dados do RH; o papel dele não muda.</li>
+          <li>Todos passam a poder emitir o certificado de servidor desta unidade na edição.</li>
+        </ul>
+      </Aviso>
+
+      <p className="apoio">
+        Quem foi removido da lista à mão <strong>não volta</strong> — a remoção manual foi decisão
+        de alguém que conhecia o caso, e a importação a respeita. Quem o RH não tem e-mail
+        corporativo fica de fora: sem e-mail o login não reconheceria a pessoa.
+      </p>
     </Modal>
   )
 }

@@ -33,6 +33,12 @@ vizinhos.
 - **Motor de comparação** e endpoints da tela, exclusivos do superadministrador.
   Comparar é leitura; aplicar é um clique de cada vez.
 - **Atualização no login**, assíncrona, por evento publicado no callback do SSO.
+- **Importação da unidade inteira** (pedida depois, no mesmo dia): um botão traz
+  todos os lotados, cria no cadastro de usuários quem ainda não existe — com
+  papel de servidor — e habilita todos na edição. Não altera o papel de quem já
+  está cadastrado (o RH sabe onde a pessoa trabalha, não o que ela pode fazer no
+  prêmio) e não ressuscita quem foi removido da lista à mão; o resumo separa os
+  números para que a diferença não pareça falha.
 
 ## Verificação
 

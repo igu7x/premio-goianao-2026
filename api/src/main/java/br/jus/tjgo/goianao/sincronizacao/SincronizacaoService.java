@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.sincronizacao;
 
+import br.jus.tjgo.goianao.comum.Cpf;
 import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
@@ -13,14 +14,20 @@ import br.jus.tjgo.goianao.servidor.OrigemServidor;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitado;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitadoRepository;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
+import br.jus.tjgo.goianao.seguranca.Papel;
+import br.jus.tjgo.goianao.servidor.dto.SemeaduraResposta;
 import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
+import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.ItemSincronizacao;
 import br.jus.tjgo.goianao.sincronizacao.dto.ServidorComparado;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
 import br.jus.tjgo.goianao.sincronizacao.dto.UnidadeComparada;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
 import br.jus.tjgo.goianao.unidade.UnidadeRepository;
+import br.jus.tjgo.goianao.usuario.Usuario;
+import br.jus.tjgo.goianao.usuario.UsuarioRepository;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -47,16 +54,19 @@ public class SincronizacaoService {
     private final ServidorHabilitadoRepository habilitados;
     private final ServidorHabilitadoService servicoDeHabilitados;
     private final EdicaoService edicoes;
+    private final UsuarioRepository usuarios;
 
     public SincronizacaoService(EgespClient egesp, UnidadeRepository unidades,
                                 ServidorHabilitadoRepository habilitados,
                                 ServidorHabilitadoService servicoDeHabilitados,
-                                EdicaoService edicoes) {
+                                EdicaoService edicoes,
+                                UsuarioRepository usuarios) {
         this.egesp = egesp;
         this.unidades = unidades;
         this.habilitados = habilitados;
         this.servicoDeHabilitados = servicoDeHabilitados;
         this.edicoes = edicoes;
+        this.usuarios = usuarios;
     }
 
     public SituacaoIntegracao situacao() {
@@ -242,6 +252,69 @@ public class SincronizacaoService {
                 servidor.email(), servidor.nome(), servidor.cpf(), OrigemServidor.EGESP);
         incluido.definirMatricula(matricula);
         return incluido;
+    }
+
+    /**
+     * Traz a unidade inteira de uma vez: cria quem falta no cadastro de
+     * usuarios e habilita todos na edicao.
+     *
+     * <p>Duas coisas que a rotina <b>nao</b> faz, e ambas de proposito. Nao
+     * mexe no papel de quem ja existe — o RH sabe onde a pessoa trabalha, nao o
+     * que ela pode fazer no premio; um administrador importado como servidor
+     * perderia acesso. E nao ressuscita quem foi removido da lista a mao: o
+     * ajuste humano prevalece sobre o RH (008), e o numero de preservados vai
+     * na resposta para que a diferenca nao pareca falha.
+     */
+    @Transactional
+    public ImportacaoDaUnidade importarUnidade(Long unidadeId, Long edicaoId) {
+        UnidadeJudiciaria unidade = unidadeComCodigo(unidadeId);
+        edicoes.buscar(edicaoId);
+
+        List<ServidorEgesp> doRh = new ArrayList<>();
+        for (LotadoEgesp lotado : egesp.lotados(unidade.getCodigoSiedos())) {
+            egesp.servidorPorMatricula(lotado.matricula())
+                    .map(s -> Email.valido(s.email()) ? s
+                            : new ServidorEgesp(null, lotado.nome(), s.cpf(), lotado.matricula()))
+                    .ifPresentOrElse(doRh::add,
+                            () -> doRh.add(new ServidorEgesp(null, lotado.nome(), null,
+                                    lotado.matricula())));
+        }
+
+        int criados = 0;
+        int atualizados = 0;
+        for (ServidorEgesp servidor : doRh) {
+            if (!Email.valido(servidor.email())) {
+                continue;
+            }
+            String email = Email.normalizar(servidor.email());
+            String cpf = Cpf.valido(servidor.cpf()) ? Cpf.normalizar(servidor.cpf()) : null;
+            Optional<Usuario> jaCadastrado = usuarios.findByEmailIgnoreCase(email);
+
+            if (jaCadastrado.isEmpty()) {
+                Usuario novo = new Usuario(email, Texto.aparar(servidor.nome()), cpf,
+                        EnumSet.of(Papel.SERVIDOR));
+                novo.atualizarPeloRh(Texto.aparar(servidor.nome()), cpf, servidor.matricula(),
+                        loginDe(email), unidade.getNome());
+                usuarios.save(novo);
+                criados++;
+            } else {
+                jaCadastrado.get().atualizarPeloRh(Texto.aparar(servidor.nome()), cpf,
+                        servidor.matricula(), loginDe(email), unidade.getNome());
+                atualizados++;
+            }
+        }
+
+        SemeaduraResposta lista = servicoDeHabilitados.semearCom(edicaoId, unidadeId, doRh);
+
+        return new ImportacaoDaUnidade(doRh.size(), criados, atualizados, lista.incluidos(),
+                lista.jaExistentes(), lista.preservadosRemovidos(), lista.ignoradosSemEmail(),
+                lista.totalAtivos());
+    }
+
+    /** O login de rede e o que vem antes do arroba. */
+    private String loginDe(String email) {
+        int arroba = email.indexOf('@');
+        return arroba < 1 ? null : email.substring(0, arroba);
     }
 
     /** Remocao logica de quem nao consta mais na lotacao do RH. */

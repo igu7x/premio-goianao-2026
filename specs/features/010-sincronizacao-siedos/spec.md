@@ -79,6 +79,12 @@ sem clique.
 - **RF-10:** A tela DEVE exibir, para cada unidade, quem a API aponta como
   responsável, como **sugestão** — a designação continua sendo ato do
   superadministrador.
+- **RF-11:** O sistema DEVE permitir importar uma **unidade inteira** de uma
+  vez: criar no cadastro de usuários quem ainda não existe (com o papel de
+  servidor) e habilitar todos na edição escolhida, devolvendo o resumo do que
+  foi criado, do que já existia e do que foi deixado de fora.
+- **RF-12:** A importação em lote NÃO DEVE alterar o papel de quem já está
+  cadastrado, nem reativar quem foi removido da lista manualmente.
 
 ## 6. Requisitos não-funcionais
 
@@ -117,6 +123,14 @@ sem clique.
   o login conclui normalmente e a falha fica só no log.
 - **CA-9:** Dado um token expirado, quando o sistema chama a API, então ele
   renova o token uma vez e repete a chamada, sem entrar em laço.
+- **CA-10:** Dada uma unidade com lotados no RH, quando o superadministrador
+  importa a unidade inteira, então os que faltavam passam a existir no cadastro
+  de usuários, todos entram na lista da edição e o resumo diz quantos foram.
+- **CA-11:** Dado alguém que foi removido da lista à mão, quando a unidade é
+  importada de novo, então ele continua fora e aparece no resumo como
+  preservado.
+- **CA-12:** Dado um administrador já cadastrado que também é lotado na unidade,
+  quando a unidade é importada, então ele continua administrador.
 
 ## 8. Fora de escopo
 

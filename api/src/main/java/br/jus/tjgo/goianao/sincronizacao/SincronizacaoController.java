@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.sincronizacao;
 
 import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
+import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
 import br.jus.tjgo.goianao.sincronizacao.dto.UnidadeComparada;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
@@ -41,6 +42,8 @@ public class SincronizacaoController {
 
     public record CadastrarUnidadeRequisicao(@NotNull(message = "informe o código") Long codigo) {}
 
+    public record ImportarRequisicao(@NotNull(message = "informe a edição") Long edicaoId) {}
+
     public record IncluirServidorRequisicao(
             @NotNull(message = "informe a edição") Long edicaoId,
             @NotNull(message = "informe a matrícula") Long matricula) {}
@@ -78,6 +81,17 @@ public class SincronizacaoController {
     public void incluirServidor(@PathVariable Long unidadeId,
                                 @RequestBody IncluirServidorRequisicao requisicao) {
         servico.incluirServidor(requisicao.edicaoId(), unidadeId, requisicao.matricula());
+    }
+
+    /**
+     * A unidade inteira de uma vez: cria os usuarios que faltam e habilita
+     * todos na edicao. E a carga inicial; os botoes item a item continuam
+     * valendo para o ajuste fino depois.
+     */
+    @PostMapping("/unidades/{unidadeId}/importar")
+    public ImportacaoDaUnidade importar(@PathVariable Long unidadeId,
+                                        @RequestBody ImportarRequisicao requisicao) {
+        return servico.importarUnidade(unidadeId, requisicao.edicaoId());
     }
 
     /** Pelo id do item: dado pessoal nao vai na URL (DI-10). */

@@ -86,6 +86,9 @@ Nossos endpoints (todos `hasRole('SUPERADMIN')`):
 - `PUT /api/sincronizacao/unidades/{unidadeId}` → aplica nome/comarca da API.
 - `POST /api/sincronizacao/unidades/{unidadeId}/servidores` `{edicaoId, matricula}`
   → inclui na lista da edição (resolve e-mail pela matrícula).
+- `POST /api/sincronizacao/unidades/{unidadeId}/importar` `{edicaoId}` → carga da
+  unidade inteira: cria os usuários que faltam e habilita todos, devolvendo o
+  resumo.
 - `DELETE /api/sincronizacao/servidores/{servidorHabilitadoId}` → desvincula.
 
 ## 6. Decisões técnicas (ADR resumido)
@@ -97,6 +100,8 @@ Nossos endpoints (todos `hasRole('SUPERADMIN')`):
 | Quem aplica | carga automática | **Aprovação item a item**: o nome da unidade vai impresso no certificado |
 | Ligar a integração | flag manual | **Configuração completa liga**, como no SSO: variável faltando cai no mock em vez de derrubar o pod |
 | Rotina do login | síncrona no callback | **Assíncrona**: a API do RH não pode atrasar nem quebrar o login |
+| Carga da unidade | só item a item | **Lote + item a item**: dezenas de lotados por unidade tornam o clique a clique inviável na carga inicial; o item a item fica para o ajuste |
+| Papel de quem é importado | adotar o que o RH sugere | **SERVIDOR para quem é novo, e nada para quem já existe**: o RH sabe onde a pessoa trabalha, não o que ela pode fazer no prêmio |
 
 ## 7. Riscos e mitigação
 

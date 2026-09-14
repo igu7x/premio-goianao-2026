@@ -200,6 +200,61 @@ class SincronizacaoIT extends TesteDeIntegracao {
     }
 
     @Test
+    @DisplayName("importar a unidade cria os usuarios e habilita todos de uma vez")
+    void importaUnidadeInteira() throws Exception {
+        Cenario cenario = cenarioComUnidadeCasada();
+        long usuariosAntes = usuarios.count();
+
+        String resposta = mvc.perform(
+                        post("/api/sincronizacao/unidades/" + cenario.unidadeId() + "/importar")
+                                .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(corpo(Map.of("edicaoId", cenario.edicaoId()))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        var resumo = json.readTree(resposta);
+        assertThat(resumo.get("usuariosCriados").asInt()).isPositive();
+        assertThat(resumo.get("habilitadosIncluidos").asInt()).isPositive();
+        assertThat(usuarios.count()).isGreaterThan(usuariosAntes);
+
+        assertThat(habilitados.findByEdicaoIdAndUnidadeIdOrderByNomeAsc(
+                        cenario.edicaoId(), cenario.unidadeId()))
+                .as("todo mundo que entrou veio com e-mail: sem ele ninguem emite")
+                .allSatisfy(s -> assertThat(s.getEmail()).isNotBlank());
+    }
+
+    @Test
+    @DisplayName("importar nao ressuscita quem foi removido da lista a mao")
+    void importarNaoReativaRemovido() throws Exception {
+        Cenario cenario = cenarioComUnidadeCasada();
+        mvc.perform(post("/api/sincronizacao/unidades/" + cenario.unidadeId() + "/importar")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo(Map.of("edicaoId", cenario.edicaoId()))))
+                .andExpect(status().isOk());
+
+        ServidorHabilitado alguem = habilitados.findByEdicaoIdAndUnidadeIdOrderByNomeAsc(
+                cenario.edicaoId(), cenario.unidadeId()).get(0);
+        atuandoComo(EMAIL_ADMIN);
+        servidores.remover(cenario.edicaoId(), cenario.unidadeId(), alguem.getId());
+
+        String resposta = mvc.perform(
+                        post("/api/sincronizacao/unidades/" + cenario.unidadeId() + "/importar")
+                                .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(corpo(Map.of("edicaoId", cenario.edicaoId()))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(json.readTree(resposta).get("preservadosRemovidos").asInt())
+                .as("o ajuste humano prevalece sobre o RH (008)")
+                .isPositive();
+        assertThat(habilitados.findById(alguem.getId())).get()
+                .satisfies(s -> assertThat(s.isAtivo()).isFalse());
+    }
+
+    @Test
     @DisplayName("unidade sem codigo nao pode comparar servidores")
     void exigeUnidadeCasada() throws Exception {
         Edicao edicao = edicaoVigente(2036);

@@ -1,7 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import type { ComparacaoServidores, Edicao, UnidadeComparada } from '../api/tipos'
+import type {
+  ComparacaoServidores,
+  Edicao,
+  ImportacaoDaUnidade,
+  UnidadeComparada,
+} from '../api/tipos'
 import { ProvedorDeAvisos } from '../componentes/Avisos'
 import { instalarApiFalsa } from '../teste/api-falsa'
 import { Sincronizacao } from './Sincronizacao'
@@ -70,6 +75,17 @@ const COMPARACAO: ComparacaoServidores = {
       semEmailNaApi: false,
     },
   ],
+}
+
+const IMPORTACAO: ImportacaoDaUnidade = {
+  lotadosNoRh: 24,
+  usuariosCriados: 12,
+  usuariosAtualizados: 3,
+  habilitadosIncluidos: 9,
+  jaHabilitados: 0,
+  preservadosRemovidos: 2,
+  semEmail: 1,
+  totalAtivos: 21,
 }
 
 function renderizar() {
@@ -170,5 +186,51 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
       expect(inclusao?.corpo).toContain('5001')
       expect(inclusao?.url).not.toContain('@')
     })
+  })
+
+  it('a importação em lote só acontece depois de confirmada, e resume os números', async () => {
+    const chamadas = instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades/9/importar', { corpo: IMPORTACAO }],
+      ['/api/sincronizacao/unidades/9/servidores', { corpo: COMPARACAO }],
+      ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA] }],
+    ])
+
+    renderizar()
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
+    await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
+    await userEvent.click(screen.getByRole('button', { name: /comparar/i }))
+
+    await screen.findByText('1a Vara Civel de Goiania')
+    await userEvent.click(screen.getByRole('button', { name: /servidores/i }))
+    await screen.findByText('Marina Alves Rocha')
+
+    await userEvent.click(screen.getByRole('button', { name: /importar unidade inteira/i }))
+
+    // A confirmação existe justamente para haver um passo antes da gravação.
+    await screen.findByText(/importar a unidade inteira\?/i)
+    expect(chamadas.some((c) => c.metodo === 'POST')).toBe(false)
+    expect(screen.getByText(/o papel dele não muda/i)).toBeInTheDocument()
+    expect(screen.getByText(/não volta/i)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /^importar$/i }))
+
+    await waitFor(() => {
+      const importacao = chamadas.find((c) => c.metodo === 'POST')
+      expect(importacao?.url).toContain('/api/sincronizacao/unidades/9/importar')
+      expect(importacao?.corpo).toContain('"edicaoId":1')
+    })
+
+    // Preservados e sem e-mail aparecem porque explicam a conta não fechar;
+    // "já constavam" fica de fora quando é zero.
+    const resumo = await screen.findByText(/12 usuário\(s\) criado\(s\)/i)
+    expect(resumo).toHaveTextContent(/2 preservado\(s\) fora da lista/i)
+    expect(resumo).toHaveTextContent(/1 sem e-mail no RH/i)
+    expect(resumo).not.toHaveTextContent(/já constavam/i)
+
+    // A comparação da unidade é relida depois de importar.
+    const leituras = chamadas.filter((c) => c.url.includes('/servidores?edicaoId='))
+    expect(leituras.length).toBeGreaterThan(1)
   })
 })
