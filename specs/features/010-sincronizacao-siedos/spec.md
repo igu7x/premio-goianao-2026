@@ -56,6 +56,9 @@ sem clique.
   corporativa, autenticando-se por conta própria.
 - **RF-2:** O sistema DEVE continuar funcionando com dados mockados quando a
   integração não estiver configurada, sem deixar de subir.
+- **RF-3a:** A comparação DEVE poder abranger o **organograma inteiro** do
+  tribunal, e não apenas a árvore de uma raiz — as unidades judiciárias ficam
+  sob as comarcas, e nenhuma raiz única as alcança junto com o resto.
 - **RF-3:** O sistema DEVE oferecer ao superadministrador uma tela que compare,
   para uma unidade e uma edição, o que vem da API com o que está no banco,
   classificando cada item em: **sincronizado**, **desatualizado**, **só na API**
@@ -155,8 +158,10 @@ sem clique.
   ambiente justamente por isso.
 - [NEEDS CLARIFICATION: o client (id e secret) da aplicação na API]
 - [NEEDS CLARIFICATION: endereço da API em produção]
-- ~~código da unidade raiz~~ — **respondido em 2026-09-15:** `600000009`
-  (Presidência) cobre toda a estrutura do tribunal; `901190605` (SGJT) cobre só
-  a área de tecnologia. Os dois aparecem como atalho na tela.
+- ~~código da unidade raiz~~ — **resolvido de outro jeito em 2026-09-15.** Não
+  existe raiz que sirva: as unidades judiciárias ficam sob as comarcas, e a
+  Presidência (`600000009`) só cobre a estrutura administrativa, 189 de 2.215.
+  A consulta de hierarquia **sem código** devolve o organograma inteiro, e é ela
+  que a tela usa por padrão.
 - ~~o login de rede é sempre o prefixo do e-mail~~ — **respondido em 2026-09-14:
   sim, inclusive para magistrados.**

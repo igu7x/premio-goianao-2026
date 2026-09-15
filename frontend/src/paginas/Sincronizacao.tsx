@@ -15,17 +15,20 @@ import { Icone } from '../componentes/Icone'
 
 const BASE = '/api/sincronizacao'
 
-/**
- * Pontos de partida indicados pelo tribunal: a Presidência cobre toda a
- * estrutura; a SGJT cobre só a área de tecnologia. O mock responde por outro
- * código, que aparece quando a integração está desligada.
+/*
+ * Não há mais atalho por raiz.
+ *
+ * A Presidência parecia cobrir o tribunal, mas as varas — que são o objeto do
+ * prêmio — não ficam sob ela: cada uma fica sob a sua comarca. O atalho trazia
+ * 189 unidades administrativas e dava a impressão de ter trazido tudo, que é o
+ * pior tipo de resultado. Quem quer o tribunal inteiro pede o organograma
+ * completo; quem já sabe o código de um ramo digita o código.
  */
-const RAIZES = [
-  { codigo: '600000009', rotulo: 'Presidência (tribunal inteiro)' },
-  { codigo: '901190605', rotulo: 'SGJT (tecnologia)' },
-]
-
 const RAIZ_DEMONSTRACAO = { codigo: '900000000', rotulo: 'Unidades de demonstração' }
+
+/** Acima disto a tabela de um grupo passa a ser paginada na renderização: o
+ *  organograma inteiro tem milhares de linhas e o navegador engasga. */
+const LIMITE_POR_GRUPO = 300
 
 /** Primeiro o que pede decisão; por último o que já está certo — quem abre a
  *  tela quer ver o que mudou, não confirmar o que não mudou. */
@@ -78,7 +81,10 @@ export function Sincronizacao() {
   const [codigo, setCodigo] = useState('')
   /** Nulo enquanto nenhuma comparação foi pedida — diferente de lista vazia. */
   const [unidades, setUnidades] = useState<UnidadeComparada[] | null>(null)
-  const [comparando, setComparando] = useState(false)
+  const [comparando, setComparando] = useState<'tudo' | 'codigo' | null>(null)
+  /** O que a lista na tela reflete: um código, ou o organograma inteiro (nulo).
+   *  É o que a recomparação depois de aplicar precisa repetir. */
+  const [consultado, setConsultado] = useState<string | null>(null)
   const [aplicando, setAplicando] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [aberta, setAberta] = useState<UnidadeComparada | null>(null)
@@ -106,21 +112,33 @@ export function Sincronizacao() {
     }
   }, [])
 
-  const comparar = useCallback(async () => {
+  /** Sem código, o RH devolve o organograma inteiro; com código, só o ramo
+   *  daquela unidade. Os dois caminhos são leitura. */
+  const executar = useCallback(async (alvo: string | null) => {
+    setComparando(alvo === null ? 'tudo' : 'codigo')
+    setErro(null)
+    try {
+      setUnidades(
+        await api.get<UnidadeComparada[]>(
+          alvo === null ? `${BASE}/unidades` : `${BASE}/unidades?codigo=${alvo}`,
+        ),
+      )
+      setConsultado(alvo)
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao comparar com o RH.')
+    } finally {
+      setComparando(null)
+    }
+  }, [])
+
+  /** Campo vazio não dispara chamada: o caminho para "tudo" é o outro botão. */
+  function compararPeloCodigo() {
     const numero = Number(codigo.trim())
     if (!codigo.trim() || !Number.isFinite(numero)) {
       return
     }
-    setComparando(true)
-    setErro(null)
-    try {
-      setUnidades(await api.get<UnidadeComparada[]>(`${BASE}/unidades?codigo=${numero}`))
-    } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : 'Falha ao comparar com o RH.')
-    } finally {
-      setComparando(false)
-    }
-  }, [codigo])
+    void executar(String(numero))
+  }
 
   /** Recompara depois de aplicar: a linha alterada muda de grupo, e ver isso é
    *  a confirmação de que a alteração pegou. */
@@ -130,7 +148,7 @@ export function Sincronizacao() {
     try {
       await acao()
       sucesso()
-      await comparar()
+      await executar(consultado)
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao aplicar a alteração.')
     } finally {
@@ -223,13 +241,45 @@ export function Sincronizacao() {
             <div>
               <h2 className="titulo-secao">Comparar</h2>
               <p className="apoio">
-                O código é o da unidade no SIEDOS. A consulta traz a hierarquia a partir dele —
-                da Presidência sai o tribunal inteiro, o que pode ser uma lista longa.
+                O organograma inteiro de uma vez, ou só o ramo de uma unidade, pelo código dela
+                no SIEDOS. Nos dois casos a comparação é leitura.
               </p>
             </div>
           </div>
 
           <div className="bloco-corpo">
+            {/* Primeiro caminho da tela, e o mais usado: as varas não ficam sob
+                a Presidência, então não há raiz que sirva de atalho para elas —
+                pedir o organograma inteiro é o único jeito de vê-las todas. */}
+            <div className="sincronizacao-tribunal">
+              <div>
+                <strong>Comparar o tribunal inteiro</strong>
+                <p className="secundaria">
+                  {situacao && !situacao.ligada
+                    ? 'Traz o organograma inteiro da origem atual — com a integração desligada, são as poucas unidades de demonstração.'
+                    : 'Traz o organograma completo do RH: cerca de 2.200 unidades, em todos os níveis, incluindo as varas — que ficam sob as comarcas, e não sob a Presidência.'}{' '}
+                  Continua sendo leitura: nada é gravado enquanto você não clicar numa ação.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="botao"
+                disabled={comparando !== null}
+                onClick={() => void executar(null)}
+              >
+                {comparando === 'tudo' ? (
+                  <span className="giro" />
+                ) : (
+                  <Icone nome="trocar" tamanho={16} />
+                )}
+                {comparando === 'tudo' ? 'Comparando…' : 'Comparar o tribunal inteiro'}
+              </button>
+            </div>
+
+            <p className="apoio sincronizacao-ou">
+              Ou compare só um ramo, quando você já sabe o código da unidade:
+            </p>
+
             <div className="sincronizacao-consulta">
               <div className="campo">
                 <label htmlFor="codigo-unidade">Código da unidade</label>
@@ -241,21 +291,19 @@ export function Sincronizacao() {
                   value={codigo}
                   onChange={(evento) => setCodigo(evento.target.value.replace(/\D/g, ''))}
                 />
-                {/* Os dois pontos de partida que o tribunal indicou. Ficam aqui
-                    porque ninguém decora código de unidade — e digitar errado
-                    devolve uma lista vazia sem dizer por quê. */}
-                <div className="sincronizacao-atalhos">
-                  {(situacao?.ligada ? RAIZES : [...RAIZES, RAIZ_DEMONSTRACAO]).map((raiz) => (
+                {/* Só com a integração desligada: é o código que o mock conhece,
+                    e ninguém o decoraria para testar a tela. */}
+                {situacao && !situacao.ligada && (
+                  <div className="sincronizacao-atalhos">
                     <button
-                      key={raiz.codigo}
                       type="button"
                       className="botao botao-texto botao-pequeno"
-                      onClick={() => setCodigo(raiz.codigo)}
+                      onClick={() => setCodigo(RAIZ_DEMONSTRACAO.codigo)}
                     >
-                      {raiz.rotulo}
+                      {RAIZ_DEMONSTRACAO.rotulo}
                     </button>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="campo">
@@ -281,12 +329,16 @@ export function Sincronizacao() {
 
               <button
                 type="button"
-                className="botao"
-                disabled={comparando || !codigo.trim()}
-                onClick={() => void comparar()}
+                className="botao botao-neutro"
+                disabled={comparando !== null || !codigo.trim()}
+                onClick={compararPeloCodigo}
               >
-                {comparando ? <span className="giro" /> : <Icone nome="trocar" tamanho={16} />}
-                {comparando ? 'Comparando…' : 'Comparar'}
+                {comparando === 'codigo' ? (
+                  <span className="giro" />
+                ) : (
+                  <Icone nome="trocar" tamanho={16} />
+                )}
+                {comparando === 'codigo' ? 'Comparando…' : 'Comparar'}
               </button>
             </div>
           </div>
@@ -302,14 +354,22 @@ export function Sincronizacao() {
         ) : unidades.length === 0 ? (
           <div className="bloco">
             <EstadoVazio
-              titulo="O RH não devolveu nenhuma unidade para este código"
-              descricao="Confira o código no SIEDOS. Nada foi alterado."
+              titulo={
+                consultado === null
+                  ? 'O RH não devolveu nenhuma unidade'
+                  : 'O RH não devolveu nenhuma unidade para este código'
+              }
+              descricao={
+                consultado === null
+                  ? 'A origem dos dados respondeu uma lista vazia. Nada foi alterado.'
+                  : 'Confira o código no SIEDOS. Nada foi alterado.'
+              }
             />
           </div>
         ) : (
           <>
-            {/* A partir da Presidência vem o tribunal inteiro: sem filtro, achar
-                uma vara na lista seria rolar a tela até encontrar. */}
+            {/* O organograma inteiro passa de duas mil linhas: sem filtro, achar
+                uma vara seria rolar a tela até encontrar. */}
             {unidades.length > 12 && (
               <div className="bloco">
                 <div className="bloco-corpo">
@@ -331,6 +391,10 @@ export function Sincronizacao() {
             {(
           ORDEM.filter((grupo) => visiveis.some((u) => u.situacao === grupo)).map((grupo) => {
             const doGrupo = visiveis.filter((u) => u.situacao === grupo)
+            // O total continua no cabeçalho: o corte é de renderização, não de
+            // contagem — unidade que some sem aviso é unidade que ninguém vai
+            // cadastrar.
+            const mostradas = doGrupo.slice(0, LIMITE_POR_GRUPO)
             return (
               <div className="bloco" key={grupo}>
                 <div className="bloco-cabecalho">
@@ -353,13 +417,22 @@ export function Sincronizacao() {
                       </tr>
                     </thead>
                     <tbody>
-                      {doGrupo.map((unidade) => (
+                      {mostradas.map((unidade) => (
                         <tr key={chaveDa(unidade)}>
                           <td>
                             <div className="principal">
                               {unidade.nomeNoSistema ?? unidade.nomeNaApi ?? '—'}
                             </div>
-                            <div className="secundaria mono">código {unidade.codigo ?? '—'}</div>
+                            {/* O código do pai situa a unidade no organograma sem
+                                precisar abrir o SIEDOS ao lado. Nulo não vira
+                                travessão: linha em branco já diz que não veio. */}
+                            <div className="secundaria mono">
+                              código {unidade.codigo ?? '—'}
+                              {unidade.codigoPai !== null && ` · pai: ${unidade.codigoPai}`}
+                            </div>
+                            {unidade.nomePai && (
+                              <div className="secundaria">sob {unidade.nomePai}</div>
+                            )}
                           </td>
                           <td>
                             {unidade.situacao === 'ORFAO' ? (
@@ -425,11 +498,22 @@ export function Sincronizacao() {
                   </table>
                 </div>
 
-                {grupo === 'ORFAO' && (
+                {(mostradas.length < doGrupo.length || grupo === 'ORFAO') && (
                   <div className="bloco-rodape">
-                    Unidade órfã não se apaga por aqui. Se ela foi extinta, o caminho é deixar de
-                    usá-la nas próximas edições — o histórico do que já foi emitido continua
-                    apontando para o nome que estava no certificado.
+                    {mostradas.length < doGrupo.length && (
+                      <p>
+                        Mostrando as primeiras {mostradas.length} de {doGrupo.length} — use o
+                        filtro para achar a sua unidade. As demais continuam na comparação e nos
+                        totais.
+                      </p>
+                    )}
+                    {grupo === 'ORFAO' && (
+                      <p style={{ marginTop: mostradas.length < doGrupo.length ? 6 : 0 }}>
+                        Unidade órfã não se apaga por aqui. Se ela foi extinta, o caminho é
+                        deixar de usá-la nas próximas edições — o histórico do que já foi emitido
+                        continua apontando para o nome que estava no certificado.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

@@ -95,6 +95,28 @@ class SincronizacaoIT extends TesteDeIntegracao {
                 .isEqualTo(antes);
     }
 
+    /**
+     * Sem codigo, compara o organograma inteiro. E o caso de uso normal: as
+     * unidades judiciarias ficam sob as suas comarcas, e nao sob a Presidencia,
+     * entao qualquer raiz unica deixaria a maior parte do tribunal de fora.
+     */
+    @Test
+    @DisplayName("sem codigo, compara o organograma inteiro")
+    void semCodigoComparaTudo() throws Exception {
+        String resposta = mvc.perform(get("/api/sincronizacao/unidades")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        List<UnidadeComparada> comparadas = json.readValue(resposta, json.getTypeFactory()
+                .constructCollectionType(List.class, UnidadeComparada.class));
+
+        assertThat(comparadas)
+                .as("o organograma inteiro do RH mockado")
+                .hasSize(egesp.organogramaCompleto().size());
+        assertThat(comparadas).allSatisfy(u -> assertThat(u.codigo()).isNotNull());
+    }
+
     @Test
     @DisplayName("unidade cadastrada pelo nome, sem codigo, aparece desatualizada ate ser casada")
     void casamentoPeloNomeDepoisPeloCodigo() throws Exception {

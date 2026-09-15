@@ -16,6 +16,7 @@ final class RespostasConnectTj {
             Long cdgUnidade,
             String nomeUnidade,
             Long cdgUnidadePai,
+            String nomeUnidadePai,
             String nomeComarca,
             Integer nivelHierarquico) {}
 

@@ -25,6 +25,16 @@ public interface EgespClient {
     /** A unidade e toda a sua arvore de subordinadas. */
     List<UnidadeEgesp> hierarquia(long codigoUnidade);
 
+    /**
+     * <b>Todo</b> o organograma do tribunal, numa consulta so.
+     *
+     * <p>E o que permite ver as unidades judiciarias: elas nao penduram na
+     * Presidencia — cada vara fica sob a sua comarca —, entao varrer a partir de
+     * um codigo raiz deixaria a maior parte de fora. Sao mais de duas mil
+     * unidades em oito niveis.
+     */
+    List<UnidadeEgesp> organogramaCompleto();
+
     Optional<UnidadeEgesp> unidadePorCodigo(long codigoUnidade);
 
     /** Responsavel que o RH registra para a unidade; entra na tela como sugestao. */

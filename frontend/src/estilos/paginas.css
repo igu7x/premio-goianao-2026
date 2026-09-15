@@ -1533,7 +1533,11 @@
  * de uma vez — fica escrito ao lado do botão. Num aviso no rodapé ninguém leria
  * antes de clicar, e esta é a ação de maior volume da tela.
  */
-.sincronizacao-importacao {
+/* A comparação do tribunal inteiro tem a mesma forma: explicação à esquerda,
+   botão à direita. São as duas ações de maior alcance da tela, e desenhá-las
+   igual é dizer que se lê antes de clicar nas duas. */
+.sincronizacao-importacao,
+.sincronizacao-tribunal {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1544,20 +1548,30 @@
   border-radius: var(--raio-g);
 }
 
-.sincronizacao-importacao p {
+.sincronizacao-importacao p,
+.sincronizacao-tribunal p {
   margin-top: 5px;
   max-width: 62ch;
 }
 
-.sincronizacao-importacao .botao {
+.sincronizacao-importacao .botao,
+.sincronizacao-tribunal .botao {
   flex: none;
 }
 
 @media (max-width: 640px) {
-  .sincronizacao-importacao {
+  .sincronizacao-importacao,
+  .sincronizacao-tribunal {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* Separa os dois caminhos de consulta sem uma régua horizontal: eles são
+   alternativas, não etapas de um formulário. */
+.sincronizacao-ou {
+  margin: var(--e4) 0 var(--e3);
+  color: var(--tinta-3);
 }
 
 /* Atalhos para os códigos de unidade que o tribunal indicou como ponto de

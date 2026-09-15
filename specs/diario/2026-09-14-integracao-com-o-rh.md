@@ -73,6 +73,28 @@ O nome continua editável: é ele que vai impresso no certificado, e o RH devolv
 tudo em maiúsculas. Quem não tem e-mail nem no RH nem no AD não pode ser
 cadastrado por aí, e a tela diz o porquê.
 
+## As unidades judiciárias não ficam sob a Presidência (2026-09-15)
+
+Com a integração ligada em homologação, a comparação a partir da Presidência
+(`600000009`) trouxe 189 unidades — **todas administrativas**. As varas, que são
+o objeto do prêmio, penduram na **comarca**, não na Presidência:
+
+```
+203010000  ABADIANIA                  ← comarca
+  203010005  ABADIANIA VARA JUDICIAL  ← unidade judiciária
+    203010002  ESCRIVANIA ...
+```
+
+Varrer comarca por comarca custaria umas 1.100 chamadas — três minutos no ritmo
+de 6/s, e ainda estouraria o tempo limite da rota. A saída estava na própria
+API: **`estrutura-hierarquica` sem o parâmetro `codigoUnidade` devolve o
+organograma inteiro** — 2.215 unidades, 8 níveis, todas com código do pai, em
+menos de um segundo e cerca de 1 MB. Entre elas, 759 unidades judiciárias.
+
+Então o `codigo` virou opcional: sem ele, compara-se o tribunal todo. Os atalhos
+de Presidência e SGJT saíram da tela — o primeiro enganava, por sugerir que
+trazia o tribunal inteiro.
+
 ## Pendências
 
 - **Com a infra/equipe da API:** client (id e secret) e o realm que emite o

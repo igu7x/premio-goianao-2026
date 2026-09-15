@@ -263,6 +263,12 @@ export interface UnidadeComparada {
   nomeNoSistema: string | null
   nomeNaApi: string | null
   comarca: string | null
+  /** Superior imediato no organograma. Nulo nos órfãos, que não vieram do RH. */
+  codigoPai: number | null
+  nomePai: string | null
+  /** Profundidade informada pelo RH (1 = raiz). Espelhado porque o backend o
+   *  envia; a tela hoje não o usa. */
+  nivel: number | null
 }
 
 export interface ServidorComparado {

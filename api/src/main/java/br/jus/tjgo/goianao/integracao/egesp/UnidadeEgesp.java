@@ -11,9 +11,14 @@ package br.jus.tjgo.goianao.integracao.egesp;
  * @param codigo     codigo no SIEDOS; nulo no mock e no cadastro antigo
  * @param codigoPai  codigo da unidade superior, quando a origem informa
  */
-public record UnidadeEgesp(Long codigo, String nome, String comarca, Long codigoPai) {
+public record UnidadeEgesp(Long codigo, String nome, String comarca, Long codigoPai,
+                           String nomePai, Integer nivel) {
 
     public UnidadeEgesp(String nome, String comarca) {
-        this(null, nome, comarca, null);
+        this(null, nome, comarca, null, null, null);
+    }
+
+    public UnidadeEgesp(Long codigo, String nome, String comarca, Long codigoPai) {
+        this(codigo, nome, comarca, codigoPai, null, null);
     }
 }

@@ -143,6 +143,11 @@ public class MockEgespClient implements EgespClient {
     }
 
     @Override
+    public List<UnidadeEgesp> organogramaCompleto() {
+        return UNIDADES;
+    }
+
+    @Override
     public Optional<UnidadeEgesp> unidadePorCodigo(long codigoUnidade) {
         return UNIDADES.stream()
                 .filter(u -> u.codigo() != null && u.codigo() == codigoUnidade)

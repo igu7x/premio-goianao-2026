@@ -30,6 +30,9 @@ const SO_NA_API: UnidadeComparada = {
   nomeNoSistema: null,
   nomeNaApi: '3ª Vara Cível da Comarca de Goiânia',
   comarca: 'Goiânia',
+  codigoPai: 5000,
+  nomePai: 'Diretoria do Foro de Goiânia',
+  nivel: 4,
 }
 
 const DESATUALIZADA: UnidadeComparada = {
@@ -39,6 +42,22 @@ const DESATUALIZADA: UnidadeComparada = {
   nomeNoSistema: '1a Vara Civel de Goiania',
   nomeNaApi: '1ª Vara Cível da Comarca de Goiânia',
   comarca: 'Goiânia',
+  codigoPai: 5000,
+  nomePai: 'Diretoria do Foro de Goiânia',
+  nivel: 4,
+}
+
+/** Órfã: existe só aqui, então o RH não tem pai nem nível para ela. */
+const ORFA: UnidadeComparada = {
+  situacao: 'ORFAO',
+  codigo: 777,
+  unidadeId: 12,
+  nomeNoSistema: 'Vara Extinta de Exemplo',
+  nomeNaApi: null,
+  comarca: 'Goiânia',
+  codigoPai: null,
+  nomePai: null,
+  nivel: null,
 }
 
 const COMPARACAO: ComparacaoServidores = {
@@ -118,7 +137,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
     expect(screen.getByText(/dados de demonstração/i)).toBeInTheDocument()
 
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
-    await userEvent.click(screen.getByRole('button', { name: /comparar/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 
     await screen.findByText('1a Vara Civel de Goiania')
     expect(screen.getByRole('button', { name: /atualizar/i })).toBeEnabled()
@@ -126,6 +145,51 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     // A comparação é leitura: só GET saiu da tela.
     expect(chamadas.every((c) => c.metodo === 'GET')).toBe(true)
+  })
+
+  it('compara o tribunal inteiro sem mandar código nenhum', async () => {
+    const chamadas = instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA, SO_NA_API] }],
+    ])
+
+    renderizar()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /comparar o tribunal inteiro/i }),
+    )
+
+    await screen.findByText('1a Vara Civel de Goiania')
+
+    const consulta = chamadas.find((c) => c.url.includes('/api/sincronizacao/unidades'))
+    expect(consulta?.metodo).toBe('GET')
+    // Sem código o RH devolve o organograma inteiro — é esse o pedido.
+    expect(consulta?.url).not.toContain('codigo=')
+
+    // Os atalhos de raiz saíram: a Presidência não cobre as varas.
+    expect(screen.queryByRole('button', { name: /presidência/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /sgjt/i })).not.toBeInTheDocument()
+    // O campo de código continua ali, para um ramo específico.
+    expect(screen.getByRole('button', { name: /^comparar$/i })).toBeDisabled()
+  })
+
+  it('mostra o código do pai na linha da unidade, e nada quando ele não veio', async () => {
+    instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA, ORFA] }],
+    ])
+
+    renderizar()
+
+    await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
+
+    await screen.findByText('1a Vara Civel de Goiania')
+    expect(screen.getByText(/código 1234 · pai: 5000/)).toBeInTheDocument()
+    expect(screen.getByText(/sob Diretoria do Foro de Goiânia/)).toBeInTheDocument()
+
+    // Órfã não veio do RH: sem pai, a linha não inventa nada no lugar.
+    expect(screen.getByText(/código 777/)).not.toHaveTextContent(/pai/i)
   })
 
   it('não oferece inclusão a quem o RH não tem e-mail, nem desvinculação de inclusão manual', async () => {
@@ -139,7 +203,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
-    await userEvent.click(screen.getByRole('button', { name: /comparar/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 
     await screen.findByText('1a Vara Civel de Goiania')
     await userEvent.click(screen.getByRole('button', { name: /servidores/i }))
@@ -171,7 +235,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
-    await userEvent.click(screen.getByRole('button', { name: /comparar/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 
     await screen.findByText('1a Vara Civel de Goiania')
     await userEvent.click(screen.getByRole('button', { name: /servidores/i }))
@@ -200,7 +264,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
-    await userEvent.click(screen.getByRole('button', { name: /comparar/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 
     await screen.findByText('1a Vara Civel de Goiania')
     await userEvent.click(screen.getByRole('button', { name: /servidores/i }))

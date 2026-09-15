@@ -3,14 +3,19 @@ package br.jus.tjgo.goianao.sincronizacao.dto;
 /**
  * Uma unidade vista dos dois lados.
  *
- * <p>Nao traz responsavel nem contagem de habilitados de proposito: seriam duas
- * consultas por unidade para enfeitar uma lista que pode ter dezenas delas. Os
- * dois aparecem na comparacao de servidores, que e por unidade — onde custam
- * uma consulta so e a informacao e de fato usada.
+ * <p>Não traz responsável nem contagem de habilitados de propósito: seriam duas
+ * consultas por unidade para enfeitar uma lista que pode ter centenas delas. Os
+ * dois aparecem na comparação de servidores, que é por unidade — onde custam
+ * uma consulta só e a informação é de fato usada.
  *
- * @param unidadeId     id local; nulo quando a unidade so existe no RH
+ * <p>O código do pai e o nível vêm junto para a tela montar a árvore do
+ * organograma: a partir da Presidência são quase duzentas unidades em seis
+ * níveis, e uma lista plana não deixa ninguém entender onde cada uma fica.
+ *
+ * @param unidadeId     id local; nulo quando a unidade só existe no RH
  * @param nomeNoSistema nome gravado aqui — o que vai impresso no certificado
- * @param nomeNaApi     nome no RH; diferente do de cima significa renomeacao
+ * @param nomeNaApi     nome no RH; diferente do de cima significa renomeação
+ * @param nivel         profundidade no organograma, como o RH a informa
  */
 public record UnidadeComparada(
         ItemSincronizacao situacao,
@@ -18,4 +23,7 @@ public record UnidadeComparada(
         Long unidadeId,
         String nomeNoSistema,
         String nomeNaApi,
-        String comarca) {}
+        String comarca,
+        Long codigoPai,
+        String nomePai,
+        Integer nivel) {}

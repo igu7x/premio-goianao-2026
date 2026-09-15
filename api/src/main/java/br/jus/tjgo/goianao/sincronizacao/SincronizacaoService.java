@@ -85,9 +85,17 @@ public class SincronizacaoService {
      * Unidades locais sem codigo ficam de fora — sao as que nunca foram casadas,
      * e apareceriam todas como orfas, virando ruido.
      */
+    /**
+     * @param codigoRaiz nulo compara o <b>organograma inteiro</b>. E o caso de
+     *                   uso normal: as unidades judiciarias ficam sob as suas
+     *                   comarcas, nao sob a Presidencia, entao qualquer raiz
+     *                   unica deixaria a maior parte do tribunal de fora
+     */
     @Transactional(readOnly = true)
-    public List<UnidadeComparada> compararUnidades(long codigoRaiz) {
-        List<UnidadeEgesp> daApi = egesp.hierarquia(codigoRaiz);
+    public List<UnidadeComparada> compararUnidades(Long codigoRaiz) {
+        List<UnidadeEgesp> daApi = codigoRaiz == null
+                ? egesp.organogramaCompleto()
+                : egesp.hierarquia(codigoRaiz);
         List<UnidadeComparada> resultado = new ArrayList<>();
         Set<Long> vistos = new LinkedHashSet<>();
 
@@ -100,7 +108,8 @@ public class SincronizacaoService {
 
             if (local.isEmpty()) {
                 resultado.add(new UnidadeComparada(ItemSincronizacao.SO_NA_API, api.codigo(),
-                        null, null, api.nome(), api.comarca()));
+                        null, null, api.nome(), api.comarca(), api.codigoPai(), api.nomePai(),
+                        api.nivel()));
                 continue;
             }
 
@@ -115,13 +124,14 @@ public class SincronizacaoService {
                             ? ItemSincronizacao.SINCRONIZADO
                             : ItemSincronizacao.DESATUALIZADO,
                     api.codigo(), unidade.getId(), unidade.getNome(), api.nome(),
-                    api.comarca()));
+                    api.comarca(), api.codigoPai(), api.nomePai(), api.nivel()));
         }
 
         unidades.findAllByOrderByNomeAsc().stream()
                 .filter(u -> u.getCodigoSiedos() != null && !vistos.contains(u.getCodigoSiedos()))
                 .forEach(u -> resultado.add(new UnidadeComparada(ItemSincronizacao.ORFAO,
-                        u.getCodigoSiedos(), u.getId(), u.getNome(), null, u.getComarca())));
+                        u.getCodigoSiedos(), u.getId(), u.getNome(), null, u.getComarca(),
+                        null, null, null)));
 
         return resultado;
     }

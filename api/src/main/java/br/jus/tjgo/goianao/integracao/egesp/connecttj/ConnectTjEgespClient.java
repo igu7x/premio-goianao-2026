@@ -71,15 +71,30 @@ public class ConnectTjEgespClient implements EgespClient {
 
     @Override
     public List<UnidadeEgesp> hierarquia(long codigoUnidade) {
+        return arvore("?codigoUnidade=" + codigoUnidade);
+    }
+
+    /**
+     * Sem o parametro, a API devolve o organograma inteiro de uma vez — mais de
+     * duas mil unidades em cerca de um megabyte, em menos de um segundo. Foi a
+     * alternativa a varrer comarca por comarca, que levaria uns tres minutos no
+     * ritmo combinado e ainda passaria do tempo limite da rota.
+     */
+    @Override
+    public List<UnidadeEgesp> organogramaCompleto() {
+        return arvore("");
+    }
+
+    private List<UnidadeEgesp> arvore(String consulta) {
         RespostasConnectTj.UnidadeHierarquia[] arvore = buscar(
-                "/api/v1/unidades/estrutura-hierarquica?codigoUnidade=" + codigoUnidade,
+                "/api/v1/unidades/estrutura-hierarquica" + consulta,
                 RespostasConnectTj.UnidadeHierarquia[].class);
         if (arvore == null) {
             return List.of();
         }
         return List.of(arvore).stream()
                 .map(u -> new UnidadeEgesp(u.cdgUnidade(), u.nomeUnidade(), u.nomeComarca(),
-                        u.cdgUnidadePai()))
+                        u.cdgUnidadePai(), u.nomeUnidadePai(), u.nivelHierarquico()))
                 .toList();
     }
 

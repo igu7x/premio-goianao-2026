@@ -53,8 +53,9 @@ public class SincronizacaoController {
         return servico.situacao();
     }
 
+    /** Sem {@code codigo}, compara o organograma inteiro do tribunal. */
     @GetMapping("/unidades")
-    public List<UnidadeComparada> unidades(@RequestParam long codigo) {
+    public List<UnidadeComparada> unidades(@RequestParam(required = false) Long codigo) {
         return servico.compararUnidades(codigo);
     }
 
