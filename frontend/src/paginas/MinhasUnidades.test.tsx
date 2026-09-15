@@ -11,7 +11,7 @@ const LISTA: ListaHabilitados = {
   unidadeId: 9,
   unidadeNome: '1ª Vara Cível da Comarca de Goiânia',
   podeEditar: true,
-  ehAdministrador: false,
+  podeSemear: false,
   servidores: [],
 }
 
