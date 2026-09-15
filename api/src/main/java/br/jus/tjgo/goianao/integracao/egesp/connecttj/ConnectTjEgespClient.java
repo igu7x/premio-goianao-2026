@@ -178,6 +178,28 @@ public class ConnectTjEgespClient implements EgespClient {
         return new ServidorEgesp(email, servidor.nome(), servidor.cpf(), servidor.matricula());
     }
 
+    /**
+     * O e-mail <b>nao</b> e completado pelo AD aqui: seriam varias chamadas a
+     * cada tecla digitada na busca. Quem for escolhido passa por
+     * {@link #servidorPorMatricula}, que completa.
+     */
+    @Override
+    public List<ServidorEgesp> procurarPessoas(String termo) {
+        String busca = Texto.aparar(termo);
+        if (busca == null || busca.length() < 3) {
+            return List.of();
+        }
+        RespostasConnectTj.Servidor[] achados = buscar(
+                "/api/v1/servidores/buscar-servidores-por-nome-ou-matricula?termo=" + enc(busca)
+                        + "&incluirAposentados=false",
+                RespostasConnectTj.Servidor[].class);
+        if (achados == null) {
+            return List.of();
+        }
+        return List.of(achados).stream().map(this::converter).filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
     @Override
     public Optional<ServidorEgesp> servidorPorLogin(String loginAd) {
         String login = Texto.aparar(loginAd);

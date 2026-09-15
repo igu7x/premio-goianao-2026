@@ -37,6 +37,15 @@ public interface EgespClient {
 
     Optional<ServidorEgesp> servidorPorMatricula(long matricula);
 
+    /**
+     * Busca pessoas por trecho do nome ou pela matricula, para escolha em tela.
+     * Digitar e-mail a mao e o erro mais caro do sistema: ele so aparece quando
+     * a pessoa tenta emitir e nao acha nada seu (DI-24).
+     */
+    default List<ServidorEgesp> procurarPessoas(String termo) {
+        return List.of();
+    }
+
     /** {@code loginAd} e o prefixo do e-mail corporativo. */
     Optional<ServidorEgesp> servidorPorLogin(String loginAd);
 

@@ -3,8 +3,10 @@ import { api, ErroApi } from '../../api/cliente'
 import type {
   Edicao,
   Magistrado,
+  PessoaDoRh,
   RelatorioImportacao,
   Selo,
+  SituacaoDoRh,
   UnidadeEgesp,
 } from '../../api/tipos'
 import { Aviso, Carregando, EstadoVazio, Modal } from '../../componentes/Basicos'
@@ -276,6 +278,148 @@ function SeletorDeUnidade({
 }
 
 /* ------------------------------------------------------------------ */
+/* Escolha da pessoa no RH                                             */
+/* ------------------------------------------------------------------ */
+
+/** O backend ignora termo menor que isto; avisar antes evita a lista vazia que
+ *  parece "ninguém encontrado". */
+const MINIMO_DO_TERMO = 3
+
+/** Tempo entre a última tecla e a consulta. Curto o bastante para parecer
+ *  imediato, longo o bastante para não pedir uma busca por letra digitada. */
+const ESPERA_DA_BUSCA = 350
+
+/**
+ * Busca da pessoa pelo nome, no lugar do e-mail digitado.
+ *
+ * Digitar o e-mail é o erro mais caro do cadastro: uma letra trocada só aparece
+ * meses depois, quando o magistrado tenta emitir e não acha nada seu — e a
+ * edição já está publicada, onde editar é proibido (009/RF-3).
+ */
+function BuscaDePessoa({
+  ocupado,
+  aoEscolher,
+  aoFalhar,
+}: {
+  ocupado: boolean
+  aoEscolher: (pessoa: PessoaDoRh) => void
+  aoFalhar: (mensagem: string) => void
+}) {
+  const [termo, setTermo] = useState('')
+  const [resultados, setResultados] = useState<PessoaDoRh[] | null>(null)
+  const [buscando, setBuscando] = useState(false)
+
+  useEffect(() => {
+    const alvo = termo.trim()
+    if (alvo.length < MINIMO_DO_TERMO) {
+      setResultados(null)
+      setBuscando(false)
+      return
+    }
+
+    let ativo = true
+    setBuscando(true)
+    const relogio = setTimeout(() => {
+      api
+        .get<PessoaDoRh[]>(`/api/rh/pessoas?termo=${encodeURIComponent(alvo)}`)
+        .then((lista) => {
+          if (!ativo) return
+          setResultados(lista)
+          setBuscando(false)
+        })
+        .catch((e) => {
+          if (!ativo) return
+          aoFalhar(e instanceof ErroApi ? e.message : 'Falha ao consultar o RH.')
+          setBuscando(false)
+        })
+    }, ESPERA_DA_BUSCA)
+
+    return () => {
+      ativo = false
+      clearTimeout(relogio)
+    }
+  }, [termo, aoFalhar])
+
+  return (
+    <div className="campo">
+      <label htmlFor="busca-rh">Magistrado</label>
+      <input
+        id="busca-rh"
+        value={termo}
+        autoComplete="off"
+        placeholder="Parte do nome, como consta no RH"
+        onChange={(evento) => setTermo(evento.target.value)}
+      />
+      <span className="campo-dica">
+        Escolher da lista do RH garante o e-mail certo — é ele que identifica o magistrado no login
+        e na emissão. A partir de {MINIMO_DO_TERMO} letras.
+      </span>
+
+      {buscando && <Carregando texto="Procurando no RH…" />}
+
+      {!buscando && resultados?.length === 0 && (
+        <p className="apoio">
+          Ninguém com esse nome no RH. Tente outro trecho — sobrenome costuma encontrar mais.
+        </p>
+      )}
+
+      {resultados && resultados.length > 0 && (
+        <div className="lista-usuarios">
+          {resultados.map((pessoa) => (
+            <button
+              key={pessoa.matricula ?? pessoa.nome}
+              type="button"
+              className="usuario-opcao"
+              disabled={ocupado}
+              onClick={() => aoEscolher(pessoa)}
+            >
+              <span>
+                <span className="principal">{pessoa.nome}</span>
+                <br />
+                <span className="secundaria mono">
+                  matrícula {pessoa.matricula ?? '—'}
+                  {pessoa.cpfMascarado ? ` · ${pessoa.cpfMascarado}` : ''}
+                </span>
+              </span>
+              <Icone nome="seta" tamanho={16} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Quem foi escolhido, com o e-mail que veio do RH (ou do AD) à vista: é o
+ *  único momento em que dá para conferir antes de gravar. */
+function PessoaConfirmada({
+  pessoa,
+  aoTrocar,
+}: {
+  pessoa: PessoaDoRh
+  aoTrocar: () => void
+}) {
+  return (
+    <div className="campo">
+      <span className="rotulo">Magistrado escolhido</span>
+      <div className="pessoa-escolhida">
+        <div>
+          <div className="principal">{pessoa.nome}</div>
+          <div className="secundaria">{pessoa.email ?? '— sem e-mail corporativo —'}</div>
+          <div className="secundaria mono">
+            matrícula {pessoa.matricula ?? '—'}
+            {pessoa.cpfMascarado ? ` · ${pessoa.cpfMascarado}` : ''}
+          </div>
+        </div>
+        <button type="button" className="botao botao-neutro botao-pequeno" onClick={aoTrocar}>
+          Trocar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
 /* Novo magistrado                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -296,6 +440,59 @@ function ModalMagistrado({
   ])
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  /** Nulo enquanto a consulta não voltou: não dá para escolher entre busca e
+   *  campo digitado antes de saber se o RH responde neste ambiente. */
+  const [rhDisponivel, setRhDisponivel] = useState<boolean | null>(null)
+  const [escolhida, setEscolhida] = useState<PessoaDoRh | null>(null)
+  const [consultandoPessoa, setConsultandoPessoa] = useState(false)
+
+  useEffect(() => {
+    let ativo = true
+    api
+      .get<SituacaoDoRh>('/api/rh/pessoas/situacao')
+      .then((situacao) => ativo && setRhDisponivel(situacao.disponivel))
+      // Falha na consulta não pode travar o cadastro: cai no e-mail digitado,
+      // que é o que sempre funcionou.
+      .catch(() => ativo && setRhDisponivel(false))
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  /**
+   * A busca devolve o e-mail que o RH tem; quando ele não tem, o endereço vem
+   * do AD — e isso é uma consulta por pessoa, cara demais para rodar a cada
+   * tecla. Por isso a escolha dispara uma segunda chamada: é dela que sai o
+   * e-mail que vai para o banco.
+   */
+  async function escolher(pessoa: PessoaDoRh) {
+    if (pessoa.matricula === null) {
+      return
+    }
+    setConsultandoPessoa(true)
+    setErro(null)
+    try {
+      const completa = await api.get<PessoaDoRh>(`/api/rh/pessoas/${pessoa.matricula}`)
+      setEscolhida(completa)
+      setEmail(completa.email ?? '')
+      setNome(completa.nome)
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao consultar a pessoa no RH.')
+    } finally {
+      setConsultandoPessoa(false)
+    }
+  }
+
+  function trocarPessoa() {
+    setEscolhida(null)
+    setEmail('')
+    setNome('')
+  }
+
+  // Sem e-mail a pessoa não seria reconhecida no login: cadastrá-la seria criar
+  // um reconhecimento que ninguém consegue emitir (DI-24).
+  const semEmail = escolhida !== null && !escolhida.temEmail
+  const faltaEscolher = rhDisponivel === true && escolhida === null
 
   async function salvar() {
     setSalvando(true)
@@ -326,7 +523,12 @@ function ModalMagistrado({
           <button type="button" className="botao botao-neutro" onClick={aoFechar}>
             Cancelar
           </button>
-          <button type="button" className="botao" disabled={salvando} onClick={() => void salvar()}>
+          <button
+            type="button"
+            className="botao"
+            disabled={salvando || semEmail || faltaEscolher}
+            onClick={() => void salvar()}
+          >
             {salvando ? 'Salvando…' : 'Cadastrar'}
           </button>
         </>
@@ -334,22 +536,64 @@ function ModalMagistrado({
     >
       {erro && <Aviso tom="erro">{erro}</Aviso>}
 
-      <div className="linha-campos">
-        <div className="campo">
-          <label htmlFor="email">E-mail corporativo</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            placeholder="nome@tjgo.jus.br"
-            onChange={(evento) => setEmail(evento.target.value)}
-          />
+      {rhDisponivel === null ? (
+        <Carregando texto="Verificando a consulta ao RH…" />
+      ) : rhDisponivel ? (
+        <>
+          {escolhida ? (
+            <PessoaConfirmada
+              pessoa={escolhida}
+              aoTrocar={trocarPessoa}
+            />
+          ) : (
+            <BuscaDePessoa
+              ocupado={consultandoPessoa}
+              aoEscolher={(pessoa) => void escolher(pessoa)}
+              aoFalhar={setErro}
+            />
+          )}
+
+          {semEmail && (
+            <Aviso tom="erro" titulo="Sem e-mail corporativo">
+              <p>
+                Nem o RH nem o Active Directory têm endereço para {escolhida?.nome}. Sem e-mail ela
+                não seria reconhecida no login e não conseguiria emitir o certificado — o cadastro
+                ficaria parado aqui até alguém descobrir, meses depois. Peça a criação da conta
+                antes de cadastrá-la.
+              </p>
+            </Aviso>
+          )}
+
+          <div className="campo">
+            <label htmlFor="nome">Nome completo</label>
+            <input id="nome" value={nome} onChange={(evento) => setNome(evento.target.value)} />
+            <span className="campo-dica">
+              É este nome que vai impresso no certificado. O RH costuma devolver tudo em
+              maiúsculas: corrija a grafia aqui se for o caso.
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="linha-campos">
+          <div className="campo">
+            <label htmlFor="email">E-mail corporativo</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              placeholder="nome@tjgo.jus.br"
+              onChange={(evento) => setEmail(evento.target.value)}
+            />
+            <span className="campo-dica">
+              A busca no RH não está disponível neste ambiente; confira o endereço antes de salvar.
+            </span>
+          </div>
+          <div className="campo">
+            <label htmlFor="nome">Nome completo</label>
+            <input id="nome" value={nome} onChange={(evento) => setNome(evento.target.value)} />
+          </div>
         </div>
-        <div className="campo">
-          <label htmlFor="nome">Nome completo</label>
-          <input id="nome" value={nome} onChange={(evento) => setNome(evento.target.value)} />
-        </div>
-      </div>
+      )}
 
       <div className="campo">
         <label htmlFor="cpf">CPF (opcional)</label>

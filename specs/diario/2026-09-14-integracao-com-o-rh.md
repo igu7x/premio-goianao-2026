@@ -61,6 +61,18 @@ vizinhos.
   (`ECONNREFUSED` em 10.0.10.47, `ETIMEDOUT` em 10.0.10.74). Aconteceu uma vez,
   em chamada solta; vale observar se reaparece em varredura grande.
 
+## Escolher o magistrado, em vez de digitar (2026-09-15)
+
+O e-mail é a chave da pessoa, e o cadastro de reconhecidos pedia que ele fosse
+digitado. Um erro de digitação ali só aparece meses depois, quando o magistrado
+tenta emitir e não acha nada seu — e a edição já está publicada, onde editar é
+proibido. Com a API no ar, o administrador passa a **escolher** a pessoa numa
+busca por nome, e o sistema preenche e-mail e nome.
+
+O nome continua editável: é ele que vai impresso no certificado, e o RH devolve
+tudo em maiúsculas. Quem não tem e-mail nem no RH nem no AD não pode ser
+cadastrado por aí, e a tela diz o porquê.
+
 ## Pendências
 
 - **Com a infra/equipe da API:** client (id e secret) e o realm que emite o

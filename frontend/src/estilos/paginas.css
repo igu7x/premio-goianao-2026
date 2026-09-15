@@ -1569,3 +1569,30 @@
   gap: var(--e2);
   margin-top: 6px;
 }
+
+/* ================================================================== */
+/* Escolha da pessoa no RH                                             */
+/* ================================================================== */
+
+/*
+ * Linha de confirmação de quem foi escolhido no RH.
+ *
+ * Fica em destaque porque é o único ponto em que o e-mail — a chave da pessoa
+ * no sistema inteiro — passa diante dos olhos antes de ir para o banco. Depois
+ * de publicada a edição, corrigir deixa de ser possível.
+ */
+.pessoa-escolhida {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e4);
+  margin-top: var(--e2);
+  padding: 12px var(--e4);
+  background: var(--superficie-2);
+  border: 1px solid var(--traco);
+  border-radius: var(--raio-g);
+}
+
+.pessoa-escolhida .botao {
+  flex: none;
+}

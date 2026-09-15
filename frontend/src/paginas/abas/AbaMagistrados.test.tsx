@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import type { Edicao, Magistrado } from '../../api/tipos'
+import type { Edicao, Magistrado, PessoaDoRh } from '../../api/tipos'
 import { instalarApiFalsa } from '../../teste/api-falsa'
 import { AbaMagistrados } from './AbaMagistrados'
 
@@ -106,5 +106,77 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
       expect(inclusao?.metodo).toBe('POST')
       expect(inclusao?.corpo).toContain('2ª Vara Cível')
     })
+  })
+})
+
+/** Como o RH devolve na busca: em maiúsculas e sem o e-mail completado pelo AD. */
+const NA_BUSCA: PessoaDoRh = {
+  matricula: 5001,
+  nome: 'MARINA ALVES ROCHA',
+  email: null,
+  cpfMascarado: '***.456.789-**',
+  temEmail: false,
+}
+
+describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
+  it('a escolha completa o e-mail pela consulta por matrícula', async () => {
+    const chamadas = instalarApiFalsa([
+      ['/api/rh/pessoas/situacao', { corpo: { disponivel: true } }],
+      [
+        '/api/rh/pessoas/5001',
+        { corpo: { ...NA_BUSCA, email: 'marina.rocha@tjgo.example', temEmail: true } },
+      ],
+      ['/api/rh/pessoas?termo=', { corpo: [NA_BUSCA] }],
+      ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
+    ])
+
+    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    await screen.findByText('Rafael Siqueira Bittencourt')
+    await userEvent.click(screen.getByRole('button', { name: /novo magistrado/i }))
+
+    await userEvent.type(await screen.findByLabelText('Magistrado'), 'rocha')
+    await userEvent.click(await screen.findByText('MARINA ALVES ROCHA'))
+
+    // O e-mail nunca e digitado, e a busca nao o traz: quem completa pelo AD e
+    // a consulta por matricula.
+    await screen.findByText('marina.rocha@tjgo.example')
+    expect(chamadas.some((c) => c.url.includes('/api/rh/pessoas/5001'))).toBe(true)
+    // O nome continua editavel: e ele que sai impresso no certificado.
+    expect(screen.getByLabelText(/nome completo/i)).toHaveValue('MARINA ALVES ROCHA')
+    expect(screen.getByRole('button', { name: /cadastrar/i })).toBeEnabled()
+  })
+
+  it('quem não tem e-mail no RH nem no AD não pode ser cadastrado', async () => {
+    instalarApiFalsa([
+      ['/api/rh/pessoas/situacao', { corpo: { disponivel: true } }],
+      ['/api/rh/pessoas/5001', { corpo: NA_BUSCA }],
+      ['/api/rh/pessoas?termo=', { corpo: [NA_BUSCA] }],
+      ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
+    ])
+
+    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    await screen.findByText('Rafael Siqueira Bittencourt')
+    await userEvent.click(screen.getByRole('button', { name: /novo magistrado/i }))
+
+    await userEvent.type(await screen.findByLabelText('Magistrado'), 'rocha')
+    await userEvent.click(await screen.findByText('MARINA ALVES ROCHA'))
+
+    expect(await screen.findByText(/não seria reconhecida no login/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /cadastrar/i })).toBeDisabled()
+  })
+
+  it('sem integração com o RH, o e-mail volta a ser digitado', async () => {
+    instalarApiFalsa([
+      ['/api/rh/pessoas/situacao', { corpo: { disponivel: false } }],
+      ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
+    ])
+
+    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    await screen.findByText('Rafael Siqueira Bittencourt')
+    await userEvent.click(screen.getByRole('button', { name: /novo magistrado/i }))
+
+    expect(await screen.findByLabelText(/e-mail corporativo/i)).toBeInTheDocument()
+    expect(screen.getByText(/busca no RH não está disponível/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Magistrado')).not.toBeInTheDocument()
   })
 })

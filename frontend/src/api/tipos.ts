@@ -308,3 +308,24 @@ export interface ImportacaoDaUnidade {
   semEmail: number
   totalAtivos: number
 }
+
+/* ------------------------------------------------------------------ */
+/* Pessoas do RH (escolha no cadastro de reconhecidos)                 */
+/* ------------------------------------------------------------------ */
+
+/** Falso quando a integração com o RH não está configurada e o sistema roda
+ *  com dados de demonstração — aí o e-mail volta a ser digitado. */
+export interface SituacaoDoRh {
+  disponivel: boolean
+}
+
+export interface PessoaDoRh {
+  matricula: number | null
+  nome: string
+  /** Nulo quando nem o RH nem o AD têm endereço para a pessoa. A busca não
+   *  consulta o AD; só a consulta por matrícula traz o e-mail definitivo. */
+  email: string | null
+  cpfMascarado: string | null
+  /** Sem e-mail ninguém é reconhecido no login nem consegue emitir (DI-24). */
+  temEmail: boolean
+}

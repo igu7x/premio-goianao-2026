@@ -86,6 +86,13 @@ sem clique.
   foi criado, do que já existia e do que foi deixado de fora.
 - **RF-12:** A importação em lote NÃO DEVE alterar o papel de quem já está
   cadastrado, nem reativar quem foi removido da lista manualmente.
+- **RF-13:** No cadastro de magistrados reconhecidos, o administrador DEVE poder
+  **escolher a pessoa** por busca de nome no RH, em vez de digitar o e-mail. A
+  escolha preenche e-mail e nome; o nome permanece editável, porque é ele que
+  vai impresso no certificado.
+- **RF-14:** Quem não tiver e-mail no RH nem no AD NÃO DEVE poder ser cadastrado
+  por essa busca, e a tela DEVE dizer o motivo — sem e-mail a pessoa não é
+  reconhecida no login e nunca conseguiria emitir.
 
 ## 6. Requisitos não-funcionais
 

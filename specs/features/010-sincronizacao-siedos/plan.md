@@ -91,6 +91,14 @@ Nossos endpoints (todos `hasRole('SUPERADMIN')`):
   resumo.
 - `DELETE /api/sincronizacao/servidores/{servidorHabilitadoId}` → desvincula.
 
+Consulta de pessoas, para o cadastro de reconhecidos (papel `ADMINISTRADOR`):
+
+- `GET /api/rh/pessoas/situacao` → a busca está disponível?
+- `GET /api/rh/pessoas?termo=` → candidatos por nome ou matrícula (mínimo três
+  caracteres). **Não** completa e-mail pelo AD: seriam chamadas por tecla.
+- `GET /api/rh/pessoas/{matricula}` → a pessoa escolhida, com o e-mail já
+  completado pelo AD quando o RH não o tem.
+
 ## 6. Decisões técnicas (ADR resumido)
 
 | Decisão | Alternativas | Escolha e motivo |

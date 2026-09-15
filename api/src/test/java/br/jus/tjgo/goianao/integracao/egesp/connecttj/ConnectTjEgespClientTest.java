@@ -139,6 +139,35 @@ class ConnectTjEgespClientTest {
     }
 
     @Test
+    @DisplayName("busca por nome nao completa e-mail pelo AD: seriam chamadas por tecla digitada")
+    void buscaPorNomeNaoVaiAoAd() {
+        esperarToken();
+        servidor.expect(requestTo(API + "/api/v1/servidores/"
+                        + "buscar-servidores-por-nome-ou-matricula?termo=danilo&incluirAposentados=false"))
+                .andRespond(withSuccess("""
+                        [{"cdgOrdem":5244932,"nome":"DANILO CORDEIRO AMARAL",
+                          "endEmail":"dcamaral@tjgo.jus.br"},
+                         {"cdgOrdem":7,"nome":"DANILO SEM EMAIL","nmrCpf":"00640156100",
+                          "endEmail":null}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<ServidorEgesp> achados = cliente.procurarPessoas("danilo");
+
+        assertThat(achados).hasSize(2);
+        assertThat(achados.get(0).email()).isEqualTo("dcamaral@tjgo.jus.br");
+        assertThat(achados.get(1).email()).isNull();
+        // Nenhuma chamada ao AD aqui: o verify falharia se tivesse havido.
+        servidor.verify();
+    }
+
+    @Test
+    @DisplayName("termo curto demais nem chega a chamar a API")
+    void termoCurto() {
+        assertThat(cliente.procurarPessoas("da")).isEmpty();
+        servidor.verify();
+    }
+
+    @Test
     @DisplayName("404 vira vazio, nao erro: matricula inexistente e resposta legitima")
     void naoEncontradoViraVazio() {
         esperarToken();

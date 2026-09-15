@@ -160,6 +160,19 @@ public class MockEgespClient implements EgespClient {
     }
 
     @Override
+    public List<ServidorEgesp> procurarPessoas(String termo) {
+        String alvo = Texto.canonicalizar(termo);
+        if (alvo == null || alvo.length() < 3) {
+            return List.of();
+        }
+        return todosOsServidores()
+                .filter(s -> Texto.canonicalizar(s.nome()).contains(alvo)
+                        || String.valueOf(s.matricula()).contains(alvo))
+                .limit(20)
+                .toList();
+    }
+
+    @Override
     public Optional<ServidorEgesp> servidorPorMatricula(long matricula) {
         return todosOsServidores()
                 .filter(s -> s.matricula() != null && s.matricula() == matricula)
