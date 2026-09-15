@@ -132,6 +132,25 @@ para a API já tinha sido aceita antes naquela máquina.
 - **Contorno, por navegador:** abrir uma vez o endereço da API, aceitar o aviso
   e recarregar o frontend. A tela de login agora explica isso e traz o link,
   em vez de dizer que não há forma de acesso.
+
+> **Correção do diagnóstico (2026-09-15).** O certificado não está errado: ele
+> cobre `*.apps.ocp-c01.tjgo.jus.br` nos nomes alternativos e é emitido pela
+> **AC TJGO Serviços**, a autoridade interna do tribunal. O problema é só de
+> *confiança na máquina*: onde essa autoridade está instalada — as máquinas de
+> domínio, como a da infraestrutura — tudo funciona, inclusive no Edge. Onde
+> não está, o navegador recusa. Portanto isto **não bloqueia o tribunal**;
+> bloqueia quem estiver fora do domínio. A afirmação anterior, de que seria
+> preciso pedir exceção a cada magistrado, estava errada.
+>
+> O plano da infraestrutura para homologação é um endereço próprio
+> (`premio-goianao-teste.tjgo.jus.br`), que herda o certificado público do
+> domínio — é o que produção já terá. **Quando esse endereço existir**, quatro
+> coisas mudam juntas: `API_BASE_URL` (frontend), `GOIANAO_CORS_ORIGENS`,
+> `GOIANAO_BASE_VERIFICACAO` e a URI de callback no client do Keycloak (e nas
+> *Valid redirect URIs*). A do QR é a mais grave: certificado emitido com o
+> endereço antigo fica com QR errado para sempre.
+>
+> O certificado atual vence em **02/12/2026**.
 - **Correção de verdade, com a infra:** as Routes precisam de certificado de
   uma autoridade confiável nas máquinas do tribunal (o curinga do tribunal, ou
   a CA interna distribuída por política). Em produção isso é obrigatório: não
