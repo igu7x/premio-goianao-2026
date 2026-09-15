@@ -145,7 +145,8 @@ sem clique.
 - [NEEDS CLARIFICATION: qual realm e qual client emitem o token da API — o
   exemplo recebido cita `DG-TST`, e o sistema usa `tjgo.gov-tst` hoje]
 - [NEEDS CLARIFICATION: endereço da API em produção]
-- [NEEDS CLARIFICATION: código da unidade raiz a varrer para chegar às unidades
-  judiciárias do prêmio]
+- ~~código da unidade raiz~~ — **respondido em 2026-09-15:** `600000009`
+  (Presidência) cobre toda a estrutura do tribunal; `901190605` (SGJT) cobre só
+  a área de tecnologia. Os dois aparecem como atalho na tela.
 - ~~o login de rede é sempre o prefixo do e-mail~~ — **respondido em 2026-09-14:
   sim, inclusive para magistrados.**

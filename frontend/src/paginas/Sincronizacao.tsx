@@ -15,6 +15,18 @@ import { Icone } from '../componentes/Icone'
 
 const BASE = '/api/sincronizacao'
 
+/**
+ * Pontos de partida indicados pelo tribunal: a Presidência cobre toda a
+ * estrutura; a SGJT cobre só a área de tecnologia. O mock responde por outro
+ * código, que aparece quando a integração está desligada.
+ */
+const RAIZES = [
+  { codigo: '600000009', rotulo: 'Presidência (tribunal inteiro)' },
+  { codigo: '901190605', rotulo: 'SGJT (tecnologia)' },
+]
+
+const RAIZ_DEMONSTRACAO = { codigo: '900000000', rotulo: 'Unidades de demonstração' }
+
 /** Primeiro o que pede decisão; por último o que já está certo — quem abre a
  *  tela quer ver o que mudou, não confirmar o que não mudou. */
 const ORDEM: ItemSincronizacao[] = ['DESATUALIZADO', 'SO_NA_API', 'ORFAO', 'SINCRONIZADO']
@@ -70,6 +82,7 @@ export function Sincronizacao() {
   const [aplicando, setAplicando] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [aberta, setAberta] = useState<UnidadeComparada | null>(null)
+  const [filtro, setFiltro] = useState('')
   const avisos = useAvisos()
 
   useEffect(() => {
@@ -153,6 +166,22 @@ export function Sincronizacao() {
 
   const edicaoEscolhida = edicoes?.find((e) => e.id === edicaoId) ?? null
 
+  /** Busca simples por nome, comarca ou código — sem acento e sem caixa. */
+  const alvo = filtro
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+  const visiveis = (unidades ?? []).filter((u) => {
+    if (!alvo) return true
+    const texto = `${u.nomeNoSistema ?? ''} ${u.nomeNaApi ?? ''} ${u.comarca ?? ''} ${u.codigo ?? ''}`
+    return texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .includes(alvo)
+  })
+
   return (
     <div className="pagina">
       <header className="cabecalho-pagina">
@@ -194,7 +223,8 @@ export function Sincronizacao() {
             <div>
               <h2 className="titulo-secao">Comparar</h2>
               <p className="apoio">
-                O código é o da unidade no SIEDOS. A consulta traz a hierarquia a partir dele.
+                O código é o da unidade no SIEDOS. A consulta traz a hierarquia a partir dele —
+                da Presidência sai o tribunal inteiro, o que pode ser uma lista longa.
               </p>
             </div>
           </div>
@@ -211,6 +241,21 @@ export function Sincronizacao() {
                   value={codigo}
                   onChange={(evento) => setCodigo(evento.target.value.replace(/\D/g, ''))}
                 />
+                {/* Os dois pontos de partida que o tribunal indicou. Ficam aqui
+                    porque ninguém decora código de unidade — e digitar errado
+                    devolve uma lista vazia sem dizer por quê. */}
+                <div className="sincronizacao-atalhos">
+                  {(situacao?.ligada ? RAIZES : [...RAIZES, RAIZ_DEMONSTRACAO]).map((raiz) => (
+                    <button
+                      key={raiz.codigo}
+                      type="button"
+                      className="botao botao-texto botao-pequeno"
+                      onClick={() => setCodigo(raiz.codigo)}
+                    >
+                      {raiz.rotulo}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="campo">
@@ -262,8 +307,30 @@ export function Sincronizacao() {
             />
           </div>
         ) : (
-          ORDEM.filter((grupo) => unidades.some((u) => u.situacao === grupo)).map((grupo) => {
-            const doGrupo = unidades.filter((u) => u.situacao === grupo)
+          <>
+            {/* A partir da Presidência vem o tribunal inteiro: sem filtro, achar
+                uma vara na lista seria rolar a tela até encontrar. */}
+            {unidades.length > 12 && (
+              <div className="bloco">
+                <div className="bloco-corpo">
+                  <div className="campo">
+                    <label htmlFor="filtro-unidades">Filtrar por nome, comarca ou código</label>
+                    <input
+                      id="filtro-unidades"
+                      value={filtro}
+                      placeholder="ex.: Anápolis"
+                      onChange={(evento) => setFiltro(evento.target.value)}
+                    />
+                    <span className="campo-dica">
+                      {visiveis.length} de {unidades.length} unidade(s) na comparação.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {(
+          ORDEM.filter((grupo) => visiveis.some((u) => u.situacao === grupo)).map((grupo) => {
+            const doGrupo = visiveis.filter((u) => u.situacao === grupo)
             return (
               <div className="bloco" key={grupo}>
                 <div className="bloco-cabecalho">
@@ -367,7 +434,8 @@ export function Sincronizacao() {
                 )}
               </div>
             )
-          })
+          }))}
+          </>
         )}
       </div>
 

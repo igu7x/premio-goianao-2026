@@ -53,8 +53,12 @@ vizinhos.
 ## Pendências
 
 - **Com a infra/equipe da API:** client (id e secret) e o realm que emite o
-  token; endereço da API em produção; e confirmação do código da unidade raiz a
-  varrer.
+  token; endereço da API em produção.
+- ~~**Código da unidade raiz**~~ — respondido em 2026-09-15: `600000009`
+  (Presidência) para a estrutura inteira, `901190605` (SGJT) para a área de
+  tecnologia. Viraram atalho na tela, ao lado do campo de código, e a partir de
+  13 unidades aparece um filtro por nome, comarca ou código — da Presidência
+  vem o tribunal todo, e rolar a lista até achar uma vara não é caminho.
 - ~~**`loginAd`**~~ — confirmado no mesmo dia: é sempre o prefixo do e-mail
   corporativo, inclusive para magistrados.
 - **Sem agendamento:** a sincronização é manual, pela tela. Se o tribunal quiser

@@ -1559,3 +1559,13 @@
     align-items: stretch;
   }
 }
+
+/* Atalhos para os códigos de unidade que o tribunal indicou como ponto de
+   partida. Ninguém decora código de unidade, e digitar errado devolve uma
+   lista vazia sem dizer o porquê. */
+.sincronizacao-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin-top: 6px;
+}
