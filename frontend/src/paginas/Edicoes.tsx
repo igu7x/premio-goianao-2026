@@ -93,7 +93,7 @@ export function Edicoes() {
       )}
 
       {!edicoes ? (
-        <Carregando />
+        !erro && <Carregando />
       ) : edicoes.length === 0 ? (
         <div className="bloco">
           <EstadoVazio

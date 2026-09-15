@@ -714,7 +714,7 @@ function PainelDeServidores({
       {erro && <Aviso tom="erro">{erro}</Aviso>}
 
       {!comparacao ? (
-        <Carregando />
+        !erro && <Carregando />
       ) : (
         <>
           {comparacao.responsavelSugerido && (

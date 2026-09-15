@@ -74,7 +74,7 @@ export function Unidades() {
       )}
 
       {!unidades ? (
-        <Carregando />
+        !erro && <Carregando />
       ) : unidades.length === 0 ? (
         <div className="bloco">
           <EstadoVazio

@@ -124,3 +124,18 @@ Três correções pedidas depois de usar a tela com a API ligada:
 - **O filtro por nome, comarca ou código aparece sempre**, não só acima de 12
   unidades. O ramo do TJGO sozinho já traz 189 linhas, e quem compara está
   quase sempre atrás de uma.
+
+## O carregando que não terminava (2026-09-15)
+
+Em homologação, "Servidores da unidade" ficava com o aviso de erro em cima e o
+"Carregando…" girando embaixo, para sempre. A causa era um padrão repetido em
+sete telas: a lista começa em `null`, o `null` desenha o carregando, e o `catch`
+só gravava a mensagem de erro — nunca tirava a lista do `null`. Quem olhava via
+uma tela que parecia estar tentando de novo, e não estava.
+
+O `carregando` passou a depender de não haver erro nas telas de unidades,
+usuários, edições, certificados, sincronização e no painel da lista.
+
+E o caso específico da tela do magistrado tinha um segundo problema: o 404 ali
+só acontece por um motivo — nenhuma edição marcada como vigente —, e isso não é
+falha, é estado do prêmio. Agora tem explicação própria, sem tarja vermelha.

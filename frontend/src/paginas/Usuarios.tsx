@@ -92,7 +92,7 @@ export function Usuarios() {
       )}
 
       {!usuarios ? (
-        <Carregando />
+        !erro && <Carregando />
       ) : usuarios.length === 0 ? (
         <div className="bloco">
           <EstadoVazio

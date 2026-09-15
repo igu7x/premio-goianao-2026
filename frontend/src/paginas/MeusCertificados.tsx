@@ -122,7 +122,17 @@ function PainelDeEmissao({
   }
 
   if (!edicoes) {
-    return <Carregando />
+    // O aviso de erro do corpo fica abaixo deste ponto: sem esta saída, uma
+    // falha na primeira chamada deixaria a tela girando e calada.
+    return erro ? (
+      <section className="bloco" style={{ marginBottom: 'var(--e5)' }}>
+        <div className="bloco-corpo">
+          <Aviso tom="erro">{erro}</Aviso>
+        </div>
+      </section>
+    ) : (
+      <Carregando />
+    )
   }
 
   return (
@@ -165,7 +175,7 @@ function PainelDeEmissao({
           descricao="Você ainda não consta como reconhecido nem como habilitado em nenhuma edição publicada. Se acredita que deveria constar, procure a administração do prêmio."
         />
       ) : !opcoes ? (
-        <Carregando />
+        !erro && <Carregando />
       ) : opcoes.length === 0 ? (
         <EstadoVazio
           titulo="Nada a emitir nesta edição"

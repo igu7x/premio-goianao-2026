@@ -90,7 +90,7 @@ export function PainelDaLista({ caminho, carregarLista, aoFechar }: Props) {
       {erro && <Aviso tom="erro">{erro}</Aviso>}
 
       {!lista ? (
-        <Carregando />
+        !erro && <Carregando />
       ) : (
         <>
           <div className="painel-resumo">

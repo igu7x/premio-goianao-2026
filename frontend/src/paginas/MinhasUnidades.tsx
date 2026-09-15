@@ -19,12 +19,25 @@ import { PainelDaLista } from './abas/PainelDaLista'
 export function MinhasUnidades() {
   const [listas, setListas] = useState<ListaHabilitados[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  /**
+   * Um 404 aqui só tem um motivo: nenhuma edição foi marcada como vigente, e
+   * esta tela é sempre a da vigente. Não é falha — é estado do prêmio, e pede
+   * explicação, não tarja vermelha.
+   */
+  const [semEdicaoVigente, setSemEdicaoVigente] = useState(false)
   const [aberta, setAberta] = useState<ListaHabilitados | null>(null)
 
   const carregar = useCallback(async () => {
+    setErro(null)
+    setSemEdicaoVigente(false)
     try {
       setListas(await api.get<ListaHabilitados[]>('/api/magistrado/servidores'))
     } catch (e) {
+      if (e instanceof ErroApi && e.status === 404) {
+        setSemEdicaoVigente(true)
+        setListas([])
+        return
+      }
       setErro(e instanceof ErroApi ? e.message : 'Falha ao carregar suas unidades.')
     }
   }, [])
@@ -54,8 +67,17 @@ export function MinhasUnidades() {
         </div>
       )}
 
-      {!listas ? (
-        <Carregando />
+      {semEdicaoVigente ? (
+        <div className="bloco">
+          <EstadoVazio
+            titulo="Nenhuma edição vigente definida"
+            descricao="Esta tela mostra as listas da edição vigente, e ainda não há uma marcada como tal. Assim que a administração do prêmio definir a edição do ano, suas unidades aparecem aqui."
+          />
+        </div>
+      ) : !listas ? (
+        // Sem esta guarda o carregando gira para sempre depois de uma falha: o
+        // erro aparece em cima e a tela parece estar tentando de novo.
+        !erro && <Carregando />
       ) : listas.length === 0 ? (
         <div className="bloco">
           <EstadoVazio
