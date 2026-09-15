@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ErroApi, lerToken, urlDaApi } from '../../api/cliente'
-import type { Edicao, Layout, LayoutsDaEdicao, Selo, TipoCertificado } from '../../api/tipos'
+import type {
+  ArtesPadraoAplicadas,
+  Edicao,
+  Layout,
+  LayoutsDaEdicao,
+  Selo,
+  TipoCertificado,
+} from '../../api/tipos'
+import { useAvisos } from '../../componentes/Avisos'
 import { Aviso, Carregando } from '../../componentes/Basicos'
 import { Icone } from '../../componentes/Icone'
 import { Disco, rotuloDoSelo } from '../../componentes/Selo'
@@ -18,11 +26,13 @@ const TIPOS: TipoCertificado[] = ['MAGISTRADO', 'SERVIDOR']
 export function AbaLayouts({ edicao }: { edicao: Edicao }) {
   const [dados, setDados] = useState<LayoutsDaEdicao | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [aplicandoPadrao, setAplicandoPadrao] = useState(false)
   const [editando, setEditando] = useState<{
     selo: Selo
     tipo: TipoCertificado
     layout: Layout | null
   } | null>(null)
+  const avisos = useAvisos()
 
   const carregar = useCallback(async () => {
     try {
@@ -31,6 +41,30 @@ export function AbaLayouts({ edicao }: { edicao: Edicao }) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao carregar os layouts.')
     }
   }, [edicao.id])
+
+  /** Preenche só o que falta: quem já subiu a arte definitiva de um selo não a
+   *  perde por causa de um clique aqui. */
+  async function aplicarArtesPadrao() {
+    setAplicandoPadrao(true)
+    setErro(null)
+    try {
+      const resumo = await api.post<ArtesPadraoAplicadas>(
+        `/api/edicoes/${edicao.id}/layouts/padrao`,
+        {},
+      )
+      avisos.sucesso(
+        `${resumo.criados} combinação(ões) preenchida(s) com a arte padrão`,
+        resumo.jaExistentes > 0
+          ? `${resumo.jaExistentes} já estava(m) configurada(s) e foi(ram) mantida(s).`
+          : 'As posições de nome, unidade e código já vêm medidas sobre a peça.',
+      )
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao aplicar as artes padrão.')
+    } finally {
+      setAplicandoPadrao(false)
+    }
+  }
 
   useEffect(() => {
     void carregar()
@@ -55,6 +89,26 @@ export function AbaLayouts({ edicao }: { edicao: Edicao }) {
             detalhes={dados.pendencias}
           >
             <p>A edição só pode ser publicada com todas configuradas.</p>
+            {/* Oito artes a subir e posicionar à mão é o que trava uma edição
+                nova. As peças padrão são as da comunicação do tribunal e já
+                vêm com as caixas medidas: viram ponto de partida, não o fim. */}
+            {dados.editavel && (
+              <div className="acoes" style={{ marginTop: 'var(--e3)' }}>
+                <button
+                  type="button"
+                  className="botao botao-pequeno"
+                  disabled={aplicandoPadrao}
+                  onClick={() => void aplicarArtesPadrao()}
+                >
+                  {aplicandoPadrao && <span className="giro" />}
+                  {aplicandoPadrao ? 'Aplicando…' : 'Usar as artes padrão do prêmio'}
+                </button>
+                <span className="secundaria">
+                  preenche o que falta com as peças da comunicação do TJGO; o que já está
+                  configurado não é tocado
+                </span>
+              </div>
+            )}
           </Aviso>
         </div>
       )}

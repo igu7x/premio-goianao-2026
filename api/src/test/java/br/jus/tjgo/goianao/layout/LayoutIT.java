@@ -260,4 +260,45 @@ class LayoutIT extends TesteDeIntegracao {
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(jsonPath("$.layouts[0].areaNome.y").value(org.hamcrest.Matchers.not(999000)));
     }
+
+    @Test
+    @DisplayName("as artes padrao preenchem so o que falta, sem tocar no que ja existe")
+    void aplicaArtesPadrao() throws Exception {
+        Edicao edicao = novaEdicao(2069);
+        LayoutCertificado jaConfigurado = criarLayout(edicao, Selo.OURO, TipoCertificado.SERVIDOR);
+        String arteOriginal = jaConfigurado.getImagemRef();
+
+        mvc.perform(post("/api/edicoes/" + edicao.getId() + "/layouts/padrao")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criados").value(7))
+                .andExpect(jsonPath("$.jaExistentes").value(1));
+
+        mvc.perform(get("/api/edicoes/" + edicao.getId() + "/layouts")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(jsonPath("$.layouts.length()").value(8))
+                .andExpect(jsonPath("$.pendencias.length()").value(0));
+
+        // A arte que o administrador ja tinha subido continua sendo a dele: o
+        // padrao preenche o vazio, nao substitui escolha de ninguem.
+        Assertions.assertThat(layouts.findById(jaConfigurado.getId()).orElseThrow().getImagemRef())
+                .isEqualTo(arteOriginal);
+
+        // Rodar de novo nao duplica nem altera nada.
+        mvc.perform(post("/api/edicoes/" + edicao.getId() + "/layouts/padrao")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criados").value(0))
+                .andExpect(jsonPath("$.jaExistentes").value(8));
+    }
+
+    @Test
+    @DisplayName("as artes padrao sao exclusivas do administrador")
+    void artesPadraoExigemAdministrador() throws Exception {
+        Edicao edicao = novaEdicao(2070);
+
+        mvc.perform(post("/api/edicoes/" + edicao.getId() + "/layouts/padrao")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
+                .andExpect(status().isForbidden());
+    }
 }

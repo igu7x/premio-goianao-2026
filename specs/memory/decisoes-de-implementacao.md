@@ -726,3 +726,34 @@ administradores sincronizando ao mesmo tempo dividem a cota
 minutos: fica em cache e é renovado no vencimento e no primeiro 401, com uma
 única retentativa — insistir transformaria erro de credencial em tempestade de
 requisições. Verificado em `SincronizacaoIT` e `ConnectTjEgespClientTest`.
+
+---
+
+## DI-26 — As artes de exemplo viraram as artes padrão do prêmio
+
+**Contexto.** As oito peças da comunicação do tribunal (DI-18) estavam no
+classpath servindo só à carga de demonstração. Em homologação, cada edição nova
+nascia com oito quadros vazios e não podia ser publicada assim: o administrador
+teria de subir oito arquivos e posicionar as caixas oito vezes só para ter de
+onde partir — com as mesmas peças que já estavam dentro do jar.
+
+**Decisão.** Um botão na aba de layouts, **"Usar as artes padrão do prêmio"**,
+preenche as combinações que faltam a partir do classpath, já com as caixas de
+nome, unidade e código medidas sobre a peça. `POST
+/api/edicoes/{id}/layouts/padrao`, exclusivo do administrador e sujeito à mesma
+trava das demais escritas: edição com certificado emitido não aceita.
+
+**Não substitui o que já existe.** Quem subiu a arte definitiva de um selo fez
+uma escolha; sobrescrevê-la em silêncio trocaria o desenho de um certificado sem
+ninguém ter pedido. A resposta separa `criados` de `jaExistentes` para que a
+diferença apareça.
+
+**A classe saiu do pacote `demo`.** `ArtesDeExemplo` virou
+`br.jus.tjgo.goianao.layout.ArtesPadrao`: código de produção não pode depender
+de algo que um dia alguém apague junto com a carga de exemplo. A pasta de
+recursos manteve o nome histórico (`artes-exemplo/`). A carga de demonstração
+passou a chamar o mesmo serviço, então ela não pode mais divergir do que o
+administrador recebe.
+
+**Verificação.** `LayoutIT`: com uma combinação já configurada, aplicar cria 7 e
+preserva a arte da oitava; aplicar de novo cria 0; magistrado recebe 403.

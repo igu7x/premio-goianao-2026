@@ -87,6 +87,18 @@ public class LayoutController {
 
     public record AreasAplicadasResposta(int layoutsAtualizados) {}
 
+    /**
+     * Preenche as combinacoes que faltam com as artes padrao do premio.
+     *
+     * Nao e um atalho de conveniencia: uma edicao nova nasce com oito quadros
+     * vazios e nao pode ser publicada assim, e as pecas padrao ja vem com as
+     * caixas de texto medidas sobre elas.
+     */
+    @PostMapping("/padrao")
+    public LayoutService.ArtesPadraoAplicadas aplicarArtesPadrao(@PathVariable Long edicaoId) {
+        return servico.aplicarArtesPadrao(edicaoId);
+    }
+
     /** Arte da combinacao, consumida pelo editor visual de posicionamento. */
     @GetMapping("/{layoutId}/imagem")
     public ResponseEntity<byte[]> imagem(@PathVariable Long edicaoId, @PathVariable Long layoutId) {

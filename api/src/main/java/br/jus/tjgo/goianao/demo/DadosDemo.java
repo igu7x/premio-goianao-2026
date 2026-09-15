@@ -4,18 +4,11 @@ import br.jus.tjgo.goianao.auth.Administrador;
 import br.jus.tjgo.goianao.auth.AdministradorRepository;
 import br.jus.tjgo.goianao.auth.MockIdentityProvider;
 import br.jus.tjgo.goianao.comum.Selo;
-import br.jus.tjgo.goianao.comum.TipoCertificado;
 import br.jus.tjgo.goianao.edicao.Edicao;
 import br.jus.tjgo.goianao.edicao.EdicaoRepository;
 import br.jus.tjgo.goianao.edicao.EdicaoService;
 import br.jus.tjgo.goianao.edicao.dto.CriarEdicaoRequisicao;
-import br.jus.tjgo.goianao.layout.Alinhamento;
-import br.jus.tjgo.goianao.layout.AreaCodigo;
-import br.jus.tjgo.goianao.layout.AreaQr;
-import br.jus.tjgo.goianao.layout.AreaTexto;
-import br.jus.tjgo.goianao.layout.LayoutCertificado;
-import br.jus.tjgo.goianao.layout.LayoutRepository;
-import br.jus.tjgo.goianao.layout.render.ImageStorage;
+import br.jus.tjgo.goianao.layout.LayoutService;
 import br.jus.tjgo.goianao.magistrado.MagistradoService;
 import br.jus.tjgo.goianao.magistrado.dto.MagistradoRequisicao;
 import br.jus.tjgo.goianao.magistrado.dto.ReconhecimentoRequisicao;
@@ -62,9 +55,7 @@ public class DadosDemo {
     private final MagistradoService magistrados;
     private final ServidorHabilitadoService servidores;
     private final UnidadeService unidades;
-    private final LayoutRepository layouts;
-    private final ImageStorage storage;
-    private final ArtesDeExemplo artes;
+    private final LayoutService layouts;
 
     public DadosDemo(AdministradorRepository administradores,
                      EdicaoRepository edicoesRepo,
@@ -72,9 +63,7 @@ public class DadosDemo {
                      MagistradoService magistrados,
                      ServidorHabilitadoService servidores,
                      UnidadeService unidades,
-                     LayoutRepository layouts,
-                     ImageStorage storage,
-                     ArtesDeExemplo artes) {
+                     LayoutService layouts) {
         this.administradores = administradores;
         this.edicoesRepo = edicoesRepo;
         this.edicoes = edicoes;
@@ -82,8 +71,6 @@ public class DadosDemo {
         this.servidores = servidores;
         this.unidades = unidades;
         this.layouts = layouts;
-        this.storage = storage;
-        this.artes = artes;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -146,48 +133,14 @@ public class DadosDemo {
         return edicao;
     }
 
-    /** As 8 combinacoes selo x tipo: pre-condicao para publicar (002/RF-3b). */
-    private void criarLayouts(Edicao edicao) {
-        for (Selo selo : Selo.values()) {
-            for (TipoCertificado tipo : TipoCertificado.values()) {
-                String referencia = storage.salvar(
-                        artes.carregar(selo, tipo), ArtesDeExemplo.EXTENSAO);
-                layouts.save(new LayoutCertificado(
-                        edicao, selo, tipo, referencia,
-                        ArtesDeExemplo.LARGURA, ArtesDeExemplo.ALTURA,
-                        areaNome(), areaUnidade(), areaCodigo()));
-            }
-        }
-    }
-
-    /*
-     * Caixas medidas sobre a arte de exemplo (3507x2480).
+    /**
+     * As 8 combinacoes selo x tipo: pre-condicao para publicar (002/RF-3b).
      *
-     * A peca ja traz o texto fixo: "A Presidencia ... reconhece que" termina por
-     * volta de y=970 e "Conquistou o Selo ..." comeca em y=1480. O vao entre os
-     * dois e onde entram nome e unidade — e e por isso que as caixas comecam em
-     * x=1250, alinhadas a esquerda com o restante do paragrafo, em vez de
-     * centradas na pagina: centrar deixaria o nome fora do eixo do texto que
-     * vem antes e depois dele.
-     *
-     * O codigo e o QR vao para o rodape branco, no vao entre a assinatura e a
-     * marca do premio — a unica area livre da peca.
-     *
-     * Elas sao o ponto de partida do editor visual: quando a arte definitiva de
-     * uma edicao for enviada, o administrador arrasta e redimensiona a partir
-     * daqui.
+     * Usa o mesmo caminho que o botao "usar as artes padrao" da tela, para que a
+     * carga de demonstracao nao possa divergir do que o administrador recebe.
      */
-    private AreaTexto areaNome() {
-        return new AreaTexto(1250, 1030, 1870, 170, Alinhamento.ESQUERDA);
-    }
-
-    private AreaTexto areaUnidade() {
-        return new AreaTexto(1250, 1235, 1870, 110, Alinhamento.ESQUERDA);
-    }
-
-    private AreaCodigo areaCodigo() {
-        return new AreaCodigo(2545, 2215, 460, 44, Alinhamento.CENTRO,
-                new AreaQr(2660, 1955, 230));
+    private void criarLayouts(Edicao edicao) {
+        layouts.aplicarArtesPadrao(edicao.getId());
     }
 
     /**

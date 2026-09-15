@@ -1,6 +1,8 @@
 package br.jus.tjgo.goianao.layout;
 
+import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.comum.Texto;
+import br.jus.tjgo.goianao.comum.TipoCertificado;
 import br.jus.tjgo.goianao.comum.erro.ConflitoException;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
@@ -29,6 +31,7 @@ public class LayoutService {
 
     private final LayoutRepository repositorio;
     private final EdicaoService edicoes;
+    private final ArtesPadrao artesPadrao;
     private final ImageStorage storage;
     private final ValidadorDeArte validador;
     private final CertificadoRenderer renderer;
@@ -39,6 +42,7 @@ public class LayoutService {
 
     public LayoutService(LayoutRepository repositorio,
                          EdicaoService edicoes,
+                         ArtesPadrao artesPadrao,
                          ImageStorage storage,
                          ValidadorDeArte validador,
                          CertificadoRenderer renderer,
@@ -48,6 +52,7 @@ public class LayoutService {
                          br.jus.tjgo.goianao.config.GoianaoProperties props) {
         this.repositorio = repositorio;
         this.edicoes = edicoes;
+        this.artesPadrao = artesPadrao;
         this.storage = storage;
         this.validador = validador;
         this.renderer = renderer;
@@ -91,6 +96,52 @@ public class LayoutService {
                 dimensoes.largura(), dimensoes.altura(),
                 dados.areaNome(), dados.areaUnidade(), dados.areaCodigo()));
     }
+
+    /**
+     * Preenche com as artes padrao do premio as combinacoes que ainda faltam.
+     *
+     * <p>Existe porque uma edicao nova nasce com oito quadros vazios e nenhuma
+     * delas pode ser publicada assim: sem isto, o administrador sobe oito
+     * arquivos e posiciona oito vezes so para ter de onde partir. As pecas sao
+     * as mesmas que a comunicacao do tribunal forneceu, e ja vem com as caixas
+     * medidas sobre elas.
+     *
+     * <p><b>Nao substitui o que ja esta configurado.</b> Quem ja subiu a arte
+     * definitiva de um selo fez uma escolha, e sobrescreve-la em silencio seria
+     * trocar o desenho de um certificado sem que ninguem tenha pedido. Para
+     * trocar uma arte existente o caminho continua sendo o editor.
+     *
+     * @return quantas foram criadas e quantas ja existiam
+     */
+    @Transactional
+    public ArtesPadraoAplicadas aplicarArtesPadrao(Long edicaoId) {
+        Edicao edicao = edicoes.buscar(edicaoId);
+        exigirEdicaoEditavel(edicao);
+
+        int criados = 0;
+        int jaExistentes = 0;
+
+        for (Selo selo : Selo.values()) {
+            for (TipoCertificado tipo : TipoCertificado.values()) {
+                if (repositorio.findByEdicaoIdAndSeloAndTipo(edicaoId, selo, tipo).isPresent()) {
+                    jaExistentes++;
+                    continue;
+                }
+                String referencia = storage.salvar(
+                        artesPadrao.carregar(selo, tipo), ArtesPadrao.EXTENSAO);
+                repositorio.save(new LayoutCertificado(
+                        edicao, selo, tipo, referencia,
+                        ArtesPadrao.LARGURA, ArtesPadrao.ALTURA,
+                        ArtesPadrao.areaNome(), ArtesPadrao.areaUnidade(),
+                        ArtesPadrao.areaCodigo()));
+                criados++;
+            }
+        }
+        return new ArtesPadraoAplicadas(criados, jaExistentes);
+    }
+
+    /** Resultado da aplicacao das artes padrao numa edicao. */
+    public record ArtesPadraoAplicadas(int criados, int jaExistentes) {}
 
     @Transactional
     public LayoutCertificado atualizar(Long edicaoId, Long layoutId,

@@ -86,6 +86,12 @@ export interface LayoutsDaEdicao {
   fonteInstitucionalDisponivel: boolean
 }
 
+/** Resultado de preencher a edição com as artes padrão do prêmio. */
+export interface ArtesPadraoAplicadas {
+  criados: number
+  jaExistentes: number
+}
+
 export interface UnidadeEgesp {
   nome: string
   comarca: string
