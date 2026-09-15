@@ -15,6 +15,8 @@ import br.jus.tjgo.goianao.usuario.Usuario;
 import br.jus.tjgo.goianao.usuario.UsuarioRepository;
 import java.util.List;
 import java.util.Set;
+import org.assertj.core.api.Assertions;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +44,8 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     private static final String EMAIL_CHEFE = EMAIL_MAGISTRADO_2;
 
     @Autowired private UsuarioRepository usuarios;
+    @Autowired private UnidadeRepository unidadesRepo;
+    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager em;
 
     private Long superadmin() {
         return usuarios.save(new Usuario(EMAIL_SUPER, "Super de Teste", null,
@@ -131,6 +135,40 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.mensagem",
                         org.hamcrest.Matchers.containsString("magistrado")));
+    }
+
+    /**
+     * A listagem monta a resposta <b>fora</b> da transacao, com
+     * {@code open-in-view} desligado. Se o responsavel vier preguicoso, a
+     * primeira unidade designada derruba a tela inteira com 500 — foi o que
+     * aconteceu em homologacao em 15/09/2026.
+     *
+     * <p>Limpar o contexto de persistencia e o que torna este teste honesto:
+     * sem isso a entidade ja estaria na memoria da propria transacao do teste,
+     * o proxy resolveria sozinho e o defeito passaria batido, que e exatamente
+     * como ele escapou da primeira vez.
+     */
+    @Test
+    @DisplayName("a listagem traz o responsavel carregado, e nao um proxy preguicoso")
+    void responsavelVemCarregado() {
+        superadmin();
+        Long chefeId = chefeMagistrado();
+        Long unidadeId = unidadeReconhecidaPorOutro(2075, UNIDADE_C);
+        atuandoComo(EMAIL_SUPER);
+        unidades.designarResponsavel(unidadeId, chefeId);
+
+        em.flush();
+        em.clear();
+
+        List<UnidadeJudiciaria> listadas = unidadesRepo.findAllByOrderByNomeAsc();
+
+        Assertions.assertThat(listadas)
+                .filteredOn(u -> u.getId().equals(unidadeId))
+                .isNotEmpty()
+                .allSatisfy(u -> Assertions.assertThat(Hibernate.isInitialized(u.getResponsavel()))
+                        .as("o responsavel precisa vir junto: a resposta e montada "
+                                + "fora da transacao")
+                        .isTrue());
     }
 
     @Test
