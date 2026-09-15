@@ -319,6 +319,7 @@ mockados e o log diz o que falta — a aplicação não deixa de subir por isso.
 | `GOIANAO_CONNECTTJ_SECRET` | não¹ | Segredo do client. **Secret, nunca ConfigMap.** |
 | `GOIANAO_CONNECTTJ_TAMANHO_PAGINA` | não | Lotados por página ao varrer uma unidade. Padrão `100`. |
 | `GOIANAO_CONNECTTJ_DOMINIO_EMAIL` | não | Padrão `tjgo.jus.br`. Boa parte dos lotados vem do RH sem e-mail; para esses, o login do AD mais este domínio reconstrói o endereço. |
+| `GOIANAO_CONNECTTJ_REQUISICOES_POR_SEGUNDO` | não | Teto de chamadas à API, combinado com a equipe dela. Padrão `6`. Comparar ou importar uma unidade dispara uma chamada por pessoa; o freio espaça as chamadas em vez de mandá-las em rajada. |
 
 ¹ Juntas: sem as quatro, valem os dados mockados.
 

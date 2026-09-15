@@ -19,6 +19,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param dominioEmail  dominio do e-mail corporativo, usado para reconstruir o
  *                      endereco a partir do login do AD quando o RH nao tem o
  *                      e-mail da pessoa
+ * @param requisicoesPorSegundo teto combinado com a equipe da API (6 por
+ *                      padrao). Uma acao da tela vira dezenas de chamadas, e
+ *                      sem freio elas sairiam todas de uma vez
  */
 @ConfigurationProperties(prefix = "goianao.connecttj")
 public record ConnectTjProperties(
@@ -27,9 +30,13 @@ public record ConnectTjProperties(
         String clientId,
         String clientSecret,
         Integer tamanhoPagina,
-        String dominioEmail) {
+        String dominioEmail,
+        Integer requisicoesPorSegundo) {
 
     public ConnectTjProperties {
+        requisicoesPorSegundo = (requisicoesPorSegundo == null || requisicoesPorSegundo < 1)
+                ? 6
+                : requisicoesPorSegundo;
         url = semBarraFinal(url);
         tokenUrl = semBarraFinal(tokenUrl);
         tamanhoPagina = (tamanhoPagina == null || tamanhoPagina < 1) ? 100 : tamanhoPagina;

@@ -44,7 +44,8 @@ class ConnectTjRealIT {
                 System.getenv("GOIANAO_CONNECTTJ_CLIENT_ID"),
                 System.getenv("GOIANAO_CONNECTTJ_SECRET"),
                 100,
-                "tjgo.jus.br");
+                "tjgo.jus.br",
+                6);
         assertThat(props.habilitado())
                 .as("as quatro variaveis precisam estar definidas")
                 .isTrue();

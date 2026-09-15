@@ -713,6 +713,15 @@ o endereço é reconstruído a partir dele. Com esse caminho a cobertura foi a
 conta, a pessoa continua sem e-mail e a tela diz isso — inventar endereço seria
 criar alguém que nunca consegue entrar.
 
+**Seis chamadas por segundo, no máximo.** Teto combinado com a equipe da API
+(15/09/2026). Não é detalhe: comparar ou importar uma unidade dispara uma
+chamada por pessoa — mais a do AD para quem não tem e-mail —, o que sairia numa
+rajada de um segundo. O freio espaça as chamadas em intervalo fixo, e não em
+janela que permite rajada e depois pune, para a varredura ser previsível: trinta
+pessoas levam alguns segundos, sempre. É teto do sistema, não por usuário: dois
+administradores sincronizando ao mesmo tempo dividem a cota
+(`GOIANAO_CONNECTTJ_REQUISICOES_POR_SEGUNDO`).
+
 **Consequência.** A tela é exclusiva do superadministrador. O token vale 5
 minutos: fica em cache e é renovado no vencimento e no primeiro 401, com uma
 única retentativa — insistir transformaria erro de credencial em tempestade de

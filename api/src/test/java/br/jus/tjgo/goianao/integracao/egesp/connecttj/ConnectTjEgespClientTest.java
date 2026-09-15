@@ -41,7 +41,7 @@ class ConnectTjEgespClientTest {
         builder = RestClient.builder();
         servidor = MockRestServiceServer.bindTo(builder).build();
         cliente = new ConnectTjEgespClient(
-                new ConnectTjProperties(API, TOKEN_URL, "goianao", "segredo", 2, "tjgo.jus.br"),
+                new ConnectTjProperties(API, TOKEN_URL, "goianao", "segredo", 2, "tjgo.jus.br", 50),
                 builder);
     }
 

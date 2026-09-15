@@ -35,11 +35,13 @@ public class ConnectTjEgespClient implements EgespClient {
     private final ConnectTjProperties props;
     private final RestClient http;
     private final TokenConnectTj token;
+    private final RitmoDeChamadas ritmo;
 
     public ConnectTjEgespClient(ConnectTjProperties props, RestClient.Builder builder) {
         this.props = props;
         this.http = builder.build();
         this.token = new TokenConnectTj(props, this.http);
+        this.ritmo = new RitmoDeChamadas(props.requisicoesPorSegundo());
     }
 
     @Override
@@ -287,6 +289,7 @@ public class ConnectTjEgespClient implements EgespClient {
     }
 
     private <T> T chamar(String caminho, Class<T> tipo) {
+        ritmo.aguardarVez();
         return http.get()
                 .uri(props.url() + caminho)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.obter())

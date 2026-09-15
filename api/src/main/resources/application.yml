@@ -111,6 +111,9 @@ goianao:
     # e-mail (residentes, comissionados, e ate estatutarios); para esses, o
     # login do AD mais este dominio reconstroi o endereco.
     dominio-email: ${GOIANAO_CONNECTTJ_DOMINIO_EMAIL:tjgo.jus.br}
+    # Teto combinado com a equipe da API. Uma acao da tela vira dezenas de
+    # chamadas (uma por pessoa da unidade); sem freio sairiam numa rajada.
+    requisicoes-por-segundo: ${GOIANAO_CONNECTTJ_REQUISICOES_POR_SEGUNDO:6}
   storage:
     # banco (padrao) ou filesystem. No OpenShift o pod nao tem disco que
     # sobreviva ao restart, e a arte precisa durar tanto quanto o certificado
