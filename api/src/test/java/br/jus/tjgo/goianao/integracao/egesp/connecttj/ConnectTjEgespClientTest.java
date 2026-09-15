@@ -41,7 +41,8 @@ class ConnectTjEgespClientTest {
         builder = RestClient.builder();
         servidor = MockRestServiceServer.bindTo(builder).build();
         cliente = new ConnectTjEgespClient(
-                new ConnectTjProperties(API, TOKEN_URL, "goianao", "segredo", 2), builder);
+                new ConnectTjProperties(API, TOKEN_URL, "goianao", "segredo", 2, "tjgo.jus.br"),
+                builder);
     }
 
     private void esperarToken() {
@@ -98,6 +99,42 @@ class ConnectTjEgespClientTest {
                     assertThat(s.email()).isEqualTo("fulano@tjgo.jus.br");
                     assertThat(s.matricula()).isEqualTo(5L);
                 });
+        servidor.verify();
+    }
+
+    @Test
+    @DisplayName("sem e-mail no RH, reconstroi o endereco pelo login do AD")
+    void recuperaEmailPeloAd() {
+        esperarToken();
+        servidor.expect(requestTo(API + "/api/v1/servidores/buscar-por-matricula?matricula=7"))
+                .andRespond(withSuccess("""
+                        {"cdgOrdem":7,"nome":"Residente de Teste","nmrCpf":"00640156100",
+                         "endEmail":null}
+                        """, MediaType.APPLICATION_JSON));
+        servidor.expect(requestTo(API + "/api/v1/ad/usuarios?cpf=00640156100"))
+                .andRespond(withSuccess("""
+                        [{"cn":"Residente de Teste","samaccountname":"rteste",
+                          "cPFNumber":"00640156100","useraccountcontrolLabel":"ATIVA"}]
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(cliente.servidorPorMatricula(7)).isPresent().get()
+                .satisfies(s -> assertThat(s.email()).isEqualTo("rteste@tjgo.jus.br"));
+        servidor.verify();
+    }
+
+    @Test
+    @DisplayName("sem e-mail e sem conta no AD, a pessoa segue sem e-mail — e nao inventamos um")
+    void semAdContinuaSemEmail() {
+        esperarToken();
+        servidor.expect(requestTo(API + "/api/v1/servidores/buscar-por-matricula?matricula=8"))
+                .andRespond(withSuccess("""
+                        {"cdgOrdem":8,"nome":"Sem Conta","nmrCpf":"00640156100","endEmail":null}
+                        """, MediaType.APPLICATION_JSON));
+        servidor.expect(requestTo(API + "/api/v1/ad/usuarios?cpf=00640156100"))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        assertThat(cliente.servidorPorMatricula(8)).isPresent().get()
+                .satisfies(s -> assertThat(s.email()).isNull());
         servidor.verify();
     }
 

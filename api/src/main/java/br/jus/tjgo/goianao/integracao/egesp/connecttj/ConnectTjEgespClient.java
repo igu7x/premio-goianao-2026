@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.integracao.egesp.connecttj;
 
+import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.integracao.egesp.EgespClient;
 import br.jus.tjgo.goianao.integracao.egesp.LotadoEgesp;
@@ -147,7 +148,34 @@ public class ConnectTjEgespClient implements EgespClient {
         RespostasConnectTj.Servidor servidor = buscar(
                 "/api/v1/servidores/buscar-por-matricula?matricula=" + matricula,
                 RespostasConnectTj.Servidor.class);
-        return Optional.ofNullable(converter(servidor));
+        return Optional.ofNullable(comEmailDoAd(converter(servidor)));
+    }
+
+    /**
+     * Completa o e-mail pelo AD quando o RH nao o tem.
+     *
+     * <p>Nao e caso raro: numa unidade real medida em 15/09/2026, cinco de oito
+     * lotados vieram sem {@code endEmail} — residentes, nomeados em comissao e
+     * ate estatutarios. Sem e-mail a pessoa nao e reconhecida no login (DI-24) e
+     * ficaria de fora da lista de habilitados, ou seja, sem certificado.
+     *
+     * <p>O AD nao devolve e-mail, devolve o {@code samaccountname} — o login. E
+     * o login e o prefixo do e-mail corporativo (confirmado em 2026-09-14), o
+     * que permite reconstruir o endereco. Com isso a cobertura foi a 100% nas
+     * duas unidades medidas.
+     */
+    private ServidorEgesp comEmailDoAd(ServidorEgesp servidor) {
+        if (servidor == null || Email.valido(servidor.email()) || servidor.cpf() == null) {
+            return servidor;
+        }
+        RespostasConnectTj.ContaAd[] contas = buscar(
+                "/api/v1/ad/usuarios?cpf=" + enc(servidor.cpf()),
+                RespostasConnectTj.ContaAd[].class);
+        if (contas == null || contas.length == 0 || contas[0].samaccountname() == null) {
+            return servidor;
+        }
+        String email = contas[0].samaccountname().trim() + "@" + props.dominioEmail();
+        return new ServidorEgesp(email, servidor.nome(), servidor.cpf(), servidor.matricula());
     }
 
     @Override
@@ -159,7 +187,17 @@ public class ConnectTjEgespClient implements EgespClient {
         RespostasConnectTj.BuscaPorLogin resposta = buscar(
                 "/api/v1/servidores/buscar-servidor-por-login-ad?loginAd=" + enc(login),
                 RespostasConnectTj.BuscaPorLogin.class);
-        return Optional.ofNullable(resposta == null ? null : converter(resposta.servidor()));
+        if (resposta == null || resposta.servidor() == null) {
+            return Optional.empty();
+        }
+
+        ServidorEgesp servidor = converter(resposta.servidor());
+        if (!Email.valido(servidor.email())) {
+            // Aqui o login ja e conhecido: da para montar o e-mail sem ir ao AD.
+            servidor = new ServidorEgesp(login + "@" + props.dominioEmail(), servidor.nome(),
+                    servidor.cpf(), servidor.matricula());
+        }
+        return Optional.of(servidor);
     }
 
     /**

@@ -107,6 +107,10 @@ goianao:
     client-secret: ${GOIANAO_CONNECTTJ_SECRET:}
     # Quantos lotados por pagina ao varrer uma unidade.
     tamanho-pagina: ${GOIANAO_CONNECTTJ_TAMANHO_PAGINA:100}
+    # Dominio do e-mail corporativo. Boa parte dos lotados vem do RH sem
+    # e-mail (residentes, comissionados, e ate estatutarios); para esses, o
+    # login do AD mais este dominio reconstroi o endereco.
+    dominio-email: ${GOIANAO_CONNECTTJ_DOMINIO_EMAIL:tjgo.jus.br}
   storage:
     # banco (padrao) ou filesystem. No OpenShift o pod nao tem disco que
     # sobreviva ao restart, e a arte precisa durar tanto quanto o certificado

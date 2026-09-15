@@ -702,6 +702,17 @@ atrasar nem derrubar o login.
 declara desligada e valem os dados mockados, com o motivo no log. Mesmo
 critério do SSO: variável ausente derruba a funcionalidade, não o pod.
 
+**O AD completa o que o RH não tem.** Medido em 15/09/2026 contra a API real:
+numa unidade de oito lotados, **cinco vieram sem e-mail** — residentes,
+comissionados e até estatutários. Sem e-mail a pessoa não entra na lista de
+habilitados e portanto não emite. A consulta `/ad/usuarios` por CPF devolve o
+`samaccountname`, que é o login; como o login é o prefixo do e-mail corporativo,
+o endereço é reconstruído a partir dele. Com esse caminho a cobertura foi a
+**100%** nas duas unidades medidas. O domínio é configurável
+(`GOIANAO_CONNECTTJ_DOMINIO_EMAIL`, padrão `tjgo.jus.br`). Quando nem o AD tem
+conta, a pessoa continua sem e-mail e a tela diz isso — inventar endereço seria
+criar alguém que nunca consegue entrar.
+
 **Consequência.** A tela é exclusiva do superadministrador. O token vale 5
 minutos: fica em cache e é renovado no vencimento e no primeiro 401, com uma
 única retentativa — insistir transformaria erro de credencial em tempestade de

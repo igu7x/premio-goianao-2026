@@ -299,6 +299,7 @@ mockados e o log diz o que falta — a aplicação não deixa de subir por isso.
 | `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão na API. |
 | `GOIANAO_CONNECTTJ_SECRET` | não¹ | Segredo do client. **Secret, nunca ConfigMap.** |
 | `GOIANAO_CONNECTTJ_TAMANHO_PAGINA` | não | Lotados por página ao varrer uma unidade. Padrão `100`. |
+| `GOIANAO_CONNECTTJ_DOMINIO_EMAIL` | não | Padrão `tjgo.jus.br`. Boa parte dos lotados vem do RH sem e-mail; para esses, o login do AD mais este domínio reconstrói o endereço. |
 
 ¹ Juntas: sem as quatro, valem os dados mockados.
 

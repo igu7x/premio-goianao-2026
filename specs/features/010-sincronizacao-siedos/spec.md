@@ -66,8 +66,9 @@ sem clique.
   que só existe na API; atualizar nome/comarca divergentes; incluir servidor na
   lista da edição; e desvincular (remoção lógica) servidor órfão.
 - **RF-6:** A semeadura da lista de habilitados DEVE trazer o **e-mail** de cada
-  servidor, resolvendo-o pela matrícula quando a listagem de lotados não o
-  trouxer.
+  servidor: pela matrícula quando a listagem de lotados não o trouxer e, quando
+  o RH também não tiver e-mail, reconstruindo-o a partir do login do AD. Quem
+  não tiver conta em lugar nenhum fica de fora, contado e visível.
 - **RF-7:** O sistema DEVE identificar a unidade primeiro pelo **código** do
   SIEDOS e, quando ele ainda não estiver gravado, pelo nome canônico —
   registrando o código no cadastro a partir daí.

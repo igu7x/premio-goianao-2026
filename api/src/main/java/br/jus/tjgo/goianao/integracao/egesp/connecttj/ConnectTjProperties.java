@@ -16,6 +16,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param clientId     identificador do client
  * @param clientSecret segredo do client (vem de Secret, nunca versionado)
  * @param tamanhoPagina paginacao usada ao varrer os lotados de uma unidade
+ * @param dominioEmail  dominio do e-mail corporativo, usado para reconstruir o
+ *                      endereco a partir do login do AD quando o RH nao tem o
+ *                      e-mail da pessoa
  */
 @ConfigurationProperties(prefix = "goianao.connecttj")
 public record ConnectTjProperties(
@@ -23,12 +26,16 @@ public record ConnectTjProperties(
         String tokenUrl,
         String clientId,
         String clientSecret,
-        Integer tamanhoPagina) {
+        Integer tamanhoPagina,
+        String dominioEmail) {
 
     public ConnectTjProperties {
         url = semBarraFinal(url);
         tokenUrl = semBarraFinal(tokenUrl);
         tamanhoPagina = (tamanhoPagina == null || tamanhoPagina < 1) ? 100 : tamanhoPagina;
+        dominioEmail = (dominioEmail == null || dominioEmail.isBlank())
+                ? "tjgo.jus.br"
+                : dominioEmail.replaceFirst("^@", "").trim();
     }
 
     /** So liga com a configuracao completa; faltando qualquer peca, vale o mock. */

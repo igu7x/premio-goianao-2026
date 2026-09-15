@@ -51,4 +51,15 @@ final class RespostasConnectTj {
             String nmeSitfunc) {}
 
     record BuscaPorLogin(Servidor servidor, String mensagem) {}
+
+    /**
+     * Conta no AD, de {@code /ad/usuarios}. Nao traz e-mail — traz o
+     * {@code samaccountname}, que e o login, e o e-mail corporativo e o login
+     * mais o dominio.
+     */
+    record ContaAd(
+            String samaccountname,
+            String cPFNumber,
+            String matricula,
+            String useraccountcontrolLabel) {}
 }

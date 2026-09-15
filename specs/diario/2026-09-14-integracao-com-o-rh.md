@@ -47,8 +47,19 @@ vizinhos.
   resolvido, órfão manual reconhecível, desvinculação lógica, acesso restrito) e
   `ConnectTjEgespClientTest` (paginação, 401 com renovação única, 404 vira
   vazio).
-- **Não foi testado contra a API real**: falta o client. O que existe hoje é o
-  contrato lido do Swagger e os testes contra servidor simulado.
+- **Testado contra a API real em 2026-09-15**, com o client `api-connect` no
+  realm `DG-TST`: token emitido (o `/auth` também é obrigatório aqui),
+  hierarquia da SGJT, lotados paginados e e-mail por matrícula. O teste vive em
+  `ConnectTjRealIT`, desligado por padrão e habilitado só quando as variáveis
+  existem no ambiente — nenhuma credencial entra no repositório.
+- **Metade dos lotados não tem e-mail no RH.** Numa unidade de oito, cinco
+  vieram sem: residentes, comissionados e um estatutário. O caminho de
+  recuperação pelo AD (CPF → `samaccountname` → `login@tjgo.jus.br`) levou a
+  cobertura a 100% nas duas unidades medidas. Sem ele, a maior parte da unidade
+  ficaria sem poder emitir.
+- **A API tem mais de um IP e um deles recusou conexão** durante os testes
+  (`ECONNREFUSED` em 10.0.10.47, `ETIMEDOUT` em 10.0.10.74). Aconteceu uma vez,
+  em chamada solta; vale observar se reaparece em varredura grande.
 
 ## Pendências
 
