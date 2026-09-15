@@ -142,8 +142,10 @@ sem clique.
 
 ## 9. Pontos em aberto
 
-- [NEEDS CLARIFICATION: qual realm e qual client emitem o token da API — o
-  exemplo recebido cita `DG-TST`, e o sistema usa `tjgo.gov-tst` hoje]
+- Realm: **`DG-TST`** em homologação (2026-09-15), ainda não definitivo — é
+  outro realm que o do login das pessoas (`tjgo.gov-tst`). Fica em variável de
+  ambiente justamente por isso.
+- [NEEDS CLARIFICATION: o client (id e secret) da aplicação na API]
 - [NEEDS CLARIFICATION: endereço da API em produção]
 - ~~código da unidade raiz~~ — **respondido em 2026-09-15:** `600000009`
   (Presidência) cobre toda a estrutura do tribunal; `901190605` (SGJT) cobre só

@@ -295,16 +295,21 @@ mockados e o log diz o que falta — a aplicação não deixa de subir por isso.
 | Variável | Obrigatória | O que é |
 | --- | --- | --- |
 | `GOIANAO_CONNECTTJ_URL` | não¹ | Base da API, com esquema (homologação: `https://connecttj-api-stag.tjgo.jus.br`). |
-| `GOIANAO_CONNECTTJ_TOKEN_URL` | não¹ | Endereço do token no Keycloak. O token é obtido por `client_credentials` e vale 5 minutos. |
+| `GOIANAO_CONNECTTJ_TOKEN_URL` | não¹ | Endereço do token no Keycloak. Em homologação, realm `DG-TST`: `https://sso.tjgo.jus.br/auth/realms/DG-TST/protocol/openid-connect/token`. O token é obtido por `client_credentials` e vale 5 minutos. |
 | `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão na API. |
 | `GOIANAO_CONNECTTJ_SECRET` | não¹ | Segredo do client. **Secret, nunca ConfigMap.** |
 | `GOIANAO_CONNECTTJ_TAMANHO_PAGINA` | não | Lotados por página ao varrer uma unidade. Padrão `100`. |
 
 ¹ Juntas: sem as quatro, valem os dados mockados.
 
-**O que ainda falta pedir:** o client (id e secret) e a confirmação de qual
-realm emite o token para esta API — o exemplo recebido cita `DG-TST`, e o SSO do
-sistema usa `tjgo.gov-tst`. Sem token, a API responde 401 até em homologação.
+**Sobre o realm:** é `DG-TST` por enquanto (informado em 2026-09-15), **ainda
+não é o definitivo** — é um realm diferente do `tjgo.gov-tst`, usado no login
+das pessoas. Por isso o endereço do token é variável, e não montado no código a
+partir do realm do SSO: quando sair a versão definitiva, troca-se a variável e
+reinicia, sem build novo.
+
+**O que ainda falta pedir:** o client (id e secret). Sem token, a API responde
+401 até em homologação.
 
 **Como conferir sem acesso ao cluster:** `GET <api>/api/sincronizacao/situacao`
 (exige superadministrador) responde `"ligada": true` quando a integração está
