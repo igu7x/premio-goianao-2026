@@ -147,7 +147,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
     expect(chamadas.every((c) => c.metodo === 'GET')).toBe(true)
   })
 
-  it('compara o tribunal inteiro sem mandar código nenhum', async () => {
+  it('compara a base completa do RH sem mandar código nenhum', async () => {
     const chamadas = instalarApiFalsa([
       ...rotasBase(true),
       ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA, SO_NA_API] }],
@@ -156,21 +156,52 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
     renderizar()
 
     await userEvent.click(
-      await screen.findByRole('button', { name: /comparar o tribunal inteiro/i }),
+      await screen.findByRole('button', { name: /comparar a base completa do rh/i }),
     )
 
     await screen.findByText('1a Vara Civel de Goiania')
 
     const consulta = chamadas.find((c) => c.url.includes('/api/sincronizacao/unidades'))
     expect(consulta?.metodo).toBe('GET')
-    // Sem código o RH devolve o organograma inteiro — é esse o pedido.
+    // Sem código o RH devolve a base inteira de unidades — é esse o pedido.
     expect(consulta?.url).not.toContain('codigo=')
+  })
 
-    // Os atalhos de raiz saíram: a Presidência não cobre as varas.
-    expect(screen.queryByRole('button', { name: /presidência/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /sgjt/i })).not.toBeInTheDocument()
-    // O campo de código continua ali, para um ramo específico.
-    expect(screen.getByRole('button', { name: /^comparar$/i })).toBeDisabled()
+  it('o atalho do TJGO preenche o código sem disparar a comparação', async () => {
+    const chamadas = instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA] }],
+    ])
+
+    renderizar()
+
+    await userEvent.click(await screen.findByRole('button', { name: /tjgo \(tribunal inteiro\)/i }))
+
+    expect(screen.getByLabelText(/código da unidade/i)).toHaveValue('600000009')
+    // Preencher não é comparar: a chamada só sai no clique do botão ao lado.
+    expect(chamadas.some((c) => c.url.includes('/api/sincronizacao/unidades?'))).toBe(false)
+
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
+    await screen.findByText('1a Vara Civel de Goiania')
+    expect(
+      chamadas.find((c) => c.url.includes('/api/sincronizacao/unidades?'))?.url,
+    ).toContain('codigo=600000009')
+  })
+
+  it('mostra o filtro mesmo quando a comparação traz poucas unidades', async () => {
+    instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA] }],
+    ])
+
+    renderizar()
+
+    await userEvent.type(await screen.findByLabelText(/código da unidade/i), '1234')
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
+
+    await screen.findByText('1a Vara Civel de Goiania')
+    expect(screen.getByLabelText(/filtrar por nome, comarca ou código/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 de 1 unidade/i)).toBeInTheDocument()
   })
 
   it('mostra o código do pai na linha da unidade, e nada quando ele não veio', async () => {

@@ -108,3 +108,19 @@ trazia o tribunal inteiro.
   corporativo, inclusive para magistrados.
 - **Sem agendamento:** a sincronização é manual, pela tela. Se o tribunal quiser
   varredura periódica, é decidir a janela e quem responde pelos conflitos.
+
+## Ajustes de vocabulário e de busca na tela (2026-09-15)
+
+Três correções pedidas depois de usar a tela com a API ligada:
+
+- **"Comparar o tribunal inteiro" virou "Comparar a base completa do RH".** A
+  consulta sem código não devolve o tribunal: devolve tudo que existe na base de
+  unidades do RH. Chamar aquilo de tribunal dava a entender um recorte que o
+  botão não faz.
+- **O atalho do TJGO voltou**, agora ao lado do campo de código e rotulado com o
+  que ele é: `600000009`, a estrutura administrativa, 189 unidades. Ele preenche
+  o campo e não dispara a comparação. A dica embaixo diz que as varas não estão
+  nesse ramo — que era exatamente o mal-entendido que levou a tirá-lo antes.
+- **O filtro por nome, comarca ou código aparece sempre**, não só acima de 12
+  unidades. O ramo do TJGO sozinho já traz 189 linhas, e quem compara está
+  quase sempre atrás de uma.

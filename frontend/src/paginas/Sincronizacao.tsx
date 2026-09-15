@@ -16,14 +16,15 @@ import { Icone } from '../componentes/Icone'
 const BASE = '/api/sincronizacao'
 
 /*
- * Não há mais atalho por raiz.
+ * Atalhos de raiz.
  *
- * A Presidência parecia cobrir o tribunal, mas as varas — que são o objeto do
- * prêmio — não ficam sob ela: cada uma fica sob a sua comarca. O atalho trazia
- * 189 unidades administrativas e dava a impressão de ter trazido tudo, que é o
- * pior tipo de resultado. Quem quer o tribunal inteiro pede o organograma
- * completo; quem já sabe o código de um ramo digita o código.
+ * O botão em destaque não pede raiz nenhuma: traz a base completa de unidades
+ * do RH, que é o que a consulta de hierarquia devolve sem parâmetro. O TJGO é
+ * uma raiz dentro dessa base e continua valendo como atalho para quem quer só a
+ * estrutura do tribunal — mas ele não alcança as varas, que penduram nas
+ * comarcas, e por isso não é o caminho padrão da tela.
  */
+const RAIZ_TJGO = { codigo: '600000009', rotulo: 'TJGO (tribunal inteiro)' }
 const RAIZ_DEMONSTRACAO = { codigo: '900000000', rotulo: 'Unidades de demonstração' }
 
 /** Acima disto a tabela de um grupo passa a ser paginada na renderização: o
@@ -241,23 +242,23 @@ export function Sincronizacao() {
             <div>
               <h2 className="titulo-secao">Comparar</h2>
               <p className="apoio">
-                O organograma inteiro de uma vez, ou só o ramo de uma unidade, pelo código dela
-                no SIEDOS. Nos dois casos a comparação é leitura.
+                A base completa de unidades do RH de uma vez, ou só o ramo de uma unidade, pelo
+                código dela no SIEDOS. Nos dois casos a comparação é leitura.
               </p>
             </div>
           </div>
 
           <div className="bloco-corpo">
             {/* Primeiro caminho da tela, e o mais usado: as varas não ficam sob
-                a Presidência, então não há raiz que sirva de atalho para elas —
-                pedir o organograma inteiro é o único jeito de vê-las todas. */}
+                nenhuma raiz junto com o resto, então pedir a base completa é o
+                único jeito de vê-las todas na mesma comparação. */}
             <div className="sincronizacao-tribunal">
               <div>
-                <strong>Comparar o tribunal inteiro</strong>
+                <strong>Comparar a base completa do RH</strong>
                 <p className="secundaria">
                   {situacao && !situacao.ligada
-                    ? 'Traz o organograma inteiro da origem atual — com a integração desligada, são as poucas unidades de demonstração.'
-                    : 'Traz o organograma completo do RH: cerca de 2.200 unidades, em todos os níveis, incluindo as varas — que ficam sob as comarcas, e não sob a Presidência.'}{' '}
+                    ? 'Traz todas as unidades da origem atual — com a integração desligada, são as poucas unidades de demonstração.'
+                    : 'Traz a base inteira de unidades do RH: cerca de 2.200, em todos os níveis, incluindo as varas — que ficam sob as comarcas, e não sob a raiz do TJGO.'}{' '}
                   Continua sendo leitura: nada é gravado enquanto você não clicar numa ação.
                 </p>
               </div>
@@ -272,7 +273,7 @@ export function Sincronizacao() {
                 ) : (
                   <Icone nome="trocar" tamanho={16} />
                 )}
-                {comparando === 'tudo' ? 'Comparando…' : 'Comparar o tribunal inteiro'}
+                {comparando === 'tudo' ? 'Comparando…' : 'Comparar a base completa do RH'}
               </button>
             </div>
 
@@ -291,10 +292,19 @@ export function Sincronizacao() {
                   value={codigo}
                   onChange={(evento) => setCodigo(evento.target.value.replace(/\D/g, ''))}
                 />
-                {/* Só com a integração desligada: é o código que o mock conhece,
-                    e ninguém o decoraria para testar a tela. */}
-                {situacao && !situacao.ligada && (
-                  <div className="sincronizacao-atalhos">
+                {/* O atalho preenche o campo; comparar continua sendo o botão
+                    ao lado. O de demonstração só aparece com a integração
+                    desligada: é o código que o mock conhece, e ninguém o
+                    decoraria para testar a tela. */}
+                <div className="sincronizacao-atalhos">
+                  <button
+                    type="button"
+                    className="botao botao-texto botao-pequeno"
+                    onClick={() => setCodigo(RAIZ_TJGO.codigo)}
+                  >
+                    {RAIZ_TJGO.rotulo}
+                  </button>
+                  {situacao && !situacao.ligada && (
                     <button
                       type="button"
                       className="botao botao-texto botao-pequeno"
@@ -302,8 +312,12 @@ export function Sincronizacao() {
                     >
                       {RAIZ_DEMONSTRACAO.rotulo}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
+                <span className="campo-dica">
+                  O ramo do TJGO traz a estrutura administrativa (189 unidades). As varas não
+                  estão nele: para vê-las, use a base completa acima.
+                </span>
               </div>
 
               <div className="campo">
@@ -368,26 +382,25 @@ export function Sincronizacao() {
           </div>
         ) : (
           <>
-            {/* O organograma inteiro passa de duas mil linhas: sem filtro, achar
-                uma vara seria rolar a tela até encontrar. */}
-            {unidades.length > 12 && (
-              <div className="bloco">
-                <div className="bloco-corpo">
-                  <div className="campo">
-                    <label htmlFor="filtro-unidades">Filtrar por nome, comarca ou código</label>
-                    <input
-                      id="filtro-unidades"
-                      value={filtro}
-                      placeholder="ex.: Anápolis"
-                      onChange={(evento) => setFiltro(evento.target.value)}
-                    />
-                    <span className="campo-dica">
-                      {visiveis.length} de {unidades.length} unidade(s) na comparação.
-                    </span>
-                  </div>
+            {/* Sempre presente, qualquer que tenha sido a consulta: mesmo o ramo
+                de uma unidade passa de cem linhas, e quem compara costuma estar
+                atrás de uma. Sem filtro, achá-la seria rolar até encontrar. */}
+            <div className="bloco">
+              <div className="bloco-corpo">
+                <div className="campo">
+                  <label htmlFor="filtro-unidades">Filtrar por nome, comarca ou código</label>
+                  <input
+                    id="filtro-unidades"
+                    value={filtro}
+                    placeholder="ex.: Anápolis"
+                    onChange={(evento) => setFiltro(evento.target.value)}
+                  />
+                  <span className="campo-dica">
+                    {visiveis.length} de {unidades.length} unidade(s) na comparação.
+                  </span>
                 </div>
               </div>
-            )}
+            </div>
             {(
           ORDEM.filter((grupo) => visiveis.some((u) => u.situacao === grupo)).map((grupo) => {
             const doGrupo = visiveis.filter((u) => u.situacao === grupo)
