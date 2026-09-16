@@ -84,3 +84,21 @@ inclusive a de um magistrado olhando unidade que não é dele. Como o CPF comple
 só é necessário para **remover** alguém da lista, ele passou a acompanhar apenas
 a resposta de quem pode editar; os demais recebem somente o mascarado. Coberto
 por `ServidorHabilitadoIT.cpfSoParaQuemEdita`.
+
+### Ajuste de 2026-09-16 — o responsável semeia a própria lista (CA-7)
+
+A semeadura era exclusiva do administrador (`@PreAuthorize` no endpoint), e a
+tela "Servidores da unidade" dizia que a lista "foi semeada a partir do EGESP"
+sem oferecer como fazê-lo. O responsável dependia do administrador para trazer
+a lotação do RH.
+
+- **API:** `POST .../servidores/semear` deixou de exigir administrador; o
+  serviço já aplicava `exigirPermissao`, a mesma guarda de incluir e remover
+  (unidade reconhecida ou sob responsabilidade, e só na edição vigente).
+  `podeSemear` nas respostas passou a seguir `podeEditar`.
+- **Frontend:** botão "Semear do EGESP" em cada cartão de
+  `paginas/MinhasUnidades.tsx`, exibido quando `podeSemear`. O resumo do
+  resultado foi extraído para `paginas/abas/resumoDaSemeadura.ts`, usado também
+  pela `AbaServidores`.
+- **Testes:** `ServidorHabilitadoIT.magistradoSemeiaSuaUnidade` e
+  `magistradoNaoSemeiaForaDoEscopo`; `MinhasUnidades.test.tsx` cobre o botão.

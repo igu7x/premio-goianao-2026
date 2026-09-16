@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ErroApi } from '../api/cliente'
-import type { ListaHabilitados } from '../api/tipos'
+import type { ListaHabilitados, Semeadura } from '../api/tipos'
+import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
 import { PainelDaLista } from './abas/PainelDaLista'
+import { resumoDaSemeadura } from './abas/resumoDaSemeadura'
 
 /**
  * Visão do magistrado sobre as listas das suas unidades (008/RF-4).
@@ -26,6 +28,8 @@ export function MinhasUnidades() {
    */
   const [semEdicaoVigente, setSemEdicaoVigente] = useState(false)
   const [aberta, setAberta] = useState<ListaHabilitados | null>(null)
+  const [semeando, setSemeando] = useState<number | null>(null)
+  const avisos = useAvisos()
 
   const carregar = useCallback(async () => {
     setErro(null)
@@ -46,6 +50,27 @@ export function MinhasUnidades() {
     void carregar()
   }, [carregar])
 
+  /**
+   * O responsável pela unidade traz a lotação do RH sem esperar o
+   * administrador. A mescla é a mesma do administrador: não desfaz inclusões
+   * manuais nem traz de volta quem ele removeu.
+   */
+  async function semear(lista: ListaHabilitados) {
+    setSemeando(lista.unidadeId)
+    setErro(null)
+    try {
+      const dados = await api.post<Semeadura>(
+        `/api/edicoes/${lista.edicaoId}/unidades/${lista.unidadeId}/servidores/semear`,
+      )
+      avisos.sucesso(`Lista de ${lista.unidadeNome} atualizada`, resumoDaSemeadura(dados))
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao semear a lista.')
+    } finally {
+      setSemeando(null)
+    }
+  }
+
   return (
     <div className="pagina">
       <header className="cabecalho-pagina">
@@ -56,7 +81,8 @@ export function MinhasUnidades() {
           </h1>
           <p>
             Confira e ajuste quem pode emitir o certificado de servidor nas unidades pelas quais
-            você foi reconhecido na edição vigente. A lista foi semeada a partir do EGESP.
+            você responde na edição vigente. Semear do EGESP traz quem está lotado na unidade e
+            mescla com a lista atual: suas inclusões ficam e quem você removeu não volta.
           </p>
         </div>
       </header>
@@ -114,6 +140,21 @@ export function MinhasUnidades() {
 
                 <div className="bloco-rodape">
                   <div className="acoes acoes-direita">
+                    {lista.podeSemear && (
+                      <button
+                        type="button"
+                        className="botao botao-neutro botao-pequeno"
+                        disabled={semeando === lista.unidadeId}
+                        onClick={() => void semear(lista)}
+                      >
+                        {semeando === lista.unidadeId ? (
+                          <span className="giro" />
+                        ) : (
+                          <Icone nome="semear" tamanho={15} />
+                        )}
+                        {semeando === lista.unidadeId ? 'Semeando…' : 'Semear do EGESP'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={lista.podeEditar ? 'botao botao-pequeno' : 'botao botao-neutro botao-pequeno'}

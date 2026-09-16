@@ -8,6 +8,10 @@
   CPF × unidade; o EGESP precisa fornecer o e-mail de cada servidor, e quem vier
   sem ele fica de fora, contado no resultado da semeadura. O e-mail completo só
   aparece para quem pode editar a lista; o CPF é opcional e sai mascarado.
+- **Emenda (2026-09-16):** o **magistrado** também **semeia** do EGESP a lista
+  das suas unidades (reconhecidas ou sob sua responsabilidade), com a mesma
+  restrição do RF-4: só na edição vigente. Semear passa a ter a mesma guarda de
+  escopo que incluir e remover.
 
 > Esta spec descreve **o quê** e **por quê**.
 
@@ -31,8 +35,8 @@ lista, inclusive para edições anteriores.
 ## 3. Usuários / Personas
 
 - **Administrador** — semeia e edita a lista de qualquer unidade/edição.
-- **Magistrado** — edita a lista das **suas** unidades, apenas quando a edição é
-  **vigente**.
+- **Magistrado** — semeia e edita a lista das **suas** unidades, apenas quando a
+  edição é **vigente**.
 
 ## 4. Histórias de usuário
 
@@ -87,6 +91,10 @@ lista, inclusive para edições anteriores.
   pela qual **não** foi reconhecido, então o acesso é negado.
 - **CA-6:** Dado um CPF já presente na lista de (edição, unidade), quando se tenta
   incluí-lo de novo, então é rejeitado (RF-5).
+- **CA-7:** Dado um magistrado responsável pela unidade A na **edição vigente**,
+  quando ele semeia a lista de A pela tela "Servidores da unidade", então os
+  lotados em A segundo o EGESP entram mesclados; em unidade alheia ou em edição
+  não vigente, a semeadura é negada.
 
 ## 8. Fora de escopo
 

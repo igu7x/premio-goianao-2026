@@ -2,7 +2,6 @@ package br.jus.tjgo.goianao.servidor;
 
 import br.jus.tjgo.goianao.edicao.Edicao;
 import br.jus.tjgo.goianao.edicao.EdicaoService;
-import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
 import br.jus.tjgo.goianao.servidor.dto.IncluirServidorRequisicao;
 import br.jus.tjgo.goianao.servidor.dto.ListaHabilitadosResposta;
 import br.jus.tjgo.goianao.servidor.dto.SemeaduraResposta;
@@ -58,15 +57,19 @@ public class ServidorHabilitadoController {
                 unidadeId,
                 unidade.getNome(),
                 podeEditar,
-                UsuarioAtual.obrigatorio().ehAdministrador(),
+                // Semear e editar tem a mesma guarda: quem ajusta a lista pode traze-la do RH.
+                podeEditar,
                 servico.listar(edicaoId, unidadeId).stream()
                         .map(servidor -> ServidorHabilitadoResposta.de(servidor, podeEditar))
                         .toList());
     }
 
-    /** Semeadura a partir do EGESP: operacao do administrador (008/plan). */
+    /**
+     * Semeadura a partir do EGESP. O administrador semeia qualquer lista; o
+     * magistrado, as das unidades que sao dele, e so na edicao vigente — a
+     * mesma guarda de escopo da inclusao, aplicada no servico (008/RF-1).
+     */
     @PostMapping("/semear")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public SemeaduraResposta semear(@PathVariable Long edicaoId, @PathVariable Long unidadeId) {
         return servico.semear(edicaoId, unidadeId);
     }

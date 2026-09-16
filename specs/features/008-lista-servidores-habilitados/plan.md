@@ -50,7 +50,7 @@ Guardas:
 ## 5. Contratos / APIs
 
 Admin (qualquer edição publicada) e Magistrado (edição vigente + suas unidades):
-- `POST /api/edicoes/{edId}/unidades/{unId}/servidores/semear` (admin)
+- `POST /api/edicoes/{edId}/unidades/{unId}/servidores/semear` (admin; magistrado no seu escopo, desde 2026-09-16)
   → busca no EGESP e insere/mescla; retorna total semeado.
 - `GET /api/edicoes/{edId}/unidades/{unId}/servidores` → lista atual.
 - `POST /api/edicoes/{edId}/unidades/{unId}/servidores` `{ cpf, nome }`

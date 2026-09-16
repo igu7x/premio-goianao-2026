@@ -183,6 +183,42 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
     }
 
     @Test
+    @DisplayName("o magistrado semeia do EGESP a lista da sua unidade na vigente")
+    void magistradoSemeiaSuaUnidade() throws Exception {
+        Cenario cenario = cenarioVigente(2150);
+
+        mvc.perform(post(base(cenario) + "/semear")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.incluidos").value(Matchers.greaterThan(0)));
+
+        mvc.perform(get("/api/magistrado/servidores")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].podeSemear").value(true));
+    }
+
+    @Test
+    @DisplayName("o magistrado nao semeia unidade alheia nem edicao que nao e vigente")
+    void magistradoNaoSemeiaForaDoEscopo() throws Exception {
+        Edicao edicao = edicaoComLayouts(2151);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO, "Rafael", UNIDADE_A, Selo.OURO);
+        cadastrarMagistrado(edicao.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
+        edicoes.tornarVigente(edicoes.publicar(edicao.getId()).getId());
+
+        mvc.perform(post("/api/edicoes/" + edicao.getId() + "/unidades/"
+                        + unidade(UNIDADE_C).getId() + "/servidores/semear")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
+                .andExpect(status().isForbidden());
+
+        edicaoVigente(2152); // a de 2151 deixa de ser vigente
+        mvc.perform(post("/api/edicoes/" + edicao.getId() + "/unidades/"
+                        + unidade(UNIDADE_A).getId() + "/servidores/semear")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("ressemear mescla: nao remove inclusao manual nem reativa quem saiu")
     void ressemearPreservaAjustes() throws Exception {
         Cenario cenario = cenarioVigente(2117);

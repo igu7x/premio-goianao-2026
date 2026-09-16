@@ -80,7 +80,8 @@ public class MagistradoServidoresController {
                     unidadeId,
                     nome,
                     podeEditar,
-                    UsuarioAtual.obrigatorio().ehAdministrador(),
+                    // Semear e editar tem a mesma guarda (008/RF-1).
+                    podeEditar,
                     servico.listar(edicao.getId(), unidadeId).stream()
                             .map(servidor -> ServidorHabilitadoResposta.de(servidor, podeEditar))
                             .toList()));

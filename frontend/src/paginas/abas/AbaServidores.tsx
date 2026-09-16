@@ -6,6 +6,7 @@ import { useAvisos } from '../../componentes/Avisos'
 import { Icone } from '../../componentes/Icone'
 import { Disco } from '../../componentes/Selo'
 import { PainelDaLista } from './PainelDaLista'
+import { resumoDaSemeadura } from './resumoDaSemeadura'
 
 /**
  * Passo posterior ao cadastro (feature 008): para cada unidade reconhecida,
@@ -42,23 +43,7 @@ export function AbaServidores({ edicao }: { edicao: Edicao }) {
       const dados = await api.post<Semeadura>(
         `/api/edicoes/${edicao.id}/unidades/${unidade.unidadeId}/servidores/semear`,
       )
-      avisos.sucesso(
-        `Lista de ${unidade.nome} atualizada`,
-        [
-          `${dados.retornadosPeloEgesp} no EGESP`,
-          `${dados.incluidos} incluído(s)`,
-          `${dados.jaExistentes} já constavam`,
-          dados.preservadosRemovidos > 0
-            ? `${dados.preservadosRemovidos} removido(s) preservados fora da lista`
-            : null,
-          dados.ignoradosSemEmail > 0
-            ? `${dados.ignoradosSemEmail} sem e-mail no EGESP, não incluído(s)`
-            : null,
-          `total ativo: ${dados.totalAtivos}`,
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      )
+      avisos.sucesso(`Lista de ${unidade.nome} atualizada`, resumoDaSemeadura(dados))
       await carregar()
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao semear a lista.')
