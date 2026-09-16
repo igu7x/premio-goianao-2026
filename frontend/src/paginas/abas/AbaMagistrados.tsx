@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { api, ErroApi } from '../../api/cliente'
 import type {
   Edicao,
@@ -254,13 +254,21 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
 function SeletorDeUnidade({
   valor,
   aoEscolher,
+  comDica = true,
 }: {
   valor: string
   aoEscolher: (nome: string) => void
+  /** Na linha de reconhecimento a dica fica fora da linha: dentro dela
+   *  desalinhava o selo e o botão de remover. */
+  comDica?: boolean
 }) {
   const [unidades, setUnidades] = useState<UnidadeCadastrada[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [texto, setTexto] = useState(valor)
+  const [aberta, setAberta] = useState(false)
+  const [destaque, setDestaque] = useState(0)
   const id = useId()
+  const listaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let ativo = true
@@ -277,38 +285,145 @@ function SeletorDeUnidade({
     }
   }, [])
 
+  // Quem abre a tela com a unidade já escolhida vê o nome no campo.
+  useEffect(() => {
+    setTexto(valor)
+  }, [valor])
+
+  /*
+   * São quase duzentas unidades: rolar um <select> até a certa era o gargalo.
+   * Cada palavra digitada precisa aparecer no nome ou no código, sem ligar para
+   * acento nem caixa — "civel goiania" encontra "1ª Vara Cível de Goiânia".
+   */
+  const termos = normalizar(texto).split(/\s+/).filter(Boolean)
+  const sugestoes =
+    unidades === null || termos.length === 0 || texto === valor
+      ? []
+      : unidades
+          .filter((unidade) => {
+            const alvo = normalizar(`${unidade.nome} ${unidade.codigoSiedos ?? ''}`)
+            return termos.every((termo) => alvo.includes(termo))
+          })
+          .slice(0, LIMITE_DE_SUGESTOES)
+  const mostrarLista = aberta && termos.length > 0 && texto !== valor
+
+  // A lista flutua sobre o modal, que rola: sem isto a última linha a abriria
+  // escondida atrás do rodapé.
+  useEffect(() => {
+    if (mostrarLista) listaRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [mostrarLista])
+
+  function escolher(unidade: UnidadeCadastrada) {
+    aoEscolher(unidade.nome)
+    setTexto(unidade.nome)
+    setAberta(false)
+  }
+
+  function aoTeclar(evento: KeyboardEvent<HTMLInputElement>) {
+    if (evento.key === 'ArrowDown' && sugestoes.length > 0) {
+      evento.preventDefault()
+      setAberta(true)
+      setDestaque((atual) => Math.min(atual + 1, sugestoes.length - 1))
+    } else if (evento.key === 'ArrowUp' && sugestoes.length > 0) {
+      evento.preventDefault()
+      setDestaque((atual) => Math.max(atual - 1, 0))
+    } else if (evento.key === 'Enter' && mostrarLista && sugestoes[destaque]) {
+      evento.preventDefault()
+      escolher(sugestoes[destaque])
+    } else if (evento.key === 'Escape' && mostrarLista) {
+      // Fecha só a lista; o modal continua aberto.
+      evento.stopPropagation()
+      setAberta(false)
+    }
+  }
+
+  const idLista = `${id}-lista`
+
   return (
     <div className="campo">
       <label htmlFor={id}>Unidade judiciária</label>
-      <select
-        id={id}
-        value={valor}
-        disabled={unidades === null}
-        onChange={(evento) => aoEscolher(evento.target.value)}
-      >
-        <option value="">
-          {unidades === null
-            ? 'Carregando as unidades…'
-            : unidades.length === 0
-              ? 'Nenhuma unidade cadastrada'
-              : 'Selecione a unidade…'}
-        </option>
-        {unidades?.map((unidade) => (
-          <option key={unidade.id} value={unidade.nome}>
-            {unidade.nome}
-            {unidade.codigoSiedos !== null ? ` — ${unidade.codigoSiedos}` : ''}
-          </option>
-        ))}
-      </select>
-      <span className="campo-dica">
-        {erro
-          ? erro
-          : unidades !== null && unidades.length === 0
-            ? 'Cadastre as unidades em Sincronização de Unidades antes de reconhecer alguém.'
-            : 'Unidades cadastradas no sistema; o nome é salvo exatamente como está no cadastro.'}
-      </span>
+      <div className="busca-unidade">
+        <input
+          id={id}
+          role="combobox"
+          aria-expanded={mostrarLista}
+          aria-controls={idLista}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            mostrarLista && sugestoes[destaque] ? `${idLista}-${sugestoes[destaque].id}` : undefined
+          }
+          autoComplete="off"
+          value={texto}
+          disabled={unidades === null || unidades.length === 0}
+          placeholder={
+            unidades === null
+              ? 'Carregando as unidades…'
+              : unidades.length === 0
+                ? 'Nenhuma unidade cadastrada'
+                : 'Digite o nome ou o código da unidade'
+          }
+          onChange={(evento) => {
+            setTexto(evento.target.value)
+            setAberta(true)
+            setDestaque(0)
+            // O que foi digitado não vale como unidade até ser escolhido da lista.
+            if (valor) aoEscolher('')
+          }}
+          onFocus={() => setAberta(true)}
+          onBlur={() => setAberta(false)}
+          onKeyDown={aoTeclar}
+        />
+        <Icone nome="busca" tamanho={15} />
+
+        {mostrarLista && (
+          <div className="busca-unidade-lista" role="listbox" id={idLista} ref={listaRef}>
+            {sugestoes.length === 0 ? (
+              <div className="busca-unidade-vazia">Nenhuma unidade com esse nome ou código.</div>
+            ) : (
+              sugestoes.map((unidade, indice) => (
+                <div
+                  key={unidade.id}
+                  id={`${idLista}-${unidade.id}`}
+                  role="option"
+                  aria-selected={indice === destaque}
+                  className="busca-unidade-opcao"
+                  // mousedown, e não click: o click chega depois do blur, e aí
+                  // a lista já fechou.
+                  onMouseDown={(evento) => {
+                    evento.preventDefault()
+                    escolher(unidade)
+                  }}
+                  onMouseEnter={() => setDestaque(indice)}
+                >
+                  <span>{unidade.nome}</span>
+                  {unidade.codigoSiedos !== null && (
+                    <span className="mono secundaria">{unidade.codigoSiedos}</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+      {(comDica || erro || (unidades !== null && unidades.length === 0)) && (
+        <span className="campo-dica">
+          {erro
+            ? erro
+            : unidades !== null && unidades.length === 0
+              ? 'Cadastre as unidades em Sincronização de Unidades antes de reconhecer alguém.'
+              : DICA_DA_UNIDADE}
+        </span>
+      )}
     </div>
   )
+}
+
+const LIMITE_DE_SUGESTOES = 50
+const DICA_DA_UNIDADE =
+  'Digite parte do nome ou o código e escolha na lista; o nome é salvo exatamente como está no cadastro.'
+
+function normalizar(texto: string) {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
 /* ------------------------------------------------------------------ */
@@ -677,16 +792,9 @@ function ModalMagistrado({
         <span className="rotulo">Reconhecimentos</span>
         <div style={{ display: 'grid', gap: 'var(--e3)', marginTop: 'var(--e2)' }}>
           {linhas.map((linha, indice) => (
-            <div
-              key={indice}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1fr) 140px auto',
-                gap: 'var(--e2)',
-                alignItems: 'end',
-              }}
-            >
+            <div key={indice} className="linha-reconhecimento">
               <SeletorDeUnidade
+                comDica={false}
                 valor={linha.unidadeNome}
                 aoEscolher={(nomeUnidade) =>
                   setLinhas((atual) =>
@@ -718,7 +826,9 @@ function ModalMagistrado({
               </div>
               <button
                 type="button"
-                className="botao botao-perigo botao-pequeno"
+                className="botao botao-perigo linha-reconhecimento-remover"
+                aria-label="Remover esta unidade"
+                title="Remover esta unidade"
                 disabled={linhas.length === 1}
                 onClick={() => setLinhas((atual) => atual.filter((_, i) => i !== indice))}
               >
@@ -727,6 +837,9 @@ function ModalMagistrado({
             </div>
           ))}
         </div>
+        <span className="campo-dica" style={{ display: 'block', marginTop: 'var(--e2)' }}>
+          {DICA_DA_UNIDADE}
+        </span>
         <button
           type="button"
           className="botao botao-texto botao-pequeno"

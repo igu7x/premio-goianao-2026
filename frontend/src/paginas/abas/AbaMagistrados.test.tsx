@@ -98,7 +98,9 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
 
     await screen.findByRole('dialog')
     await waitFor(() => expect(screen.getByRole('combobox', { name: /unidade/i })).toBeInTheDocument())
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /unidade/i }), '2ª Vara Cível')
+    await waitFor(() => expect(screen.getByRole('combobox', { name: /unidade/i })).toBeEnabled())
+    await userEvent.type(screen.getByRole('combobox', { name: /unidade/i }), 'civel')
+    await userEvent.click(await screen.findByRole('option', { name: /2ª Vara Cível/ }))
     await userEvent.click(screen.getByRole('button', { name: /^incluir$/i }))
 
     await waitFor(() => {
@@ -201,10 +203,11 @@ describe('Lista de unidades do reconhecimento', () => {
     await userEvent.click(screen.getByRole('button', { name: /adicionar unidade/i }))
 
     const campo = await screen.findByRole('combobox', { name: /unidade/i })
-    await waitFor(() =>
-      expect(screen.getByRole('option', { name: /PRESIDENCIA — 600000009/ })).toBeInTheDocument(),
-    )
-    expect(campo).toBeEnabled()
+    await waitFor(() => expect(campo).toBeEnabled())
+    // Digitar filtra pelo nome ou pelo código, sem precisar rolar a lista toda.
+    await userEvent.type(campo, '600000009')
+    expect(await screen.findByRole('option', { name: /PRESIDENCIA/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /ASSESSORIA/ })).not.toBeInTheDocument()
     // A falha do RH esvaziava a lista em silêncio: a fonte agora é o cadastro.
     expect(chamadas.some((c) => c.url.includes('/api/unidades/egesp'))).toBe(false)
   })

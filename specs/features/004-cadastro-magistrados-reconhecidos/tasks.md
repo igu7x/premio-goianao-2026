@@ -97,3 +97,22 @@ uso é operação de outra escala. Para reverter, basta trocar
 `exigirRascunhoParaImportacao` por `exigirElegivelParaInclusao` em
 `ImportacaoMagistradosService` e emendar a RF-11. Coberto por
 `MagistradoIT.importacaoSoEmRascunho`.
+
+### Ajuste de 2026-09-16 — unidade escolhida digitando, e linha alinhada
+
+Com as ~190 unidades do TJGO carregadas, o `<select>` do reconhecimento virou uma
+lista que estourava a largura do modal e obrigava a rolar até achar a unidade.
+Além disso, a dica embaixo do campo empurrava o rótulo e o controle do **Selo** e
+o botão de remover para fora da linha.
+
+- **Busca no lugar do select** (`SeletorDeUnidade`, em
+  `paginas/abas/AbaMagistrados.tsx`): o administrador digita parte do nome ou o
+  código SIEDOS e escolhe numa lista que abre logo abaixo do campo. Cada palavra
+  precisa aparecer no nome ou no código, sem diferenciar acento nem maiúsculas.
+  Setas, Enter e Esc funcionam; o Esc fecha só a lista, não o modal. A RF-1 continua
+  valendo: o texto digitado não vira unidade enquanto não for escolhido da lista.
+- **Linha do reconhecimento** (`.linha-reconhecimento`, em `paginas.css`): a
+  dica saiu da linha e fica uma vez só, abaixo de todas as unidades; campo,
+  selo e remover têm a mesma altura (42px) e se alinham pela base.
+- **Testes:** `AbaMagistrados.test.tsx` passou a digitar e escolher a opção em
+  vez de `selectOptions`, e verifica o filtro pelo código.

@@ -1686,3 +1686,93 @@
 .atualizacao-opcao strong {
   font-size: 16px;
 }
+
+/* ------------------------------------------------------------------ */
+/* Reconhecimento: unidade buscada pelo nome, selo e remover na linha  */
+/* ------------------------------------------------------------------ */
+
+.linha-reconhecimento {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px auto;
+  gap: var(--e2);
+  /* Todos os campos da linha têm só rótulo e controle: alinhar pela base põe
+     os três controles na mesma altura. A dica fica abaixo da lista inteira. */
+  align-items: end;
+}
+
+/* Input e select saem com alturas diferentes do navegador (44 e 41px); fixar
+   a altura é o que põe os três na mesma linha de verdade. */
+.linha-reconhecimento .campo input,
+.linha-reconhecimento .campo select,
+.linha-reconhecimento-remover {
+  height: 42px;
+}
+
+.linha-reconhecimento-remover {
+  width: 42px;
+  padding: 0;
+}
+
+@media (max-width: 520px) {
+  .linha-reconhecimento { grid-template-columns: minmax(0, 1fr) auto; }
+  .linha-reconhecimento > .campo:first-child { grid-column: 1 / -1; }
+}
+
+.busca-unidade {
+  position: relative;
+}
+
+.campo .busca-unidade input {
+  padding-left: 36px;
+}
+
+.busca-unidade > svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--tinta-4);
+  pointer-events: none;
+}
+
+.busca-unidade-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--superficie);
+  border: 1px solid var(--traco-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-3);
+}
+
+.busca-unidade-opcao {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e3);
+  padding: 8px 10px;
+  border-radius: calc(var(--raio) - 2px);
+  font-size: 13.5px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.busca-unidade-opcao .mono {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.busca-unidade-opcao[aria-selected='true'] {
+  background: var(--verde-claro);
+}
+
+.busca-unidade-vazia {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--tinta-3);
+}
