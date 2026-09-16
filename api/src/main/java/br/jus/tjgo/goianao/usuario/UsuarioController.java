@@ -28,9 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsuarioController {
 
     private final UsuarioService servico;
+    private final br.jus.tjgo.goianao.usuario.atualizacao.AtualizacaoDaBaseDeUsuarios atualizacao;
 
-    public UsuarioController(UsuarioService servico) {
+    public UsuarioController(UsuarioService servico,
+            br.jus.tjgo.goianao.usuario.atualizacao.AtualizacaoDaBaseDeUsuarios atualizacao) {
         this.servico = servico;
+        this.atualizacao = atualizacao;
     }
 
     @GetMapping
@@ -49,6 +52,28 @@ public class UsuarioController {
                                      @Valid @RequestBody AtualizarUsuarioRequisicao dados) {
         return UsuarioResposta.de(servico.atualizar(id, dados));
     }
+
+    /**
+     * Dispara a atualizacao da base de usuarios pelo RH, em segundo plano.
+     *
+     * Responde na hora com o estado inicial: a varredura leva de minutos a
+     * dezenas de minutos, e a tela acompanha pelo GET abaixo.
+     */
+    @PostMapping("/atualizacao-rh")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public br.jus.tjgo.goianao.usuario.atualizacao.SituacaoDaAtualizacao iniciarAtualizacao(
+            @RequestBody AtualizacaoRequisicao dados) {
+        return atualizacao.iniciar(dados.escopo());
+    }
+
+    @GetMapping("/atualizacao-rh")
+    public br.jus.tjgo.goianao.usuario.atualizacao.SituacaoDaAtualizacao situacaoDaAtualizacao() {
+        return atualizacao.situacao();
+    }
+
+    public record AtualizacaoRequisicao(
+            @jakarta.validation.constraints.NotNull(message = "escolha o escopo")
+            br.jus.tjgo.goianao.usuario.atualizacao.EscopoDaAtualizacao escopo) {}
 
     /**
      * Apaga o usuario, quando nada esta preso a ele. Havendo historico, a

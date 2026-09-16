@@ -1624,3 +1624,65 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Atualização da base de usuários pelo RH ------------------------------ */
+
+/* O progresso fica abaixo do cabeçalho, em largura cheia: a varredura pode
+   levar meia hora, e o painel é o que diz que ela continua viva. */
+.atualizacao-painel {
+  margin-bottom: var(--e4);
+}
+
+.atualizacao-barra {
+  height: 8px;
+  margin: var(--e2) 0;
+  border-radius: 999px;
+  background: var(--traco);
+  overflow: hidden;
+}
+
+.atualizacao-barra > span {
+  display: block;
+  height: 100%;
+  background: var(--verde);
+  transition: width 400ms ease;
+}
+
+/* As duas opções têm custo muito diferente — minutos contra meia hora —, e
+   por isso são cartões com a explicação, e não dois botões iguais. */
+.atualizacao-opcoes {
+  display: grid;
+  gap: var(--e3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: var(--e4);
+}
+
+.atualizacao-opcao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--e4);
+  text-align: left;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--superficie);
+  border: 1px solid var(--traco-forte);
+  border-radius: var(--raio-g);
+  cursor: pointer;
+  transition: border-color var(--rapido), box-shadow var(--rapido);
+}
+
+.atualizacao-opcao:hover:not(:disabled),
+.atualizacao-opcao:focus-visible {
+  border-color: var(--verde);
+  box-shadow: 0 0 0 3px var(--verde-claro);
+}
+
+.atualizacao-opcao:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.atualizacao-opcao strong {
+  font-size: 16px;
+}

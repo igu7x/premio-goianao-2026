@@ -4,6 +4,12 @@ import type { Papel, Unidade, Usuario } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio, Modal, formatarData } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
+import {
+  BotaoAtualizarBase,
+  ModalAtualizacaoDaBase,
+  PainelAtualizacaoDaBase,
+  useAtualizacaoDaBase,
+} from './AtualizacaoDaBase'
 
 const PAPEIS: Papel[] = ['ADMINISTRADOR', 'MAGISTRADO', 'SERVIDOR']
 
@@ -38,6 +44,9 @@ export function Usuarios() {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao carregar os usuários.')
     }
   }, [])
+
+  // Ao terminar, a lista é recarregada: é ali que a pessoa confere o resultado.
+  const atualizacao = useAtualizacaoDaBase(carregar)
 
   useEffect(() => {
     void carregar()
@@ -92,6 +101,7 @@ export function Usuarios() {
           </p>
         </div>
         <div className="acoes">
+          <BotaoAtualizarBase atualizacao={atualizacao} />
           <button
             type="button"
             className="botao botao-neutro"
@@ -106,6 +116,9 @@ export function Usuarios() {
           </button>
         </div>
       </header>
+
+      <PainelAtualizacaoDaBase atualizacao={atualizacao} />
+      <ModalAtualizacaoDaBase atualizacao={atualizacao} />
 
       {erro && (
         <div style={{ marginBottom: 'var(--e4)' }}>
@@ -274,6 +287,7 @@ export function Usuarios() {
 
       {promovendo && (
         <ModalPromocao
+          usuarios={usuarios ?? []}
           aoFechar={() => setPromovendo(false)}
           aoPromover={async (nome) => {
             setPromovendo(false)
@@ -486,16 +500,45 @@ function ModalUsuario({
   )
 }
 
+/** Sem acento e sem caixa: o RH grava em maiúsculas, e ninguém digita "JOÃO". */
+function semAcento(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+/** Quantas sugestões mostrar de uma vez: a lista cresce com a base inteira. */
+const SUGESTOES_MAXIMAS = 8
+
 function ModalPromocao({
+  usuarios,
   aoFechar,
   aoPromover,
 }: {
+  usuarios: Usuario[]
   aoFechar: () => void
   aoPromover: (nome: string) => Promise<void>
 }) {
   const [email, setEmail] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+
+  /*
+   * Sugestões enquanto digita, pelo nome ou pelo e-mail. Saem da lista que a
+   * tela já carregou — sem ir ao servidor a cada tecla. Só aparecem quem pode
+   * ser promovido: ativo e ainda não superadministrador; oferecer os outros
+   * seria sugerir algo que o servidor vai recusar.
+   */
+  const termo = semAcento(email.trim())
+  const escolhido = usuarios.find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
+  const sugestoes =
+    termo.length < 2 || escolhido
+      ? []
+      : usuarios
+          .filter((u) => u.ativo && !u.papeis.includes('SUPERADMIN'))
+          .filter((u) => semAcento(u.nome).includes(termo) || u.email.toLowerCase().includes(termo))
+          .slice(0, SUGESTOES_MAXIMAS)
 
   async function promover() {
     setSalvando(true)
@@ -512,7 +555,7 @@ function ModalPromocao({
   return (
     <Modal
       titulo="Promover a superadministrador"
-      descricao="Informe o e-mail de quem já está cadastrado. Superadministradores podem cadastrar usuários e promover outros."
+      descricao="Escolha quem já está cadastrado. Superadministradores podem cadastrar usuários e promover outros."
       aoFechar={aoFechar}
       rodape={
         <>
@@ -534,17 +577,48 @@ function ModalPromocao({
       {erro && <Aviso tom="erro">{erro}</Aviso>}
 
       <div className="campo">
-        <label htmlFor="email-promocao">E-mail do usuário</label>
+        <label htmlFor="email-promocao">Usuário</label>
         <input
           id="email-promocao"
-          type="email"
           value={email}
+          autoComplete="off"
+          placeholder="Comece a digitar o nome ou o e-mail…"
           onChange={(evento) => setEmail(evento.target.value)}
         />
         <span className="campo-dica">
-          Quem ainda não tem cadastro precisa ser criado primeiro — promover concede um papel a
-          alguém que já existe.
+          {escolhido
+            ? `${escolhido.nome}${escolhido.papeis.includes('SUPERADMIN') ? ' já é superadministrador.' : ''}`
+            : 'Quem ainda não tem cadastro precisa ser criado primeiro — promover concede um papel a alguém que já existe.'}
         </span>
+
+        {sugestoes.length > 0 && (
+          <div className="lista-usuarios" role="listbox" aria-label="Sugestões">
+            {sugestoes.map((usuario) => (
+              <button
+                key={usuario.id}
+                type="button"
+                role="option"
+                aria-selected={false}
+                className="usuario-opcao"
+                onClick={() => setEmail(usuario.email)}
+              >
+                <span>
+                  <span className="principal">{usuario.nome}</span>
+                  <br />
+                  <span className="secundaria">{usuario.email}</span>
+                </span>
+                <Icone nome="seta" tamanho={16} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {termo.length >= 2 && !escolhido && sugestoes.length === 0 && (
+          <p className="apoio">
+            Ninguém que possa ser promovido com esse nome ou e-mail. Quem já é superadministrador
+            ou está desativado não aparece.
+          </p>
+        )}
       </div>
     </Modal>
   )

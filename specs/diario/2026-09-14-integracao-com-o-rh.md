@@ -215,3 +215,45 @@ que continua sendo a lista datada de uma edição (princípio 3b).
 
 **O parsing de CSV virou um `LeitorCsv` compartilhado.** Separador, BOM e aspas
 eram os mesmos nas duas planilhas; só o significado das colunas difere.
+
+## Atualização da base de usuários, e a auditoria das edições (2026-09-16)
+
+**Atualizar base de usuários**, na tela de Usuários do sistema, com duas opções:
+**TJGO** (a estrutura sob `600000009`, administrativa) e **Base completa do RH**
+(o organograma inteiro, varas incluídas). Cada lotado de cada unidade vira
+usuário, com nome, CPF, matrícula, login de rede e lotação do RH.
+
+- **Roda em segundo plano, e não na requisição.** Uma chamada por unidade, outra
+  por pessoa, mais uma no AD para quem o RH não tem e-mail, a 6/s: o TJGO leva
+  minutos e a base completa dezenas de minutos. A tela dispara e depois pergunta
+  como está, a cada 3 s. Quem sai e volta reencontra o progresso, porque ele vem
+  do servidor.
+- **Uma de cada vez**, numa thread própria — duas dividiriam a cota do RH, e o
+  pool das tarefas de login não pode esperar meia hora na fila.
+- **Cada unidade é independente.** A consulta ao RH fica fora de transação (numa
+  unidade grande ela leva dezenas de segundos, e segurar a conexão esgotaria o
+  pool); a gravação de cada unidade tem transação própria. Unidade que falhe
+  entra na contagem e a varredura segue.
+- **Não mexe em papel.** Novo entra como servidor; quem existe continua com os
+  papéis que tinha. E ninguém é habilitado a emitir por aqui.
+- **Pessoa em duas unidades fica na primeira**, na ordem do organograma. Lotação
+  é um campo só, e "a última varrida" mudaria a cada rodada. Apareceu no teste: o
+  RH de teste tem uma servidora lotada em duas varas.
+- **Limite conhecido:** o estado fica em memória. Pod reiniciado no meio perde o
+  progresso da tela, não o que foi gravado — e rodar de novo é seguro, porque
+  gravar a mesma pessoa só atualiza. Com mais de uma réplica, o acompanhamento
+  precisaria ir para o banco.
+
+**Auditoria de Edições do prêmio**, pedida junto. Três problemas encontrados,
+cada um com teste que falhava antes da correção:
+
+1. A lista de unidades do reconhecimento vinha do RH ao vivo e, quando ele
+   falhava, aparecia **vazia e sem aviso**. Agora vem das unidades cadastradas.
+2. Unidade criada pelo nome no reconhecimento **nascia sem código do SIEDOS**,
+   embora o RH o devolva na mesma consulta — e ficava fora de tudo que é por
+   código.
+3. Semear servidores **procurava a unidade pelo nome** mesmo tendo o código; com
+   o nome divergente, trazia a lotação de outra unidade.
+
+E a busca do magistrado passou a procurar **no sistema e no RH**: quem entrou por
+planilha não aparecia, e a busca dizia "ninguém" sobre alguém cadastrado.

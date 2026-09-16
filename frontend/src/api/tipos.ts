@@ -141,6 +141,30 @@ export interface ArtesPadraoAplicadas {
   jaExistentes: number
 }
 
+export type EscopoDaAtualizacao = 'TJGO' | 'COMPLETA'
+
+/**
+ * Retrato da atualização da base de usuários pelo RH, que roda em segundo plano.
+ * A tela dispara e depois só pergunta como está.
+ */
+export interface SituacaoDaAtualizacao {
+  estado: 'NUNCA_EXECUTADA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'FALHOU'
+  escopo: EscopoDaAtualizacao | null
+  unidadesTotal: number
+  unidadesProcessadas: number
+  /** A que está sendo varrida agora: o sinal de vida de uma operação longa. */
+  unidadeAtual: string | null
+  pessoas: number
+  criados: number
+  atualizados: number
+  /** Ficaram de fora: sem e-mail no RH nem no AD, o login não as reconheceria. */
+  semEmail: number
+  unidadesComFalha: number
+  iniciadaEm: string | null
+  terminadaEm: string | null
+  mensagem: string | null
+}
+
 /** Unidade cadastrada, só com o que um formulário precisa para oferecê-la. */
 export interface UnidadeCadastrada {
   id: number

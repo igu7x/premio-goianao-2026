@@ -338,7 +338,7 @@ public class SincronizacaoService {
         edicoes.buscar(edicaoId);
 
         List<ServidorEgesp> doRh = lotacaoResolvida(unidade);
-        LotacaoAplicada cadastro = cadastrarComoUsuarios(doRh, unidade);
+        LotacaoAplicada cadastro = cadastrarComoUsuarios(doRh, unidade.getNome());
         SemeaduraResposta lista = servicoDeHabilitados.semearCom(edicaoId, unidadeId, doRh);
 
         return new ImportacaoDaUnidade(doRh.size(), cadastro.criados(), cadastro.atualizados(),
@@ -388,7 +388,7 @@ public class SincronizacaoService {
     @Transactional
     public LotacaoAplicada cadastrarLotados(Long unidadeId) {
         UnidadeJudiciaria unidade = unidadeComCodigo(unidadeId);
-        return cadastrarComoUsuarios(lotacaoResolvida(unidade), unidade);
+        return cadastrarComoUsuarios(lotacaoResolvida(unidade), unidade.getNome());
     }
 
     /**
@@ -412,6 +412,23 @@ public class SincronizacaoService {
     }
 
     /**
+     * Grava como usuarios as pessoas ja consultadas no RH, numa transacao so
+     * delas.
+     *
+     * <p>A consulta ao RH fica de fora de proposito: numa unidade grande ela leva
+     * dezenas de segundos no ritmo de seis chamadas por segundo, e segurar uma
+     * conexao do banco esse tempo todo, para cada unidade do tribunal, esgotaria
+     * o pool. Aqui entra so a escrita, que e rapida.
+     *
+     * <p>Transacao propria porque quem chama e a atualizacao da base inteira:
+     * uma unidade que falhe nao desfaz as que ja entraram.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public LotacaoAplicada gravarLotados(List<ServidorEgesp> doRh, String nomeDaLotacao) {
+        return cadastrarComoUsuarios(doRh, nomeDaLotacao);
+    }
+
+    /**
      * Cria quem falta e atualiza quem ja existe, sempre com a lotacao da unidade.
      *
      * <p>Nao mexe no papel de quem ja esta cadastrado: o RH sabe onde a pessoa
@@ -419,7 +436,7 @@ public class SincronizacaoService {
      * servidor perderia acesso sem que ninguem tivesse pedido.
      */
     private LotacaoAplicada cadastrarComoUsuarios(List<ServidorEgesp> doRh,
-                                                  UnidadeJudiciaria unidade) {
+                                                  String nomeDaLotacao) {
         int criados = 0;
         int atualizados = 0;
         int semEmail = 0;
@@ -437,12 +454,12 @@ public class SincronizacaoService {
             if (jaCadastrado.isEmpty()) {
                 Usuario novo = new Usuario(email, nome, cpf, EnumSet.of(Papel.SERVIDOR));
                 novo.atualizarPeloRh(nome, cpf, servidor.matricula(), loginDe(email),
-                        unidade.getNome());
+                        nomeDaLotacao);
                 usuarios.save(novo);
                 criados++;
             } else {
                 jaCadastrado.get().atualizarPeloRh(nome, cpf, servidor.matricula(),
-                        loginDe(email), unidade.getNome());
+                        loginDe(email), nomeDaLotacao);
                 atualizados++;
             }
         }

@@ -28,23 +28,27 @@ class BuscaDePessoasIT extends TesteDeIntegracao {
     @Test
     @DisplayName("encontra quem so existe no sistema, sem acento e sem caixa")
     void encontraQuemSoEstaNoSistema() throws Exception {
-        usuarios.save(new Usuario("ana.rebelo@tjgo.example", "Ana Cristina Marques Rebélo", null,
+        usuarios.save(new Usuario("rebelo.so.no.sistema@tjgo.example", "Ana Cristina Marques Rebélo", null,
                 Set.of(Papel.MAGISTRADO)));
 
         mvc.perform(get("/api/pessoas").param("termo", "rebelo")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pessoas[0].origem").value("SISTEMA"))
-                .andExpect(jsonPath("$.pessoas[0].email").value("ana.rebelo@tjgo.example"))
+                .andExpect(jsonPath("$.pessoas[0].email").value("rebelo.so.no.sistema@tjgo.example"))
                 .andExpect(jsonPath("$.pessoas[0].temEmail").value(true));
     }
 
     @Test
     @DisplayName("junta os do RH, e quem esta nos dois aparece uma vez so, como do sistema")
     void juntaSemRepetir() throws Exception {
-        // "Marcos Vinícius de Paula" existe no RH mockado com este e-mail.
-        usuarios.save(new Usuario("marcos.paula@tjgo.example", "Marcos Vinícius de Paula", null,
-                Set.of(Papel.SERVIDOR)));
+        // "Marcos Vinícius de Paula" existe no RH mockado com este e-mail. Outro
+        // teste — a atualizacao da base — pode ja te-lo criado: e-mail e unico, e
+        // o cenario precisa valer em qualquer ordem da suite.
+        if (usuarios.findByEmailIgnoreCase("marcos.paula@tjgo.example").isEmpty()) {
+            usuarios.save(new Usuario("marcos.paula@tjgo.example", "Marcos Vinícius de Paula",
+                    null, Set.of(Papel.SERVIDOR)));
+        }
 
         mvc.perform(get("/api/pessoas").param("termo", "marcos")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
