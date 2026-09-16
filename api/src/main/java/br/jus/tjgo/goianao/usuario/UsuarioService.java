@@ -5,10 +5,15 @@ import br.jus.tjgo.goianao.comum.Email;
 import br.jus.tjgo.goianao.comum.erro.ConflitoException;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
+import br.jus.tjgo.goianao.certificado.CertificadoEmitidoRepository;
+import br.jus.tjgo.goianao.magistrado.MagistradoRepository;
 import br.jus.tjgo.goianao.seguranca.Papel;
 import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
+import br.jus.tjgo.goianao.servidor.ServidorHabilitadoRepository;
+import br.jus.tjgo.goianao.unidade.UnidadeRepository;
 import br.jus.tjgo.goianao.usuario.dto.AtualizarUsuarioRequisicao;
 import br.jus.tjgo.goianao.usuario.dto.UsuarioRequisicao;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,10 +27,22 @@ public class UsuarioService {
 
     private final UsuarioRepository repositorio;
     private final PasswordEncoder encoder;
+    private final CertificadoEmitidoRepository certificados;
+    private final MagistradoRepository reconhecidos;
+    private final ServidorHabilitadoRepository habilitados;
+    private final UnidadeRepository unidades;
 
-    public UsuarioService(UsuarioRepository repositorio, PasswordEncoder encoder) {
+    public UsuarioService(UsuarioRepository repositorio, PasswordEncoder encoder,
+                          CertificadoEmitidoRepository certificados,
+                          MagistradoRepository reconhecidos,
+                          ServidorHabilitadoRepository habilitados,
+                          UnidadeRepository unidades) {
         this.repositorio = repositorio;
         this.encoder = encoder;
+        this.certificados = certificados;
+        this.reconhecidos = reconhecidos;
+        this.habilitados = habilitados;
+        this.unidades = unidades;
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +81,48 @@ public class UsuarioService {
             usuario.definirSenhaHash(encoder.encode(dados.senha()));
         }
         return usuario;
+    }
+
+    /**
+     * Apaga o usuario de verdade — quando ainda nao ha nada preso a ele.
+     *
+     * <p>A exclusao existe porque o cadastro nasce de cargas em lote: planilha
+     * com e-mail errado e importacao de unidade inteira criam gente que nunca
+     * deveria ter entrado, e desativar deixaria a lista cheia de fantasmas.
+     *
+     * <p>Mas e-mail e a chave de tudo que a pessoa fez (DI-24): apagar quem ja
+     * emitiu certificado deixaria um documento em circulacao sem dono, e quem
+     * esta em lista de habilitados ou foi reconhecido sumiria de uma edicao ja
+     * fechada. Nesses casos a exclusao e recusada com o motivo, e o caminho
+     * continua sendo desativar, que tira o acesso e preserva o historico.
+     */
+    @Transactional
+    public void excluir(Long id) {
+        Usuario usuario = buscar(id);
+        exigirQueNaoSejaEuMesmo(usuario);
+        exigirQueSobreSuperadmin(usuario, Set.of());
+
+        List<String> vinculos = new ArrayList<>();
+        if (certificados.existsByEmailEmissor(usuario.getEmail())) {
+            vinculos.add("já emitiu certificado");
+        }
+        if (reconhecidos.existsByEmail(usuario.getEmail())) {
+            vinculos.add("está cadastrado como magistrado reconhecido em alguma edição");
+        }
+        if (habilitados.existsByEmail(usuario.getEmail())) {
+            vinculos.add("está em alguma lista de servidores habilitados");
+        }
+        if (unidades.existsByResponsavelEmail(usuario.getEmail())) {
+            vinculos.add("responde por alguma unidade");
+        }
+
+        if (!vinculos.isEmpty()) {
+            throw new ConflitoException(usuario.getNome() + " não pode ser excluído porque "
+                    + String.join(", ", vinculos) + ". Desative o acesso: a pessoa deixa de "
+                    + "entrar e o histórico do que já foi feito continua de pé.");
+        }
+
+        repositorio.delete(usuario);
     }
 
     public Usuario alternarAtivacao(Long id, boolean ativo) {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ErroApi } from '../api/cliente'
-import type { Papel, Usuario } from '../api/tipos'
+import type { Papel, Unidade, Usuario } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio, Modal, formatarData } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
@@ -26,6 +26,8 @@ export function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [editando, setEditando] = useState<Usuario | 'novo' | null>(null)
+  /** Confirmação da exclusão: apagar cadastro é ação sem volta. */
+  const [excluindo, setExcluindo] = useState<Usuario | null>(null)
   const [promovendo, setPromovendo] = useState(false)
   const avisos = useAvisos()
 
@@ -40,6 +42,26 @@ export function Usuarios() {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  /**
+   * Exclusão de verdade, com a desativação como saída.
+   *
+   * O cadastro nasce de cargas em lote — planilha com e-mail errado, importação
+   * de unidade inteira —, e desativar deixaria a lista cheia de fantasmas. Mas
+   * quem já emitiu, foi reconhecido ou está numa lista não pode sumir: aí o
+   * servidor recusa com o motivo, e a tela oferece desativar.
+   */
+  async function excluir(usuario: Usuario) {
+    setErro(null)
+    setExcluindo(null)
+    try {
+      await api.remover(`/api/usuarios/${usuario.id}`)
+      avisos.sucesso(`${usuario.nome} foi excluído`, 'O cadastro dele deixou de existir.')
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao excluir o usuário.')
+    }
+  }
 
   async function alternar(usuario: Usuario) {
     setErro(null)
@@ -132,9 +154,6 @@ export function Usuarios() {
                     </td>
                     <td className="secundaria">
                       {usuario.unidadeLotacao ?? '—'}
-                      {usuario.areaAtuacao && (
-                        <div className="secundaria">área: {usuario.areaAtuacao}</div>
-                      )}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -164,16 +183,21 @@ export function Usuarios() {
                         >
                           Editar
                         </button>
+                        {!usuario.ativo && (
+                          <button
+                            type="button"
+                            className="botao botao-neutro botao-pequeno"
+                            onClick={() => void alternar(usuario)}
+                          >
+                            Reativar
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className={
-                            usuario.ativo
-                              ? 'botao botao-perigo botao-pequeno'
-                              : 'botao botao-neutro botao-pequeno'
-                          }
-                          onClick={() => void alternar(usuario)}
+                          className="botao botao-perigo botao-pequeno"
+                          onClick={() => setExcluindo(usuario)}
                         >
-                          {usuario.ativo ? 'Desativar' : 'Reativar'}
+                          Excluir
                         </button>
                       </div>
                     </td>
@@ -183,11 +207,58 @@ export function Usuarios() {
             </table>
           </div>
           <div className="bloco-rodape">
-            Desativar tira o acesso na hora e preserva o histórico — nada do que a pessoa fez é
-            apagado. Quando a integração com o EGESP entrar, este cadastro passa a ser alimentado
-            por ela.
+            Excluir apaga o cadastro. Quem já emitiu certificado, foi reconhecido ou está em
+            alguma lista de habilitados não pode ser apagado — nesse caso a tela oferece desativar,
+            que tira o acesso na hora e preserva o histórico.
           </div>
         </div>
+      )}
+
+      {excluindo && (
+        <Modal
+          titulo={`Excluir ${excluindo.nome}?`}
+          descricao={excluindo.email}
+          aoFechar={() => setExcluindo(null)}
+          rodape={
+            <>
+              <button
+                type="button"
+                className="botao botao-neutro"
+                onClick={() => setExcluindo(null)}
+              >
+                Cancelar
+              </button>
+              {excluindo.ativo && (
+                <button
+                  type="button"
+                  className="botao botao-neutro"
+                  onClick={() => {
+                    const alvo = excluindo
+                    setExcluindo(null)
+                    void alternar(alvo)
+                  }}
+                >
+                  Só desativar
+                </button>
+              )}
+              <button
+                type="button"
+                className="botao botao-perigo"
+                onClick={() => void excluir(excluindo)}
+              >
+                Excluir
+              </button>
+            </>
+          }
+        >
+          <Aviso tom="atencao" titulo="Apagar o cadastro não tem volta">
+            <p>
+              Se esta pessoa já emitiu certificado, foi reconhecida numa edição ou está em alguma
+              lista de habilitados, a exclusão é recusada — e a mensagem diz qual é o vínculo.
+              Nesses casos o caminho é desativar, que tira o acesso na hora e preserva o histórico.
+            </p>
+          </Aviso>
+        </Modal>
       )}
 
       {editando && (
@@ -228,7 +299,8 @@ function ModalUsuario({
   const [nome, setNome] = useState(usuario?.nome ?? '')
   const [cpf, setCpf] = useState('')
   const [unidade, setUnidade] = useState(usuario?.unidadeLotacao ?? '')
-  const [area, setArea] = useState(usuario?.areaAtuacao ?? '')
+  /** As unidades cadastradas, para escolher a lotação em vez de digitá-la. */
+  const [unidades, setUnidades] = useState<Unidade[] | null>(null)
   const [papeis, setPapeis] = useState<Papel[]>(
     usuario?.papeis.filter((p) => p !== 'SUPERADMIN') ?? ['SERVIDOR'],
   )
@@ -236,7 +308,18 @@ function ModalUsuario({
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
-  const ehMagistrado = papeis.includes('MAGISTRADO')
+  useEffect(() => {
+    let ativo = true
+    api
+      .get<Unidade[]>('/api/unidades')
+      .then((lista) => ativo && setUnidades(lista))
+      // A lista é conveniência: sem ela o campo continua aceitando o texto
+      // digitado, e o cadastro não fica bloqueado por causa dela.
+      .catch(() => ativo && setUnidades([]))
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   function alternarPapel(papel: Papel) {
     setPapeis((atual) =>
@@ -255,7 +338,6 @@ function ModalUsuario({
       nome,
       cpf: cpf || null,
       unidadeLotacao: unidade || null,
-      areaAtuacao: ehMagistrado ? area || null : null,
       papeis,
       senha: senha || null,
     }
@@ -336,13 +418,33 @@ function ModalUsuario({
         </span>
       </div>
 
+      {/* Escolhida na lista, e não digitada: a lotação casa com a unidade pelo
+          nome, e um acento a mais deixaria a pessoa lotada em lugar nenhum. */}
       <div className="campo">
         <label htmlFor="unidade">Unidade de lotação</label>
         <input
           id="unidade"
+          list="unidades-cadastradas"
+          placeholder={
+            unidades === null
+              ? 'Carregando as unidades…'
+              : unidades.length === 0
+                ? 'Nenhuma unidade cadastrada ainda'
+                : 'Comece a digitar o nome da unidade…'
+          }
           value={unidade}
           onChange={(evento) => setUnidade(evento.target.value)}
         />
+        <datalist id="unidades-cadastradas">
+          {(unidades ?? []).map((u) => (
+            <option key={u.id} value={u.nome} />
+          ))}
+        </datalist>
+        <span className="campo-dica">
+          {unidades !== null && unidades.length > 0
+            ? `${unidades.length} unidade(s) cadastrada(s). Faltando alguma, cadastre-a em Sincronização de Unidades.`
+            : 'As unidades vêm do cadastro; cadastre-as em Sincronização de Unidades.'}
+        </span>
       </div>
 
       <div className="campo">
@@ -364,19 +466,6 @@ function ModalUsuario({
           contexto.
         </span>
       </div>
-
-      {/* Só aparece para magistrado, porque só ali significa alguma coisa. */}
-      {ehMagistrado && (
-        <div className="campo">
-          <label htmlFor="area">Área de atuação</label>
-          <input
-            id="area"
-            placeholder="Cível, Criminal, Família…"
-            value={area}
-            onChange={(evento) => setArea(evento.target.value)}
-          />
-        </div>
-      )}
 
       <div className="campo">
         <label htmlFor="senha-usuario">{usuario ? 'Nova senha (opcional)' : 'Senha'}</label>

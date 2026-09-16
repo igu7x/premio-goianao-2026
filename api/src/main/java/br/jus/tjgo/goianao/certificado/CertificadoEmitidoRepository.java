@@ -17,6 +17,9 @@ public interface CertificadoEmitidoRepository extends JpaRepository<CertificadoE
 
     List<CertificadoEmitido> findByEmailEmissorOrderByEmitidoEmDesc(String emailEmissor);
 
+    /** Guarda da exclusao de usuario: documento em circulacao nao pode ficar orfao. */
+    boolean existsByEmailEmissor(String emailEmissor);
+
     List<CertificadoEmitido> findByEdicaoIdOrderByEmitidoEmDesc(Long edicaoId);
 
     long countByEdicaoId(Long edicaoId);

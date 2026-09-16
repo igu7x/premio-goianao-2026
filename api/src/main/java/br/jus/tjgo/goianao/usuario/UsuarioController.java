@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -47,6 +48,16 @@ public class UsuarioController {
     public UsuarioResposta atualizar(@PathVariable Long id,
                                      @Valid @RequestBody AtualizarUsuarioRequisicao dados) {
         return UsuarioResposta.de(servico.atualizar(id, dados));
+    }
+
+    /**
+     * Apaga o usuario, quando nada esta preso a ele. Havendo historico, a
+     * resposta e 409 com o motivo — e o caminho passa a ser a desativacao.
+     */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluir(@PathVariable Long id) {
+        servico.excluir(id);
     }
 
     @PutMapping("/{id}/ativacao")

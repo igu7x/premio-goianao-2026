@@ -16,6 +16,9 @@ public interface ServidorHabilitadoRepository extends JpaRepository<ServidorHabi
     Optional<ServidorHabilitado> findByIdAndEdicaoIdAndUnidadeId(
             Long id, Long edicaoId, Long unidadeId);
 
+    /** Guarda da exclusao de usuario: quem esta em lista de habilitados fica. */
+    boolean existsByEmail(String email);
+
     boolean existsByEdicaoIdAndUnidadeIdAndEmailAndAtivoTrue(
             Long edicaoId, Long unidadeId, String email);
 

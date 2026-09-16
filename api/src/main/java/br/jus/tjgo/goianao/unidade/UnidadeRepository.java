@@ -37,4 +37,6 @@ public interface UnidadeRepository extends JpaRepository<UnidadeJudiciaria, Long
     boolean existsByIdAndResponsavelEmail(Long id, String email);
 
     List<UnidadeJudiciaria> findByResponsavelEmailOrderByNomeAsc(String email);
+
+    boolean existsByResponsavelEmail(String email);
 }

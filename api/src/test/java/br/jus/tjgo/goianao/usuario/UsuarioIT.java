@@ -14,6 +14,8 @@ import br.jus.tjgo.goianao.usuario.dto.UsuarioRequisicao;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
+import br.jus.tjgo.goianao.unidade.UnidadeRepository;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ class UsuarioIT extends TesteDeIntegracao {
     private static final String CPF_NOVO = "20450670252";
 
     @Autowired private UsuarioRepository usuarios;
+    @Autowired private UnidadeRepository unidades;
     @Autowired private org.springframework.security.crypto.password.PasswordEncoder encoder;
 
     /** Superadmin de teste, identificado pelo e-mail com que entra. */
@@ -256,5 +259,53 @@ class UsuarioIT extends TesteDeIntegracao {
                         .header(HttpHeaders.AUTHORIZATION, bearer("super7@tjgo.jus.br")))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.mensagem", Matchers.containsString("único superadministrador")));
+    }
+    @Test
+    @DisplayName("exclui de verdade quem ainda nao tem nada preso a ele")
+    void excluiSemVinculo() throws Exception {
+        darSuperadminAo("super8@tjgo.jus.br", "uma-senha-boa");
+        Usuario descartavel = usuarios.save(new Usuario("erro.na.planilha@tjgo.example",
+                "Entrou Por Engano", null, Set.of(Papel.SERVIDOR)));
+
+        mvc.perform(delete("/api/usuarios/" + descartavel.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer("super8@tjgo.jus.br")))
+                .andExpect(status().isNoContent());
+
+        org.assertj.core.api.Assertions.assertThat(usuarios.findById(descartavel.getId()))
+                .as("planilha com e-mail errado precisa poder ser desfeita")
+                .isEmpty();
+    }
+
+    /**
+     * O e-mail e a chave de tudo que a pessoa fez (DI-24): apagar quem responde
+     * por uma unidade deixaria a designacao apontando para ninguem.
+     */
+    @Test
+    @DisplayName("quem responde por unidade nao e excluido, e a mensagem diz o motivo")
+    void naoExcluiComVinculo() throws Exception {
+        darSuperadminAo("super9@tjgo.jus.br", "uma-senha-boa");
+        Usuario responsavel = usuarios.save(new Usuario("responde@tjgo.example",
+                "Responde Pela Vara", null, Set.of(Papel.MAGISTRADO)));
+        UnidadeJudiciaria unidade = unidade(UNIDADE_A);
+        unidade.designarResponsavel(responsavel);
+        unidades.saveAndFlush(unidade);
+
+        mvc.perform(delete("/api/usuarios/" + responsavel.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer("super9@tjgo.jus.br")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.mensagem", Matchers.containsString("responde por alguma unidade")));
+
+        org.assertj.core.api.Assertions.assertThat(usuarios.findById(responsavel.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("ninguem exclui a si mesmo")
+    void naoExcluiASiMesmo() throws Exception {
+        darSuperadminAo("super10@tjgo.jus.br", "uma-senha-boa");
+        Long id = usuarios.findByEmailIgnoreCase("super10@tjgo.jus.br").orElseThrow().getId();
+
+        mvc.perform(delete("/api/usuarios/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, bearer("super10@tjgo.jus.br")))
+                .andExpect(status().isUnprocessableEntity());
     }
 }
