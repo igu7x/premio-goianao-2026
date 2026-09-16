@@ -130,8 +130,11 @@ public class ImportacaoResponsaveisService {
             Usuario usuario = usuarios.findByEmailIgnoreCase(normalizado).orElse(null);
 
             if (usuario == null) {
-                usuario = usuarios.save(
-                        new Usuario(normalizado, nome, null, EnumSet.of(Papel.MAGISTRADO)));
+                usuario = new Usuario(normalizado, nome, null, EnumSet.of(Papel.MAGISTRADO));
+                // Quem responde pela unidade esta lotado nela; sem isto o
+                // magistrado criado pela planilha aparecia sem lotacao nenhuma.
+                usuario.definirLotacao(unidade.getNome(), null);
+                usuario = usuarios.save(usuario);
                 criados++;
             } else if (!usuario.isAtivo()) {
                 // Reativar por causa de uma planilha seria devolver acesso que
@@ -145,6 +148,13 @@ public class ImportacaoResponsaveisService {
                 // tela no meio da importacao.
                 usuario.concederPapel(Papel.MAGISTRADO);
                 papelConcedido++;
+            }
+
+            // Quem ja existia sem lotacao passa a estar lotado na unidade. Quem ja
+            // tinha uma fica com ela: a do RH e mais fiel que a planilha, e um
+            // magistrado pode responder por mais de uma unidade.
+            if (usuario.getUnidadeLotacao() == null || usuario.getUnidadeLotacao().isBlank()) {
+                usuario.definirLotacao(unidade.getNome(), usuario.getAreaAtuacao());
             }
 
             try {

@@ -4,10 +4,11 @@ import type {
   Edicao,
   Magistrado,
   PessoaDoRh,
+  ResultadoDaBusca,
   RelatorioImportacao,
   Selo,
   SituacaoDoRh,
-  UnidadeEgesp,
+  UnidadeCadastrada,
 } from '../../api/tipos'
 import { Aviso, Carregando, EstadoVazio, Modal } from '../../componentes/Basicos'
 import { Icone } from '../../componentes/Icone'
@@ -237,12 +238,18 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Selecao de unidade a partir do EGESP                                */
+/* Selecao de unidade entre as cadastradas                             */
 /* ------------------------------------------------------------------ */
 
 /**
- * A unidade nunca e digitada livremente (004/RF-1): o administrador escolhe da
- * lista do EGESP e o nome vai para o banco exatamente como veio de la.
+ * A unidade nunca e digitada livremente (004/RF-1): o administrador escolhe
+ * entre as unidades cadastradas, e o nome vai para o banco exatamente como esta
+ * no cadastro.
+ *
+ * Antes a lista vinha do RH ao vivo. Quando a API corporativa falhava, o campo
+ * aparecia vazio e sem aviso — e o administrador nao tinha como saber que o
+ * problema nao era dele. As unidades entram no sistema pela sincronizacao, com
+ * codigo; e dali que a escolha deve sair.
  */
 function SeletorDeUnidade({
   valor,
@@ -251,28 +258,55 @@ function SeletorDeUnidade({
   valor: string
   aoEscolher: (nome: string) => void
 }) {
-  const [unidades, setUnidades] = useState<UnidadeEgesp[] | null>(null)
+  const [unidades, setUnidades] = useState<UnidadeCadastrada[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
   const id = useId()
 
   useEffect(() => {
+    let ativo = true
     api
-      .get<UnidadeEgesp[]>('/api/unidades/egesp')
-      .then(setUnidades)
-      .catch(() => setUnidades([]))
+      .get<UnidadeCadastrada[]>('/api/unidades/cadastradas')
+      .then((lista) => ativo && setUnidades(lista))
+      .catch((e: unknown) => {
+        if (!ativo) return
+        setUnidades([])
+        setErro(e instanceof ErroApi ? e.message : 'Falha ao carregar as unidades.')
+      })
+    return () => {
+      ativo = false
+    }
   }, [])
 
   return (
     <div className="campo">
       <label htmlFor={id}>Unidade judiciária</label>
-      <select id={id} value={valor} onChange={(evento) => aoEscolher(evento.target.value)}>
-        <option value="">Selecione a unidade…</option>
+      <select
+        id={id}
+        value={valor}
+        disabled={unidades === null}
+        onChange={(evento) => aoEscolher(evento.target.value)}
+      >
+        <option value="">
+          {unidades === null
+            ? 'Carregando as unidades…'
+            : unidades.length === 0
+              ? 'Nenhuma unidade cadastrada'
+              : 'Selecione a unidade…'}
+        </option>
         {unidades?.map((unidade) => (
-          <option key={unidade.nome} value={unidade.nome}>
+          <option key={unidade.id} value={unidade.nome}>
             {unidade.nome}
+            {unidade.codigoSiedos !== null ? ` — ${unidade.codigoSiedos}` : ''}
           </option>
         ))}
       </select>
-      <span className="campo-dica">Lista oficial do EGESP; o nome é salvo exatamente como vem de lá.</span>
+      <span className="campo-dica">
+        {erro
+          ? erro
+          : unidades !== null && unidades.length === 0
+            ? 'Cadastre as unidades em Sincronização de Unidades antes de reconhecer alguém.'
+            : 'Unidades cadastradas no sistema; o nome é salvo exatamente como está no cadastro.'}
+      </span>
     </div>
   )
 }
@@ -307,6 +341,7 @@ function BuscaDePessoa({
 }) {
   const [termo, setTermo] = useState('')
   const [resultados, setResultados] = useState<PessoaDoRh[] | null>(null)
+  const [rhRespondeu, setRhRespondeu] = useState(true)
   const [buscando, setBuscando] = useState(false)
 
   useEffect(() => {
@@ -320,11 +355,14 @@ function BuscaDePessoa({
     let ativo = true
     setBuscando(true)
     const relogio = setTimeout(() => {
+      // No sistema e no RH: quem entrou por planilha pode não estar no RH do
+      // jeito que foi escrito, e a busca dizia "ninguém" sobre quem já existe.
       api
-        .get<PessoaDoRh[]>(`/api/rh/pessoas?termo=${encodeURIComponent(alvo)}`)
-        .then((lista) => {
+        .get<ResultadoDaBusca>(`/api/pessoas?termo=${encodeURIComponent(alvo)}`)
+        .then((resultado) => {
           if (!ativo) return
-          setResultados(lista)
+          setResultados(resultado.pessoas)
+          setRhRespondeu(resultado.rhRespondeu)
           setBuscando(false)
         })
         .catch((e) => {
@@ -347,19 +385,26 @@ function BuscaDePessoa({
         id="busca-rh"
         value={termo}
         autoComplete="off"
-        placeholder="Parte do nome, como consta no RH"
+        placeholder="Parte do nome ou do e-mail"
         onChange={(evento) => setTermo(evento.target.value)}
       />
       <span className="campo-dica">
-        Escolher da lista do RH garante o e-mail certo — é ele que identifica o magistrado no login
-        e na emissão. A partir de {MINIMO_DO_TERMO} letras.
+        Procura nos usuários já cadastrados e no RH. Escolher da lista garante o e-mail certo — é
+        ele que identifica o magistrado no login e na emissão. A partir de {MINIMO_DO_TERMO} letras.
       </span>
 
-      {buscando && <Carregando texto="Procurando no RH…" />}
+      {buscando && <Carregando texto="Procurando no sistema e no RH…" />}
+
+      {!buscando && !rhRespondeu && (
+        <p className="apoio">
+          O RH não respondeu agora: a lista mostra só quem já está cadastrado no sistema.
+        </p>
+      )}
 
       {!buscando && resultados?.length === 0 && (
         <p className="apoio">
-          Ninguém com esse nome no RH. Tente outro trecho — sobrenome costuma encontrar mais.
+          Ninguém com esse nome no sistema {rhRespondeu ? 'nem no RH' : ''}. Tente outro trecho —
+          sobrenome costuma encontrar mais.
         </p>
       )}
 
@@ -367,17 +412,28 @@ function BuscaDePessoa({
         <div className="lista-usuarios">
           {resultados.map((pessoa) => (
             <button
-              key={pessoa.matricula ?? pessoa.nome}
+              key={`${pessoa.origem}-${pessoa.email ?? pessoa.matricula ?? pessoa.nome}`}
               type="button"
               className="usuario-opcao"
               disabled={ocupado}
               onClick={() => aoEscolher(pessoa)}
             >
               <span>
-                <span className="principal">{pessoa.nome}</span>
+                <span className="principal">{pessoa.nome}</span>{' '}
+                <span
+                  className={
+                    pessoa.origem === 'SISTEMA'
+                      ? 'etiqueta etiqueta-sincronizado'
+                      : 'etiqueta etiqueta-so-na-api'
+                  }
+                >
+                  {pessoa.origem === 'SISTEMA' ? 'no sistema' : 'RH'}
+                </span>
                 <br />
                 <span className="secundaria mono">
-                  matrícula {pessoa.matricula ?? '—'}
+                  {pessoa.origem === 'SISTEMA'
+                    ? pessoa.email
+                    : `matrícula ${pessoa.matricula ?? '—'}`}
                   {pessoa.cpfMascarado ? ` · ${pessoa.cpfMascarado}` : ''}
                 </span>
               </span>
@@ -466,6 +522,14 @@ function ModalMagistrado({
    * e-mail que vai para o banco.
    */
   async function escolher(pessoa: PessoaDoRh) {
+    // Quem já está no sistema tem o e-mail que o login reconhece: não há o que
+    // completar no RH, e consultar por matrícula falharia para quem não tem.
+    if (pessoa.origem === 'SISTEMA') {
+      setEscolhida(pessoa)
+      setEmail(pessoa.email ?? '')
+      setNome(pessoa.nome)
+      return
+    }
     if (pessoa.matricula === null) {
       return
     }

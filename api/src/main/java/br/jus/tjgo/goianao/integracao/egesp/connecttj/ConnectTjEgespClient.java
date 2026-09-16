@@ -255,9 +255,14 @@ public class ConnectTjEgespClient implements EgespClient {
         if (unidade.isEmpty() || unidade.get().codigo() == null) {
             return List.of();
         }
+        return servidoresPorCodigo(unidade.get().codigo());
+    }
 
+    /** Sem passar pelo nome: com o codigo em maos, a busca por nome so arrisca errar. */
+    @Override
+    public List<ServidorEgesp> servidoresPorCodigo(long codigoUnidade) {
         List<ServidorEgesp> servidores = new ArrayList<>();
-        for (LotadoEgesp lotado : lotados(unidade.get().codigo())) {
+        for (LotadoEgesp lotado : lotados(codigoUnidade)) {
             servidorPorMatricula(lotado.matricula())
                     .map(s -> s.email() == null
                             ? new ServidorEgesp(null, lotado.nome(), s.cpf(), lotado.matricula())

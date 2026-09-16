@@ -22,6 +22,20 @@ public interface EgespClient {
     /** Servidores lotados na unidade, identificada pelo nome vindo do RH. */
     List<ServidorEgesp> listarServidoresPorUnidade(String nomeUnidade);
 
+    /**
+     * Servidores lotados na unidade, identificada pelo codigo do SIEDOS, ja com
+     * o e-mail de cada um resolvido.
+     *
+     * <p>E o caminho certo sempre que a unidade tem codigo: procurar pelo nome
+     * custa uma consulta a mais e escolhe a primeira unidade com aquele nome —
+     * que, em nome repetido entre comarcas, pode ser a lotacao de outra.
+     */
+    default List<ServidorEgesp> servidoresPorCodigo(long codigoUnidade) {
+        return unidadePorCodigo(codigoUnidade)
+                .map(unidade -> listarServidoresPorUnidade(unidade.nome()))
+                .orElseGet(List::of);
+    }
+
     /** A unidade e toda a sua arvore de subordinadas. */
     List<UnidadeEgesp> hierarquia(long codigoUnidade);
 

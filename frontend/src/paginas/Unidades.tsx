@@ -179,15 +179,26 @@ export function Unidades() {
               if (escolhido) void enviarPlanilha(escolhido)
             }}
           />
-          <button
-            type="button"
-            className="botao"
-            disabled={enviando}
-            onClick={() => arquivo.current?.click()}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 'var(--e3)',
+              flexWrap: 'wrap',
+            }}
           >
-            {enviando ? <span className="giro" /> : <Icone nome="enviar" tamanho={16} />}
-            {enviando ? 'Importando…' : 'Subir CSV de magistrados'}
-          </button>
+            <span className="apoio">Para cadastrar os magistrados responsáveis pela unidade →</span>
+            <button
+              type="button"
+              className="botao"
+              disabled={enviando}
+              onClick={() => arquivo.current?.click()}
+            >
+              {enviando ? <span className="giro" /> : <Icone nome="enviar" tamanho={16} />}
+              {enviando ? 'Importando…' : 'Subir CSV de magistrados'}
+            </button>
+          </div>
           <div className="acoes acoes-direita" style={{ marginTop: 6 }}>
             <button
               type="button"

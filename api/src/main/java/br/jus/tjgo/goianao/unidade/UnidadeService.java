@@ -135,6 +135,21 @@ public class UnidadeService {
                 .orElseThrow(() -> new RegraDeNegocioException(
                         "Unidade não encontrada no EGESP: \"" + nomeInformado + "\"."));
 
-        return repositorio.save(new UnidadeJudiciaria(doEgesp.nome()));
+        // O codigo vem na mesma resposta, e sem ele a unidade fica fora de tudo
+        // o que e por codigo: a pagina dela, a planilha de responsaveis e a
+        // sincronizacao. E se o codigo ja esta gravado em outra unidade — a
+        // mesma, renomeada no RH —, e ela que vale, e nao uma segunda copia.
+        if (doEgesp.codigo() != null) {
+            Optional<UnidadeJudiciaria> peloCodigo = repositorio.findByCodigoSiedos(doEgesp.codigo());
+            if (peloCodigo.isPresent()) {
+                return peloCodigo.get();
+            }
+        }
+
+        UnidadeJudiciaria nova = new UnidadeJudiciaria(doEgesp.nome());
+        if (doEgesp.codigo() != null) {
+            nova.vincularAoSiedos(doEgesp.codigo(), doEgesp.comarca());
+        }
+        return repositorio.save(nova);
     }
 }

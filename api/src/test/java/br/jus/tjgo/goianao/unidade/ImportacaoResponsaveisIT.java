@@ -70,6 +70,9 @@ class ImportacaoResponsaveisIT extends TesteDeIntegracao {
 
         Usuario criado = usuarios.findByEmailIgnoreCase("ifccteixeira@tjgo.example").orElseThrow();
         assertThat(criado.getPapeis()).contains(Papel.MAGISTRADO);
+        assertThat(criado.getUnidadeLotacao())
+                .as("quem responde pela unidade fica lotado nela")
+                .isEqualTo(UNIDADE_A);
         assertThat(unidades.findById(unidade.getId()).orElseThrow().getResponsavel().getId())
                 .isEqualTo(criado.getId());
 

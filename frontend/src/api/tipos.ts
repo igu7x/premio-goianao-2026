@@ -141,6 +141,14 @@ export interface ArtesPadraoAplicadas {
   jaExistentes: number
 }
 
+/** Unidade cadastrada, só com o que um formulário precisa para oferecê-la. */
+export interface UnidadeCadastrada {
+  id: number
+  nome: string
+  codigoSiedos: number | null
+  comarca: string | null
+}
+
 export interface UnidadeEgesp {
   nome: string
   comarca: string
@@ -384,6 +392,9 @@ export interface SituacaoDoRh {
 }
 
 export interface PessoaDoRh {
+  /** De onde a pessoa veio na busca. Quem já está no sistema tem o e-mail certo
+   *  e dispensa a consulta ao RH na escolha. Ausente na consulta por matrícula. */
+  origem?: 'SISTEMA' | 'RH'
   matricula: number | null
   nome: string
   /** Nulo quando nem o RH nem o AD têm endereço para a pessoa. A busca não
@@ -392,4 +403,11 @@ export interface PessoaDoRh {
   cpfMascarado: string | null
   /** Sem e-mail ninguém é reconhecido no login nem consegue emitir (DI-24). */
   temEmail: boolean
+}
+
+/** Busca de pessoas no sistema e no RH, numa resposta só. */
+export interface ResultadoDaBusca {
+  pessoas: PessoaDoRh[]
+  /** Falso quando o RH não respondeu: a lista traz só quem está no sistema. */
+  rhRespondeu: boolean
 }

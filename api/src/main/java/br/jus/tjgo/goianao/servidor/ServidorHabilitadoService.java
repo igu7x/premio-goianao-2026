@@ -107,7 +107,12 @@ public class ServidorHabilitadoService {
         exigirUnidadeReconhecida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
 
-        return mesclar(edicao, unidade, egesp.listarServidoresPorUnidade(unidade.getNome()));
+        // Pelo codigo sempre que a unidade o tem: o nome so serve para quem ainda
+        // nao foi casado com o RH, e em nome repetido entre comarcas traria a
+        // lotacao de outra unidade para esta lista.
+        return mesclar(edicao, unidade, unidade.getCodigoSiedos() != null
+                ? egesp.servidoresPorCodigo(unidade.getCodigoSiedos())
+                : egesp.listarServidoresPorUnidade(unidade.getNome()));
     }
 
     /**

@@ -52,6 +52,16 @@ class SincronizacaoIT extends TesteDeIntegracao {
     @Autowired private ServidorHabilitadoRepository habilitados;
     @Autowired private EgespClient egesp;
 
+    /**
+     * Unidade como o cadastro antigo a criava: digitada, sem codigo do SIEDOS.
+     * Existe ainda nas bases anteriores a integracao, e e o caso que o casamento
+     * pelo nome precisa resolver. Hoje toda unidade vinda do RH ja nasce com
+     * codigo, entao este cenario e montado a mao.
+     */
+    private UnidadeJudiciaria unidadeSemCodigo(String nome) {
+        return unidadesRepo.saveAndFlush(new UnidadeJudiciaria(nome));
+    }
+
     @BeforeEach
     void criarSuperadministrador() {
         if (usuarios.findByEmailIgnoreCase(EMAIL_SUPER).isEmpty()) {
@@ -120,7 +130,7 @@ class SincronizacaoIT extends TesteDeIntegracao {
     @Test
     @DisplayName("unidade cadastrada pelo nome, sem codigo, aparece desatualizada ate ser casada")
     void casamentoPeloNomeDepoisPeloCodigo() throws Exception {
-        UnidadeJudiciaria local = unidade(UNIDADE_A);
+        UnidadeJudiciaria local = unidadeSemCodigo(UNIDADE_A);
         assertThat(local.getCodigoSiedos()).isNull();
 
         assertThat(situacaoDe(compararUnidades(), CODIGO_UNIDADE_A))
@@ -280,7 +290,7 @@ class SincronizacaoIT extends TesteDeIntegracao {
     @DisplayName("unidade sem codigo nao pode comparar servidores")
     void exigeUnidadeCasada() throws Exception {
         Edicao edicao = edicaoVigente(2036);
-        UnidadeJudiciaria local = unidade(UNIDADE_B);
+        UnidadeJudiciaria local = unidadeSemCodigo(UNIDADE_B);
 
         mvc.perform(get("/api/sincronizacao/unidades/" + local.getId() + "/servidores")
                         .param("edicaoId", edicao.getId().toString())
@@ -338,7 +348,7 @@ class SincronizacaoIT extends TesteDeIntegracao {
     @Test
     @DisplayName("o lote casa pelo nome a unidade que ainda nao tinha codigo, sem duplicar")
     void loteCasaPeloNome() throws Exception {
-        UnidadeJudiciaria local = unidade(UNIDADE_A);
+        UnidadeJudiciaria local = unidadeSemCodigo(UNIDADE_A);
         assertThat(local.getCodigoSiedos()).isNull();
         long antes = unidadesRepo.count();
         long faltantes = compararUnidades().stream()

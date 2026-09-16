@@ -2,6 +2,7 @@ package br.jus.tjgo.goianao.unidade;
 
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
 import br.jus.tjgo.goianao.unidade.dto.ImportacaoResponsaveis;
+import br.jus.tjgo.goianao.unidade.dto.UnidadeCadastrada;
 import br.jus.tjgo.goianao.unidade.dto.UnidadeEgespResposta;
 import br.jus.tjgo.goianao.unidade.dto.UnidadeResposta;
 import jakarta.validation.Valid;
@@ -52,6 +53,20 @@ public class UnidadeController {
     @PreAuthorize("hasRole('SUPERADMIN')")
     public List<UnidadeResposta> listar() {
         return servico.listarLocais().stream().map(UnidadeResposta::de).toList();
+    }
+
+    /**
+     * As unidades cadastradas no sistema, para escolher uma num formulario.
+     *
+     * <p>Os formularios perguntavam ao RH ao vivo, e quando a API corporativa
+     * falhava a lista vinha vazia sem aviso nenhum. As unidades entram no
+     * sistema pela sincronizacao, com codigo; e daqui que as telas devem
+     * escolher. Aberta ao administrador porque nao traz responsavel.
+     */
+    @GetMapping("/cadastradas")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public List<UnidadeCadastrada> cadastradas() {
+        return servico.listarLocais().stream().map(UnidadeCadastrada::de).toList();
     }
 
     /** Uma unidade, para a pagina dela. Mesma restricao da listagem. */

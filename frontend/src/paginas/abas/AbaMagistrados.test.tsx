@@ -82,7 +82,7 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
 
   it('a inclusão de unidade usa o endpoint aditivo, e não um PUT', async () => {
     const chamadas = instalarApiFalsa([
-      ['/api/unidades/egesp', { corpo: [{ nome: '2ª Vara Cível', comarca: 'Goiânia', unidadeId: null, jaCadastrada: false }] }],
+      ['/api/unidades/cadastradas', { corpo: [{ id: 3, nome: '2ª Vara Cível', codigoSiedos: 203010005, comarca: 'Goiânia' }] }],
       ['/api/edicoes/1/magistrados/7/reconhecimentos', { status: 201, corpo: MAGISTRADO }],
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
@@ -111,6 +111,7 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
 
 /** Como o RH devolve na busca: em maiúsculas e sem o e-mail completado pelo AD. */
 const NA_BUSCA: PessoaDoRh = {
+  origem: 'RH',
   matricula: 5001,
   nome: 'MARINA ALVES ROCHA',
   email: null,
@@ -126,7 +127,7 @@ describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
         '/api/rh/pessoas/5001',
         { corpo: { ...NA_BUSCA, email: 'marina.rocha@tjgo.example', temEmail: true } },
       ],
-      ['/api/rh/pessoas?termo=', { corpo: [NA_BUSCA] }],
+      ['/api/pessoas?termo=', { corpo: { pessoas: [NA_BUSCA], rhRespondeu: true } }],
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
@@ -150,7 +151,7 @@ describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
     instalarApiFalsa([
       ['/api/rh/pessoas/situacao', { corpo: { disponivel: true } }],
       ['/api/rh/pessoas/5001', { corpo: NA_BUSCA }],
-      ['/api/rh/pessoas?termo=', { corpo: [NA_BUSCA] }],
+      ['/api/pessoas?termo=', { corpo: { pessoas: [NA_BUSCA], rhRespondeu: true } }],
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
@@ -178,5 +179,96 @@ describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
     expect(await screen.findByLabelText(/e-mail corporativo/i)).toBeInTheDocument()
     expect(screen.getByText(/busca no RH não está disponível/i)).toBeInTheDocument()
     expect(screen.queryByLabelText('Magistrado')).not.toBeInTheDocument()
+  })
+})
+
+describe('Lista de unidades do reconhecimento', () => {
+  it('oferece as unidades cadastradas no sistema, e não pergunta ao RH', async () => {
+    const chamadas = instalarApiFalsa([
+      ['/api/unidades/cadastradas', {
+        corpo: [
+          { id: 1, nome: 'PRESIDENCIA', codigoSiedos: 600000009, comarca: null },
+          { id: 2, nome: 'ASSESSORIA DE IMPRENSA', codigoSiedos: 600000123, comarca: null },
+        ],
+      }],
+      ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
+    ])
+
+    render(
+      <AbaMagistrados edicao={edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true })} />,
+    )
+    await screen.findByText('Rafael Siqueira Bittencourt')
+    await userEvent.click(screen.getByRole('button', { name: /adicionar unidade/i }))
+
+    const campo = await screen.findByRole('combobox', { name: /unidade/i })
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: /PRESIDENCIA — 600000009/ })).toBeInTheDocument(),
+    )
+    expect(campo).toBeEnabled()
+    // A falha do RH esvaziava a lista em silêncio: a fonte agora é o cadastro.
+    expect(chamadas.some((c) => c.url.includes('/api/unidades/egesp'))).toBe(false)
+  })
+
+  it('diz o motivo quando a lista não carrega, em vez de mostrá-la vazia', async () => {
+    instalarApiFalsa([
+      ['/api/unidades/cadastradas', { status: 500, corpo: { mensagem: 'Erro interno.' } }],
+      ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
+    ])
+
+    render(
+      <AbaMagistrados edicao={edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true })} />,
+    )
+    await screen.findByText('Rafael Siqueira Bittencourt')
+    await userEvent.click(screen.getByRole('button', { name: /adicionar unidade/i }))
+
+    expect(await screen.findByText('Erro interno.')).toBeInTheDocument()
+  })
+})
+
+describe('Busca do magistrado no sistema e no RH', () => {
+  it('quem já está no sistema é escolhido direto, sem consultar o RH', async () => {
+    const chamadas = instalarApiFalsa([
+      ['/api/rh/pessoas/situacao', { corpo: { disponivel: true } }],
+      ['/api/pessoas?termo=', {
+        corpo: {
+          pessoas: [{
+            origem: 'SISTEMA',
+            matricula: null,
+            nome: 'Ana Cristina Marques Rebelo',
+            email: 'ana.rebelo@tjgo.example',
+            cpfMascarado: null,
+            temEmail: true,
+          }],
+          rhRespondeu: true,
+        },
+      }],
+      ['/api/unidades/cadastradas', { corpo: [] }],
+      ['/api/edicoes/1/magistrados', { corpo: [] }],
+    ])
+
+    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO', vigente: false, aceitaInclusoes: true })} />)
+    await userEvent.click(await screen.findByRole('button', { name: /novo magistrado/i }))
+    await userEvent.type(await screen.findByLabelText('Magistrado'), 'rebelo')
+
+    await userEvent.click(await screen.findByRole('button', { name: /ana cristina marques rebelo/i }))
+
+    expect(await screen.findByText('ana.rebelo@tjgo.example')).toBeInTheDocument()
+    // Quem já tem cadastro não passa pela consulta por matrícula no RH.
+    expect(chamadas.some((c) => /\/api\/rh\/pessoas\/\d/.test(c.url))).toBe(false)
+  })
+
+  it('avisa quando o RH não respondeu, mas mostra quem está no sistema', async () => {
+    instalarApiFalsa([
+      ['/api/rh/pessoas/situacao', { corpo: { disponivel: true } }],
+      ['/api/pessoas?termo=', { corpo: { pessoas: [], rhRespondeu: false } }],
+      ['/api/unidades/cadastradas', { corpo: [] }],
+      ['/api/edicoes/1/magistrados', { corpo: [] }],
+    ])
+
+    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO', vigente: false, aceitaInclusoes: true })} />)
+    await userEvent.click(await screen.findByRole('button', { name: /novo magistrado/i }))
+    await userEvent.type(await screen.findByLabelText('Magistrado'), 'rebelo')
+
+    expect(await screen.findByText(/o rh não respondeu agora/i)).toBeInTheDocument()
   })
 })

@@ -270,6 +270,48 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
                 .andExpect(content().string(Matchers.not(Matchers.containsString(EMAIL_SERVIDOR))));
     }
 
+    /**
+     * A unidade aqui foi renomeada, e o nome local ja nao e o do RH. Se a
+     * semeadura ainda procurasse pelo nome, traria a lotacao de outra unidade —
+     * o mesmo que acontece com nome repetido entre comarcas.
+     */
+    @Test
+    @DisplayName("semear vai pelo codigo do SIEDOS, e nao pelo nome, quando a unidade o tem")
+    void semeaduraPeloCodigo() throws Exception {
+        Cenario cenario = cenarioVigente(2140);
+        UnidadeJudiciaria unidade = unidadesRepo.findById(cenario.unidade().getId()).orElseThrow();
+        Long codigo = unidade.getCodigoSiedos();
+        Assertions.assertThat(codigo)
+                .as("a unidade do reconhecimento nasce com o codigo do RH")
+                .isNotNull();
+        unidade.renomear("Nome Local Que Nao Existe No RH");
+        unidadesRepo.saveAndFlush(unidade);
+
+        mvc.perform(post(base(cenario) + "/semear")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isOk());
+
+        java.util.Set<String> esperados = egesp.servidoresPorCodigo(codigo).stream()
+                .map(s -> s.email().toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> semeados = habilitados
+                .findByEdicaoIdAndUnidadeIdOrderByNomeAsc(cenario.edicao().getId(), unidade.getId())
+                .stream()
+                .map(s -> s.getEmail().toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+
+        Assertions.assertThat(semeados).isEqualTo(esperados);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private br.jus.tjgo.goianao.unidade.UnidadeRepository unidadesRepo;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private br.jus.tjgo.goianao.integracao.egesp.EgespClient egesp;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private ServidorHabilitadoRepository habilitados;
+
     private record Cenario(Edicao edicao, UnidadeJudiciaria unidade) {}
 
     private String base(Cenario cenario) {
