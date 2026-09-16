@@ -154,6 +154,20 @@ public class MockEgespClient implements EgespClient {
                 .findFirst();
     }
 
+    /**
+     * O primeiro lotado responde pela unidade.
+     *
+     * <p>Arbitrario, mas deterministico — e o bastante para exercitar a
+     * designacao em lote sem a API: sem isto o mock nunca aponta ninguem, e a
+     * rotina passaria nos testes sem nunca ter designado alguem de verdade.
+     */
+    @Override
+    public Optional<ResponsavelEgesp> responsavelDaUnidade(long codigoUnidade) {
+        return lotados(codigoUnidade).stream()
+                .findFirst()
+                .map(l -> new ResponsavelEgesp(l.matricula(), l.nome()));
+    }
+
     @Override
     public List<LotadoEgesp> lotados(long codigoUnidade) {
         return unidadePorCodigo(codigoUnidade)

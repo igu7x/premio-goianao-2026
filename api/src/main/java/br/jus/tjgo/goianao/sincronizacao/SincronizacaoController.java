@@ -3,6 +3,9 @@ package br.jus.tjgo.goianao.sincronizacao;
 import br.jus.tjgo.goianao.sincronizacao.dto.CadastroEmLote;
 import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
 import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
+import br.jus.tjgo.goianao.sincronizacao.dto.LotacaoAplicada;
+import br.jus.tjgo.goianao.sincronizacao.dto.LotadoDoRh;
+import br.jus.tjgo.goianao.sincronizacao.dto.ResponsaveisDoRh;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
 import br.jus.tjgo.goianao.sincronizacao.dto.UnidadeComparada;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
@@ -107,6 +110,42 @@ public class SincronizacaoController {
     public ImportacaoDaUnidade importar(@PathVariable Long unidadeId,
                                         @RequestBody ImportarRequisicao requisicao) {
         return servico.importarUnidade(unidadeId, requisicao.edicaoId());
+    }
+
+    /**
+     * Quem o RH aponta como lotado na unidade, sem edicao nenhuma no meio.
+     *
+     * E leitura, como toda comparacao desta tela: serve para ver a unidade antes
+     * de decidir cadastrar.
+     */
+    @GetMapping("/unidades/{unidadeId}/lotados")
+    public List<LotadoDoRh> lotados(@PathVariable Long unidadeId) {
+        return servico.lotadosDoRh(unidadeId);
+    }
+
+    /**
+     * Cadastra como usuarios todos os lotados da unidade, com a lotacao gravada.
+     *
+     * Nao habilita ninguem a emitir: isso continua sendo a lista de habilitados
+     * de uma edicao, que e um retrato datado e nao a lotacao ao vivo.
+     */
+    @PostMapping("/unidades/{unidadeId}/lotados/cadastrar")
+    public LotacaoAplicada cadastrarLotados(@PathVariable Long unidadeId) {
+        return servico.cadastrarLotados(unidadeId);
+    }
+
+    /**
+     * Designa, a partir do RH, o responsavel das unidades que ainda nao tem um.
+     *
+     * A rodada e limitada porque o RH cobra uma chamada por unidade: a tela
+     * chama de novo com o {@code ultimoId} devolvido ate {@code processadas}
+     * vir menor que o limite.
+     */
+    @PostMapping("/unidades/responsaveis")
+    public ResponsaveisDoRh designarResponsaveis(
+            @RequestParam(required = false) Long desde,
+            @RequestParam(defaultValue = "50") int limite) {
+        return servico.designarResponsaveisDoRh(desde, Math.clamp(limite, 1, 200));
     }
 
     /** Pelo id do item: dado pessoal nao vai na URL (DI-10). */

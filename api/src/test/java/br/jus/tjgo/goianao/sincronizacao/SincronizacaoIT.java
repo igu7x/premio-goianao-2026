@@ -396,4 +396,83 @@ class SincronizacaoIT extends TesteDeIntegracao {
                 .orElseThrow()
                 .situacao();
     }
+
+    // ------------------------------------------------------------------
+    // Responsaveis vindos do RH
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("designa o responsavel do RH e cria o usuario quando ele nao existe")
+    void designaResponsaveisDoRh() throws Exception {
+        UnidadeJudiciaria unidade = unidade(UNIDADE_A);
+        unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
+        unidadesRepo.saveAndFlush(unidade);
+        long usuariosAntes = usuarios.count();
+
+        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
+                        .param("limite", "50")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.designados").value(1))
+                .andExpect(jsonPath("$.usuariosCriados").value(1));
+
+        UnidadeJudiciaria depois = unidadesRepo.findById(unidade.getId()).orElseThrow();
+        assertThat(depois.getResponsavel()).isNotNull();
+        assertThat(usuarios.count()).isEqualTo(usuariosAntes + 1);
+        // Responder por unidade exige o papel de magistrado (008): sem ele a
+        // designacao seria gravada e a tela dele continuaria vazia.
+        assertThat(depois.getResponsavel().getPapeis()).contains(Papel.MAGISTRADO);
+        assertThat(depois.getResponsavel().getUnidadeLotacao()).isEqualTo(UNIDADE_A);
+    }
+
+    @Test
+    @DisplayName("nao troca responsavel ja designado: decisao humana prevalece sobre o RH")
+    void naoTrocaResponsavelExistente() throws Exception {
+        Usuario designado = usuarios.save(new Usuario("responsavel.humano@tjgo.example",
+                "Responsavel Escolhido a Mao", null, Set.of(Papel.MAGISTRADO)));
+        UnidadeJudiciaria unidade = unidade(UNIDADE_A);
+        unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
+        unidade.designarResponsavel(designado);
+        unidadesRepo.saveAndFlush(unidade);
+
+        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk());
+
+        assertThat(unidadesRepo.findById(unidade.getId()).orElseThrow().getResponsavel().getEmail())
+                .isEqualTo("responsavel.humano@tjgo.example");
+    }
+
+    /**
+     * O cursor e o que impede o lote de rodar para sempre: unidade que o RH nao
+     * sabe responder continua sem responsavel, e sem cursor a rodada seguinte
+     * tentaria exatamente as mesmas.
+     */
+    @Test
+    @DisplayName("o cursor avanca: a rodada seguinte nao repete as mesmas unidades")
+    void cursorAvanca() throws Exception {
+        UnidadeJudiciaria unidade = unidade(UNIDADE_A);
+        unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
+        unidadesRepo.saveAndFlush(unidade);
+
+        String primeira = mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long ultimoId = json.readTree(primeira).get("ultimoId").asLong();
+
+        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
+                        .param("desde", Long.toString(ultimoId))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.processadas").value(0));
+    }
+
+    @Test
+    @DisplayName("a designacao em lote e exclusiva do superadministrador")
+    void responsaveisExigemSuperadmin() throws Exception {
+        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isForbidden());
+    }
 }

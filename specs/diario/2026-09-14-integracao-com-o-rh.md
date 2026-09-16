@@ -139,3 +139,39 @@ usuários, edições, certificados, sincronização e no painel da lista.
 E o caso específico da tela do magistrado tinha um segundo problema: o 404 ali
 só acontece por um motivo — nenhuma edição marcada como vigente —, e isso não é
 falha, é estado do prêmio. Agora tem explicação própria, sem tarja vermelha.
+
+## Cargas em lote: unidades, lotados e responsáveis (2026-09-16)
+
+Com o organograma inteiro na tela — 2.215 unidades —, todo botão que agia numa
+linha por vez deixou de resolver. Três ações em lote entraram:
+
+- **Cadastrar as unidades que só existem no RH.** Usa o escopo da comparação que
+  está na tela, e não o que o filtro deixou visível: filtro é lupa, não seleção.
+  Só cria. Não renomeia unidade existente nem apaga órfã — isso muda o nome
+  impresso em certificado e continua sendo decisão linha a linha. A única coisa
+  que faz numa unidade existente é gravar o código do SIEDOS quando faltava, que
+  é o que tira do limbo a unidade digitada à mão.
+- **Cadastrar os lotados de uma unidade como usuários**, com a lotação gravada,
+  sem edição nenhuma no meio. A pergunta aqui é "quem trabalha aqui e já existe
+  no sistema", e não "quem pode emitir nesta edição" — confundir as duas era o
+  que obrigava a escolher uma edição só para ver a lotação de uma unidade.
+- **Associar os responsáveis a partir do RH.** Quem responde por cada unidade já
+  está lá; digitar isso unidade por unidade não é caminho.
+
+**Duas decisões que o lote dos responsáveis obrigou a tomar.** A designação
+exige o papel de magistrado — é a tela dele que ela destrava (008) —, então quem
+o RH aponta e ainda não o tem **ganha o papel**. É concessão de acesso, e o
+resumo diz quantas foram; concessão silenciosa não existe. E designação já feita
+**não é trocada**: foi ato de um superadministrador, e o RH não desfaz decisão
+humana.
+
+**Rodadas, e não uma varredura só.** O responsável custa uma chamada ao RH por
+unidade, com teto de 6/s: o tribunal inteiro daria minutos numa requisição só, e
+a rota cairia antes. A tela chama em rodadas de 50, seguindo um cursor por id. O
+cursor não é detalhe de paginação: sem ele, as unidades que o RH não sabe
+responder continuariam sem responsável e seriam sorteadas de novo a cada rodada,
+para sempre.
+
+**No mock.** O `MockEgespClient` não respondia `responsavelDaUnidade` — a rotina
+passaria nos testes sem nunca ter designado ninguém. Agora o primeiro lotado
+responde pela unidade: arbitrário, mas determinístico.

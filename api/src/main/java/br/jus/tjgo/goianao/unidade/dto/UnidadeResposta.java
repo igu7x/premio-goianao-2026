@@ -14,6 +14,9 @@ public record UnidadeResposta(
         Long id,
         String nome,
         boolean ativo,
+        /** Codigo no SIEDOS; nulo enquanto a unidade nao foi casada com o RH. */
+        Long codigoSiedos,
+        String comarca,
         Responsavel responsavel) {
 
     public record Responsavel(Long id, String nome, String email) {}
@@ -24,6 +27,8 @@ public record UnidadeResposta(
                 unidade.getId(),
                 unidade.getNome(),
                 unidade.isAtivo(),
+                unidade.getCodigoSiedos(),
+                unidade.getComarca(),
                 r == null ? null : new Responsavel(r.getId(), r.getNome(), r.getEmail()));
     }
 }

@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ErroApi } from '../api/cliente'
-import type { Unidade, Usuario } from '../api/tipos'
+import type { ResponsaveisDoRh, Unidade, Usuario } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio, Modal } from '../componentes/Basicos'
+import { Icone } from '../componentes/Icone'
+
+/** Unidades por rodada. O RH cobra uma chamada por unidade, a 6 por segundo:
+ *  uma varredura única do tribunal estouraria o tempo limite da rota. */
+const POR_RODADA = 50
 
 /**
  * Cadastro de unidades — exclusivo do superadministrador.
@@ -18,6 +23,10 @@ export function Unidades() {
   const [erro, setErro] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
   const [designando, setDesignando] = useState<Unidade | null>(null)
+  const [confirmandoRh, setConfirmandoRh] = useState(false)
+  /** Quantas unidades já foram examinadas na varredura em curso; nulo quando
+   *  não há varredura. É o que dá sinal de vida numa operação de minutos. */
+  const [progresso, setProgresso] = useState<number | null>(null)
   const avisos = useAvisos()
 
   const carregar = useCallback(async () => {
@@ -46,6 +55,66 @@ export function Unidades() {
     }
   }
 
+  /**
+   * Varre as unidades sem responsável e designa quem o RH aponta.
+   *
+   * Em rodadas, e não de uma vez: cada unidade custa uma chamada ao RH, com teto
+   * de seis por segundo. O cursor (`ultimoId`) é o que impede o laço de tentar
+   * para sempre as unidades que o RH não sabe responder — elas continuam sem
+   * responsável depois da rodada, e sem cursor seriam sorteadas de novo.
+   */
+  async function designarPeloRh() {
+    setErro(null)
+    setProgresso(0)
+    const total = { designados: 0, criados: 0, papel: 0, semResponsavel: 0, semEmail: 0 }
+    let desde: number | null = null
+    let examinadas = 0
+
+    try {
+      for (;;) {
+        const rodada: ResponsaveisDoRh = await api.post<ResponsaveisDoRh>(
+          `/api/sincronizacao/unidades/responsaveis?limite=${POR_RODADA}`
+            + (desde === null ? '' : `&desde=${desde}`),
+          {},
+        )
+        total.designados += rodada.designados
+        total.criados += rodada.usuariosCriados
+        total.papel += rodada.papelConcedido
+        total.semResponsavel += rodada.semResponsavelNoRh
+        total.semEmail += rodada.semEmail
+        examinadas += rodada.processadas
+        setProgresso(examinadas)
+
+        if (rodada.processadas < POR_RODADA || rodada.ultimoId === null) {
+          break
+        }
+        desde = rodada.ultimoId
+      }
+
+      setConfirmandoRh(false)
+      avisos.sucesso(
+        `${total.designados} unidade(s) com responsável designado`,
+        [
+          total.criados > 0 ? `${total.criados} usuário(s) criado(s)` : null,
+          total.papel > 0 ? `${total.papel} ganhou(aram) o papel de magistrado` : null,
+          total.semResponsavel > 0 ? `${total.semResponsavel} sem responsável no RH` : null,
+          total.semEmail > 0 ? `${total.semEmail} sem e-mail corporativo` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Todas as unidades examinadas já estavam em dia.',
+      )
+      await carregar()
+    } catch (e) {
+      setErro(
+        e instanceof ErroApi
+          ? `${e.message} (${examinadas} unidade(s) examinada(s) antes da falha; o que já foi designado permanece)`
+          : 'Falha ao designar os responsáveis pelo RH.',
+      )
+    } finally {
+      setProgresso(null)
+    }
+  }
+
   const visiveis = (unidades ?? []).filter((u) =>
     u.nome.toLowerCase().includes(filtro.trim().toLowerCase()),
   )
@@ -65,6 +134,21 @@ export function Unidades() {
             unidade não o tenha reconhecido no prêmio.
           </p>
         </div>
+        {/* Quem responde por cada unidade já está no RH: digitar isso unidade
+            por unidade, com milhares delas, não é caminho. */}
+        {semResponsavel > 0 && (
+          <button
+            type="button"
+            className="botao"
+            disabled={progresso !== null}
+            onClick={() => setConfirmandoRh(true)}
+          >
+            {progresso !== null ? <span className="giro" /> : <Icone nome="trocar" tamanho={16} />}
+            {progresso !== null
+              ? `Designando… (${progresso})`
+              : 'Associar responsáveis pelo RH'}
+          </button>
+        )}
       </header>
 
       {erro && (
@@ -167,6 +251,64 @@ export function Unidades() {
             planilha de unidades ainda não está implementada.
           </div>
         </div>
+      )}
+
+      {confirmandoRh && (
+        <Modal
+          titulo="Associar os responsáveis a partir do RH?"
+          descricao={`${semResponsavel} unidade(s) ainda sem responsável.`}
+          aoFechar={() => progresso === null && setConfirmandoRh(false)}
+          rodape={
+            <>
+              <button
+                type="button"
+                className="botao botao-neutro"
+                disabled={progresso !== null}
+                onClick={() => setConfirmandoRh(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="botao"
+                disabled={progresso !== null}
+                onClick={() => void designarPeloRh()}
+              >
+                {progresso !== null && <span className="giro" />}
+                {progresso !== null ? `Designando… (${progresso})` : 'Associar'}
+              </button>
+            </>
+          }
+        >
+          <Aviso tom="atencao" titulo="O que esta ação faz">
+            <ul>
+              <li>
+                Pergunta ao RH quem responde por cada unidade sem responsável e designa essa
+                pessoa.
+              </li>
+              <li>
+                <strong>Cria o usuário</strong> de quem ainda não existe no sistema, com o papel
+                de magistrado e a lotação da unidade.
+              </li>
+              <li>
+                Quem já existe <strong>ganha o papel de magistrado</strong> se ainda não o tiver —
+                é o que a designação exige, porque é a tela dele que ela destrava. É concessão de
+                acesso, e o resumo diz quantas foram.
+              </li>
+            </ul>
+          </Aviso>
+
+          <p className="apoio">
+            Designação já feita <strong>não é trocada</strong>: ela foi ato de alguém, e o RH não
+            desfaz decisão humana. Unidade que o RH não sabe responder, ou cujo responsável não tem
+            e-mail corporativo, fica como está e aparece no resumo.
+          </p>
+          <p className="apoio">
+            A varredura vai em rodadas de {POR_RODADA}, porque o RH aceita seis chamadas por
+            segundo. Com o tribunal inteiro cadastrado isso leva alguns minutos — deixe a aba
+            aberta.
+          </p>
+        </Modal>
       )}
 
       {designando && (

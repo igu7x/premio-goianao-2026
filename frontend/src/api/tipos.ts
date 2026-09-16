@@ -86,6 +86,24 @@ export interface LayoutsDaEdicao {
   fonteInstitucionalDisponivel: boolean
 }
 
+/**
+ * Uma rodada da designação de responsáveis a partir do RH.
+ *
+ * A rodada é limitada porque o RH cobra uma chamada por unidade: a tela chama de
+ * novo com o `ultimoId` até `processadas` vir menor que o limite pedido.
+ */
+export interface ResponsaveisDoRh {
+  processadas: number
+  ultimoId: number | null
+  designados: number
+  usuariosCriados: number
+  /** Já existiam sem o papel de magistrado, que a designação exige. */
+  papelConcedido: number
+  semResponsavelNoRh: number
+  semEmail: number
+  restantes: number
+}
+
 /** Resultado do cadastro em lote das unidades que só existiam no RH. */
 export interface CadastroEmLote {
   criadas: number
@@ -249,6 +267,9 @@ export interface Unidade {
   id: number
   nome: string
   ativo: boolean
+  /** Código no SIEDOS; nulo enquanto a unidade não foi casada com o RH. */
+  codigoSiedos: number | null
+  comarca: string | null
   /** Quem responde pela unidade; nulo enquanto ninguém foi designado. */
   responsavel: { id: number; nome: string; email: string } | null
 }

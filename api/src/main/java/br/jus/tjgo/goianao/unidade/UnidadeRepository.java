@@ -2,6 +2,7 @@ package br.jus.tjgo.goianao.unidade;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -28,4 +29,20 @@ public interface UnidadeRepository extends JpaRepository<UnidadeJudiciaria, Long
     boolean existsByIdAndResponsavelEmail(Long id, String email);
 
     List<UnidadeJudiciaria> findByResponsavelEmailOrderByNomeAsc(String email);
+
+    /**
+     * Unidades ainda sem responsavel, para a designacao em lote a partir do RH.
+     *
+     * <p>Ordenadas por id e a partir de um cursor porque a rodada e limitada: o
+     * RH cobra uma chamada por unidade, e com o tribunal inteiro cadastrado uma
+     * varredura unica estouraria o tempo da rota. Sem o cursor, a rodada
+     * seguinte tentaria de novo exatamente as mesmas unidades — as que o RH nao
+     * tem responsavel continuam sem responsavel, e o lote nunca terminaria.
+     *
+     * <p>So entram as que tem codigo: sem ele nao ha o que perguntar ao RH.
+     */
+    List<UnidadeJudiciaria> findByResponsavelIsNullAndCodigoSiedosIsNotNullAndIdGreaterThanOrderByIdAsc(
+            Long desdeId, Pageable pagina);
+
+    long countByResponsavelIsNullAndCodigoSiedosIsNotNull();
 }

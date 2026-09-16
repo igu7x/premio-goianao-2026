@@ -8,6 +8,7 @@ import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
 import br.jus.tjgo.goianao.edicao.EdicaoService;
 import br.jus.tjgo.goianao.integracao.egesp.EgespClient;
 import br.jus.tjgo.goianao.integracao.egesp.LotadoEgesp;
+import br.jus.tjgo.goianao.integracao.egesp.ResponsavelEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.ServidorEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.UnidadeEgesp;
 import br.jus.tjgo.goianao.servidor.OrigemServidor;
@@ -20,6 +21,9 @@ import br.jus.tjgo.goianao.sincronizacao.dto.CadastroEmLote;
 import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
 import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.ItemSincronizacao;
+import br.jus.tjgo.goianao.sincronizacao.dto.LotacaoAplicada;
+import br.jus.tjgo.goianao.sincronizacao.dto.LotadoDoRh;
+import br.jus.tjgo.goianao.sincronizacao.dto.ResponsaveisDoRh;
 import br.jus.tjgo.goianao.sincronizacao.dto.ServidorComparado;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
 import br.jus.tjgo.goianao.sincronizacao.dto.UnidadeComparada;
@@ -35,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -335,6 +340,159 @@ public class SincronizacaoService {
         UnidadeJudiciaria unidade = unidadeComCodigo(unidadeId);
         edicoes.buscar(edicaoId);
 
+        List<ServidorEgesp> doRh = lotacaoResolvida(unidade);
+        LotacaoAplicada cadastro = cadastrarComoUsuarios(doRh, unidade);
+        SemeaduraResposta lista = servicoDeHabilitados.semearCom(edicaoId, unidadeId, doRh);
+
+        return new ImportacaoDaUnidade(doRh.size(), cadastro.criados(), cadastro.atualizados(),
+                lista.incluidos(), lista.jaExistentes(), lista.preservadosRemovidos(),
+                lista.ignoradosSemEmail(), lista.totalAtivos());
+    }
+
+    /**
+     * Quem o RH aponta como lotado na unidade, cruzado com o cadastro de
+     * usuarios — sem edicao nenhuma no meio.
+     *
+     * <p>A pergunta aqui e outra: nao e "quem pode emitir nesta edicao", e sim
+     * "quem trabalha aqui e ja existe no sistema". Foi por confundir as duas que
+     * antes era preciso escolher uma edicao so para ver a lotacao de uma unidade.
+     */
+    @Transactional(readOnly = true)
+    public List<LotadoDoRh> lotadosDoRh(Long unidadeId) {
+        UnidadeJudiciaria unidade = unidadeComCodigo(unidadeId);
+
+        List<LotadoDoRh> resultado = new ArrayList<>();
+        for (ServidorEgesp servidor : lotacaoResolvida(unidade)) {
+            boolean temEmail = Email.valido(servidor.email());
+            Optional<Usuario> cadastrado = temEmail
+                    ? usuarios.findByEmailIgnoreCase(Email.normalizar(servidor.email()))
+                    : Optional.empty();
+
+            resultado.add(new LotadoDoRh(
+                    servidor.matricula(),
+                    Texto.aparar(servidor.nome()),
+                    temEmail ? Email.normalizar(servidor.email()) : null,
+                    !temEmail,
+                    cadastrado.isPresent(),
+                    cadastrado.map(u -> unidade.getNome().equals(u.getUnidadeLotacao()))
+                            .orElse(false)));
+        }
+        return resultado;
+    }
+
+    /**
+     * Cadastra como usuarios todos os lotados da unidade, com a lotacao gravada.
+     *
+     * <p>E o caminho de quem esta montando o cadastro, antes de existir edicao
+     * publicada: da acesso a unidade inteira de uma vez. Nao habilita ninguem a
+     * emitir — isso continua sendo a lista de habilitados de uma edicao, que e
+     * um retrato datado (principio 3b) e nao a lotacao ao vivo.
+     */
+    @Transactional
+    public LotacaoAplicada cadastrarLotados(Long unidadeId) {
+        UnidadeJudiciaria unidade = unidadeComCodigo(unidadeId);
+        return cadastrarComoUsuarios(lotacaoResolvida(unidade), unidade);
+    }
+
+    /**
+     * Designa, a partir do RH, o responsavel das unidades que ainda nao tem um.
+     *
+     * <p>Quem responde pela unidade ja esta no RH; digitar isso unidade por
+     * unidade, com milhares delas, nao e caminho. O lote pergunta ao RH quem
+     * responde, encontra a pessoa pelo e-mail e designa — <b>criando o usuario
+     * quando ele ainda nao existe</b>.
+     *
+     * <p><b>Nao troca responsavel ja designado.</b> Designacao existente foi ato
+     * de um superadministrador, e o RH nao desfaz decisao humana. Para trocar,
+     * o caminho continua sendo o botao da linha.
+     *
+     * <p>A designacao exige o papel de magistrado — e a tela dele que ela
+     * destrava (008). Entao quem for apontado pelo RH e ainda nao o tiver,
+     * <b>ganha o papel</b>, e o numero vai na resposta: e uma concessao de
+     * acesso, e concessao silenciosa nao existe.
+     *
+     * @param desdeId cursor: so unidades com id maior que este
+     * @param limite  teto da rodada, por causa do ritmo de chamadas ao RH
+     */
+    @Transactional
+    public ResponsaveisDoRh designarResponsaveisDoRh(Long desdeId, int limite) {
+        List<UnidadeJudiciaria> pendentes = unidades
+                .findByResponsavelIsNullAndCodigoSiedosIsNotNullAndIdGreaterThanOrderByIdAsc(
+                        desdeId == null ? 0L : desdeId, PageRequest.of(0, limite));
+
+        int designados = 0;
+        int criados = 0;
+        int papelConcedido = 0;
+        int semResponsavel = 0;
+        int semEmail = 0;
+        Long ultimoId = desdeId;
+
+        for (UnidadeJudiciaria unidade : pendentes) {
+            ultimoId = unidade.getId();
+
+            Optional<ResponsavelEgesp> doRh =
+                    egesp.responsavelDaUnidade(unidade.getCodigoSiedos());
+            if (doRh.isEmpty()) {
+                semResponsavel++;
+                continue;
+            }
+
+            ResponsavelEgesp responsavel = doRh.get();
+            Optional<ServidorEgesp> pessoa = egesp.servidorPorMatricula(responsavel.matricula());
+            String email = pessoa.map(ServidorEgesp::email).filter(Email::valido).orElse(null);
+            if (email == null) {
+                semEmail++;
+                continue;
+            }
+
+            String nome = Texto.aparar(pessoa.map(ServidorEgesp::nome)
+                    .filter(n -> n != null && !n.isBlank())
+                    .orElse(responsavel.nome()));
+            String cpf = pessoa.map(ServidorEgesp::cpf).filter(Cpf::valido)
+                    .map(Cpf::normalizar).orElse(null);
+            String normalizado = Email.normalizar(email);
+
+            Usuario usuario = usuarios.findByEmailIgnoreCase(normalizado).orElse(null);
+            if (usuario == null) {
+                usuario = new Usuario(normalizado, nome, cpf, EnumSet.of(Papel.MAGISTRADO));
+                usuario.atualizarPeloRh(nome, cpf, responsavel.matricula(),
+                        loginDe(normalizado), unidade.getNome());
+                usuarios.save(usuario);
+                criados++;
+            } else {
+                usuario.atualizarPeloRh(nome, cpf, responsavel.matricula(),
+                        loginDe(normalizado), unidade.getNome());
+                if (!usuario.getPapeis().contains(Papel.MAGISTRADO)) {
+                    usuario.concederPapel(Papel.MAGISTRADO);
+                    papelConcedido++;
+                }
+            }
+
+            // Desativado nao pode responder por unidade (regra do cadastro); e
+            // reativar alguem sem ninguem pedir seria pior do que deixar a
+            // unidade sem responsavel.
+            if (!usuario.isAtivo()) {
+                semResponsavel++;
+                continue;
+            }
+
+            unidade.designarResponsavel(usuario);
+            designados++;
+        }
+
+        return new ResponsaveisDoRh(pendentes.size(), ultimoId, designados, criados,
+                papelConcedido, semResponsavel, semEmail,
+                unidades.countByResponsavelIsNullAndCodigoSiedosIsNotNull());
+    }
+
+    /**
+     * A lotacao da unidade com o e-mail de cada um resolvido pela matricula.
+     *
+     * <p>Quem continua sem e-mail entra na lista assim mesmo, com o campo nulo:
+     * sumir com a pessoa esconderia justamente o caso que precisa de decisao
+     * humana — metade dos lotados de uma unidade pode nao ter conta (DI-25).
+     */
+    private List<ServidorEgesp> lotacaoResolvida(UnidadeJudiciaria unidade) {
         List<ServidorEgesp> doRh = new ArrayList<>();
         for (LotadoEgesp lotado : egesp.lotados(unidade.getCodigoSiedos())) {
             egesp.servidorPorMatricula(lotado.matricula())
@@ -344,36 +502,45 @@ public class SincronizacaoService {
                             () -> doRh.add(new ServidorEgesp(null, lotado.nome(), null,
                                     lotado.matricula())));
         }
+        return doRh;
+    }
 
+    /**
+     * Cria quem falta e atualiza quem ja existe, sempre com a lotacao da unidade.
+     *
+     * <p>Nao mexe no papel de quem ja esta cadastrado: o RH sabe onde a pessoa
+     * trabalha, nao o que ela pode fazer no premio — um administrador rebaixado a
+     * servidor perderia acesso sem que ninguem tivesse pedido.
+     */
+    private LotacaoAplicada cadastrarComoUsuarios(List<ServidorEgesp> doRh,
+                                                  UnidadeJudiciaria unidade) {
         int criados = 0;
         int atualizados = 0;
+        int semEmail = 0;
+
         for (ServidorEgesp servidor : doRh) {
             if (!Email.valido(servidor.email())) {
+                semEmail++;
                 continue;
             }
             String email = Email.normalizar(servidor.email());
             String cpf = Cpf.valido(servidor.cpf()) ? Cpf.normalizar(servidor.cpf()) : null;
+            String nome = Texto.aparar(servidor.nome());
             Optional<Usuario> jaCadastrado = usuarios.findByEmailIgnoreCase(email);
 
             if (jaCadastrado.isEmpty()) {
-                Usuario novo = new Usuario(email, Texto.aparar(servidor.nome()), cpf,
-                        EnumSet.of(Papel.SERVIDOR));
-                novo.atualizarPeloRh(Texto.aparar(servidor.nome()), cpf, servidor.matricula(),
-                        loginDe(email), unidade.getNome());
+                Usuario novo = new Usuario(email, nome, cpf, EnumSet.of(Papel.SERVIDOR));
+                novo.atualizarPeloRh(nome, cpf, servidor.matricula(), loginDe(email),
+                        unidade.getNome());
                 usuarios.save(novo);
                 criados++;
             } else {
-                jaCadastrado.get().atualizarPeloRh(Texto.aparar(servidor.nome()), cpf,
-                        servidor.matricula(), loginDe(email), unidade.getNome());
+                jaCadastrado.get().atualizarPeloRh(nome, cpf, servidor.matricula(),
+                        loginDe(email), unidade.getNome());
                 atualizados++;
             }
         }
-
-        SemeaduraResposta lista = servicoDeHabilitados.semearCom(edicaoId, unidadeId, doRh);
-
-        return new ImportacaoDaUnidade(doRh.size(), criados, atualizados, lista.incluidos(),
-                lista.jaExistentes(), lista.preservadosRemovidos(), lista.ignoradosSemEmail(),
-                lista.totalAtivos());
+        return new LotacaoAplicada(doRh.size(), criados, atualizados, semEmail);
     }
 
     /** O login de rede e o que vem antes do arroba (confirmado em 2026-09-14). */
