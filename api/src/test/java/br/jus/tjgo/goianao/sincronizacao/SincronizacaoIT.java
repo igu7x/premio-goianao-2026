@@ -398,80 +398,62 @@ class SincronizacaoIT extends TesteDeIntegracao {
     }
 
     // ------------------------------------------------------------------
-    // Responsaveis vindos do RH
+    // Lotados da unidade, sem edicao no meio
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("designa o responsavel do RH e cria o usuario quando ele nao existe")
-    void designaResponsaveisDoRh() throws Exception {
+    @DisplayName("lista os lotados do RH sem exigir edicao e sem gravar nada")
+    void listaLotadosDaUnidade() throws Exception {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
         unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
         unidadesRepo.saveAndFlush(unidade);
         long usuariosAntes = usuarios.count();
 
-        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
-                        .param("limite", "50")
+        mvc.perform(get("/api/sincronizacao/unidades/" + unidade.getId() + "/lotados")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.designados").value(1))
-                .andExpect(jsonPath("$.usuariosCriados").value(1));
+                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$[0].nome").exists());
 
-        UnidadeJudiciaria depois = unidadesRepo.findById(unidade.getId()).orElseThrow();
-        assertThat(depois.getResponsavel()).isNotNull();
-        assertThat(usuarios.count()).isEqualTo(usuariosAntes + 1);
-        // Responder por unidade exige o papel de magistrado (008): sem ele a
-        // designacao seria gravada e a tela dele continuaria vazia.
-        assertThat(depois.getResponsavel().getPapeis()).contains(Papel.MAGISTRADO);
-        assertThat(depois.getResponsavel().getUnidadeLotacao()).isEqualTo(UNIDADE_A);
+        assertThat(usuarios.count()).as("listar e leitura").isEqualTo(usuariosAntes);
     }
 
     @Test
-    @DisplayName("nao troca responsavel ja designado: decisao humana prevalece sobre o RH")
-    void naoTrocaResponsavelExistente() throws Exception {
-        Usuario designado = usuarios.save(new Usuario("responsavel.humano@tjgo.example",
-                "Responsavel Escolhido a Mao", null, Set.of(Papel.MAGISTRADO)));
-        UnidadeJudiciaria unidade = unidade(UNIDADE_A);
-        unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
-        unidade.designarResponsavel(designado);
-        unidadesRepo.saveAndFlush(unidade);
-
-        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
-                .andExpect(status().isOk());
-
-        assertThat(unidadesRepo.findById(unidade.getId()).orElseThrow().getResponsavel().getEmail())
-                .isEqualTo("responsavel.humano@tjgo.example");
-    }
-
-    /**
-     * O cursor e o que impede o lote de rodar para sempre: unidade que o RH nao
-     * sabe responder continua sem responsavel, e sem cursor a rodada seguinte
-     * tentaria exatamente as mesmas.
-     */
-    @Test
-    @DisplayName("o cursor avanca: a rodada seguinte nao repete as mesmas unidades")
-    void cursorAvanca() throws Exception {
+    @DisplayName("cadastra os lotados como usuarios, com a lotacao da unidade")
+    void cadastraLotadosComoUsuarios() throws Exception {
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);
         unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
         unidadesRepo.saveAndFlush(unidade);
 
-        String primeira = mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+        String resposta = mvc.perform(
+                        post("/api/sincronizacao/unidades/" + unidade.getId()
+                                + "/lotados/cadastrar")
+                                .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criados").value(org.hamcrest.Matchers.greaterThan(0)))
                 .andReturn().getResponse().getContentAsString();
-        long ultimoId = json.readTree(primeira).get("ultimoId").asLong();
 
-        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
-                        .param("desde", Long.toString(ultimoId))
+        int criados = json.readTree(resposta).get("criados").asInt();
+        assertThat(usuarios.findAll())
+                .filteredOn(u -> UNIDADE_A.equals(u.getUnidadeLotacao()))
+                .as("todos ficam lotados na unidade")
+                .hasSizeGreaterThanOrEqualTo(criados);
+
+        // Rodar de novo nao duplica: quem ja existe e atualizado, nao recriado.
+        mvc.perform(post("/api/sincronizacao/unidades/" + unidade.getId() + "/lotados/cadastrar")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.processadas").value(0));
+                .andExpect(jsonPath("$.criados").value(0));
     }
 
     @Test
-    @DisplayName("a designacao em lote e exclusiva do superadministrador")
-    void responsaveisExigemSuperadmin() throws Exception {
-        mvc.perform(post("/api/sincronizacao/unidades/responsaveis")
+    @DisplayName("os lotados da unidade sao exclusivos do superadministrador")
+    void lotadosExigemSuperadmin() throws Exception {
+        UnidadeJudiciaria unidade = unidade(UNIDADE_A);
+        unidade.vincularAoSiedos(CODIGO_UNIDADE_A, "Goiânia");
+        unidadesRepo.saveAndFlush(unidade);
+
+        mvc.perform(get("/api/sincronizacao/unidades/" + unidade.getId() + "/lotados")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
                 .andExpect(status().isForbidden());
     }

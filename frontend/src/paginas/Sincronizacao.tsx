@@ -248,7 +248,7 @@ export function Sincronizacao() {
         <div>
           <span className="rotulo">Superadministração</span>
           <h1 className="titulo-pagina" style={{ marginTop: 4 }}>
-            Sincronização com o RH
+            Sincronização de Unidades
           </h1>
           <p>
             Compara o que a API corporativa (ConnectTJ/SIEDOS) diz sobre uma unidade e seus

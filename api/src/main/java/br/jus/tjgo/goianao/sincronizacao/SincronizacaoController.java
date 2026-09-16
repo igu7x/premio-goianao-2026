@@ -5,7 +5,6 @@ import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
 import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.LotacaoAplicada;
 import br.jus.tjgo.goianao.sincronizacao.dto.LotadoDoRh;
-import br.jus.tjgo.goianao.sincronizacao.dto.ResponsaveisDoRh;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
 import br.jus.tjgo.goianao.sincronizacao.dto.UnidadeComparada;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
@@ -132,20 +131,6 @@ public class SincronizacaoController {
     @PostMapping("/unidades/{unidadeId}/lotados/cadastrar")
     public LotacaoAplicada cadastrarLotados(@PathVariable Long unidadeId) {
         return servico.cadastrarLotados(unidadeId);
-    }
-
-    /**
-     * Designa, a partir do RH, o responsavel das unidades que ainda nao tem um.
-     *
-     * A rodada e limitada porque o RH cobra uma chamada por unidade: a tela
-     * chama de novo com o {@code ultimoId} devolvido ate {@code processadas}
-     * vir menor que o limite.
-     */
-    @PostMapping("/unidades/responsaveis")
-    public ResponsaveisDoRh designarResponsaveis(
-            @RequestParam(required = false) Long desde,
-            @RequestParam(defaultValue = "50") int limite) {
-        return servico.designarResponsaveisDoRh(desde, Math.clamp(limite, 1, 200));
     }
 
     /** Pelo id do item: dado pessoal nao vai na URL (DI-10). */

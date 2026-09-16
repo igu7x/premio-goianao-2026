@@ -8,6 +8,7 @@ import { Inicio } from './paginas/Inicio'
 import { MeusCertificados } from './paginas/MeusCertificados'
 import { MinhasUnidades } from './paginas/MinhasUnidades'
 import { Sincronizacao } from './paginas/Sincronizacao'
+import { UnidadeDetalhe } from './paginas/UnidadeDetalhe'
 import { Unidades } from './paginas/Unidades'
 import { Usuarios } from './paginas/Usuarios'
 import { Verificar } from './paginas/Verificar'
@@ -110,6 +111,14 @@ export function App() {
           element={
             <Exige papeis={['SUPERADMIN']}>
               <Unidades />
+            </Exige>
+          }
+        />
+        <Route
+          path="/unidades/:id"
+          element={
+            <Exige papeis={['SUPERADMIN']}>
+              <UnidadeDetalhe />
             </Exige>
           }
         />

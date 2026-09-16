@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api, ErroApi } from '../api/cliente'
-import type { ResponsaveisDoRh, Unidade, Usuario } from '../api/tipos'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api, ErroApi, lerToken, urlDaApi } from '../api/cliente'
+import type { ImportacaoResponsaveis, Unidade, Usuario } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio, Modal } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
-
-/** Unidades por rodada. O RH cobra uma chamada por unidade, a 6 por segundo:
- *  uma varredura única do tribunal estouraria o tempo limite da rota. */
-const POR_RODADA = 50
 
 /**
  * Cadastro de unidades — exclusivo do superadministrador.
@@ -23,10 +20,11 @@ export function Unidades() {
   const [erro, setErro] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
   const [designando, setDesignando] = useState<Unidade | null>(null)
-  const [confirmandoRh, setConfirmandoRh] = useState(false)
-  /** Quantas unidades já foram examinadas na varredura em curso; nulo quando
-   *  não há varredura. É o que dá sinal de vida numa operação de minutos. */
-  const [progresso, setProgresso] = useState<number | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  /** Relatório do último envio; fica na tela até a pessoa fechar, porque é onde
+   *  aparecem as linhas que o arquivo não conseguiu gravar. */
+  const [relatorio, setRelatorio] = useState<ImportacaoResponsaveis | null>(null)
+  const arquivo = useRef<HTMLInputElement>(null)
   const avisos = useAvisos()
 
   const carregar = useCallback(async () => {
@@ -56,63 +54,96 @@ export function Unidades() {
   }
 
   /**
-   * Varre as unidades sem responsável e designa quem o RH aponta.
+   * Sobe a planilha de magistrados responsáveis.
    *
-   * Em rodadas, e não de uma vez: cada unidade custa uma chamada ao RH, com teto
-   * de seis por segundo. O cursor (`ultimoId`) é o que impede o laço de tentar
-   * para sempre as unidades que o RH não sabe responder — elas continuam sem
-   * responsável depois da rodada, e sem cursor seriam sorteadas de novo.
+   * O multipart não passa pelo cliente de API: ele põe `Content-Type: json` em
+   * tudo, e com isso o navegador não escreve o `boundary` — o servidor receberia
+   * um corpo que não sabe separar. Aqui o cabeçalho é omitido de propósito.
    */
-  async function designarPeloRh() {
+  async function enviarPlanilha(csv: File) {
+    setEnviando(true)
     setErro(null)
-    setProgresso(0)
-    const total = { designados: 0, criados: 0, papel: 0, semResponsavel: 0, semEmail: 0 }
-    let desde: number | null = null
-    let examinadas = 0
-
     try {
-      for (;;) {
-        const rodada: ResponsaveisDoRh = await api.post<ResponsaveisDoRh>(
-          `/api/sincronizacao/unidades/responsaveis?limite=${POR_RODADA}`
-            + (desde === null ? '' : `&desde=${desde}`),
-          {},
-        )
-        total.designados += rodada.designados
-        total.criados += rodada.usuariosCriados
-        total.papel += rodada.papelConcedido
-        total.semResponsavel += rodada.semResponsavelNoRh
-        total.semEmail += rodada.semEmail
-        examinadas += rodada.processadas
-        setProgresso(examinadas)
+      const corpo = new FormData()
+      corpo.append('arquivo', csv)
 
-        if (rodada.processadas < POR_RODADA || rodada.ultimoId === null) {
-          break
-        }
-        desde = rodada.ultimoId
+      const resposta = await fetch(urlDaApi('/api/unidades/responsaveis/importar'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${lerToken() ?? ''}` },
+        body: corpo,
+      })
+      const dados = await resposta.json()
+      if (!resposta.ok) {
+        throw new ErroApi(resposta.status, dados?.mensagem ?? 'Falha ao importar a planilha.')
       }
 
-      setConfirmandoRh(false)
+      const lido = dados as ImportacaoResponsaveis
+      setRelatorio(lido)
       avisos.sucesso(
-        `${total.designados} unidade(s) com responsável designado`,
+        `${lido.designados} unidade(s) com responsável designado`,
         [
-          total.criados > 0 ? `${total.criados} usuário(s) criado(s)` : null,
-          total.papel > 0 ? `${total.papel} ganhou(aram) o papel de magistrado` : null,
-          total.semResponsavel > 0 ? `${total.semResponsavel} sem responsável no RH` : null,
-          total.semEmail > 0 ? `${total.semEmail} sem e-mail corporativo` : null,
+          lido.usuariosCriados > 0 ? `${lido.usuariosCriados} magistrado(s) criado(s)` : null,
+          lido.reconhecimentos > 0
+            ? `${lido.reconhecimentos} selo(s) gravado(s) na edição ${lido.edicaoAno}`
+            : null,
+          lido.erros.length > 0 ? `${lido.erros.length} linha(s) com erro` : null,
         ]
           .filter(Boolean)
-          .join(' · ') || 'Todas as unidades examinadas já estavam em dia.',
+          .join(' · ') || 'Tudo na planilha já estava gravado.',
       )
       await carregar()
     } catch (e) {
-      setErro(
-        e instanceof ErroApi
-          ? `${e.message} (${examinadas} unidade(s) examinada(s) antes da falha; o que já foi designado permanece)`
-          : 'Falha ao designar os responsáveis pelo RH.',
-      )
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao importar a planilha.')
     } finally {
-      setProgresso(null)
+      setEnviando(false)
+      if (arquivo.current) {
+        // Sem isto, reenviar o mesmo arquivo corrigido não dispara o onChange.
+        arquivo.current.value = ''
+      }
     }
+  }
+
+  /**
+   * Gera um CSV de teste com as unidades desta tela.
+   *
+   * Os códigos são os do banco — é isso que faz o arquivo valer para testar: um
+   * exemplo com código inventado falharia em todas as linhas e não provaria
+   * nada. Os nomes e e-mails são fictícios, no domínio reservado `.example`,
+   * para que ninguém confunda o teste com a lista de verdade.
+   */
+  function baixarModelo() {
+    const comCodigo = (unidades ?? []).filter((u) => u.codigoSiedos !== null)
+    if (comCodigo.length === 0) {
+      setErro('Nenhuma unidade tem código do SIEDOS ainda: compare-as em Sincronização de '
+        + 'Unidades antes de gerar o modelo.')
+      return
+    }
+
+    const selos = ['bronze', 'prata', 'ouro', 'diamante']
+    const linhas = comCodigo.map((unidade, indice) => {
+      const numero = String(indice + 1).padStart(3, '0')
+      return [
+        `Magistrado de Teste ${numero}`,
+        `magistrado.teste.${numero}@tjgo.example`,
+        String(unidade.codigoSiedos),
+        selos[indice % selos.length],
+      ].join(';')
+    })
+
+    const csv = ['nome;email;unidade;selo', ...linhas].join('\n')
+    // BOM: sem ele o Excel abre os acentos errados, e a planilha volta corrompida.
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'magistrados-responsaveis-exemplo.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+
+    avisos.sucesso(
+      `Modelo com ${comCodigo.length} unidade(s)`,
+      'Códigos reais desta base; nomes e e-mails fictícios, no domínio .example.',
+    )
   }
 
   const visiveis = (unidades ?? []).filter((u) =>
@@ -134,21 +165,42 @@ export function Unidades() {
             unidade não o tenha reconhecido no prêmio.
           </p>
         </div>
-        {/* Quem responde por cada unidade já está no RH: digitar isso unidade
-            por unidade, com milhares delas, não é caminho. */}
-        {semResponsavel > 0 && (
+        {/* A lista de quem responde por cada unidade vem pronta, em planilha:
+            designar uma a uma não é caminho com centenas de unidades. */}
+        <div>
+          <input
+            ref={arquivo}
+            id="planilha-responsaveis"
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: 'none' }}
+            onChange={(evento) => {
+              const escolhido = evento.target.files?.[0]
+              if (escolhido) void enviarPlanilha(escolhido)
+            }}
+          />
           <button
             type="button"
             className="botao"
-            disabled={progresso !== null}
-            onClick={() => setConfirmandoRh(true)}
+            disabled={enviando}
+            onClick={() => arquivo.current?.click()}
           >
-            {progresso !== null ? <span className="giro" /> : <Icone nome="trocar" tamanho={16} />}
-            {progresso !== null
-              ? `Designando… (${progresso})`
-              : 'Associar responsáveis pelo RH'}
+            {enviando ? <span className="giro" /> : <Icone nome="enviar" tamanho={16} />}
+            {enviando ? 'Importando…' : 'Subir CSV de magistrados'}
           </button>
-        )}
+          <div className="acoes acoes-direita" style={{ marginTop: 6 }}>
+            <button
+              type="button"
+              className="botao botao-texto botao-pequeno"
+              onClick={baixarModelo}
+            >
+              Baixar modelo de teste
+            </button>
+          </div>
+          <div className="secundaria mono" style={{ marginTop: 4, textAlign: 'right' }}>
+            nome;e-mail;código da unidade;selo
+          </div>
+        </div>
       </header>
 
       {erro && (
@@ -205,9 +257,16 @@ export function Unidades() {
                 {visiveis.map((unidade) => (
                   <tr key={unidade.id}>
                     <td>
-                      <div className="unidade-nome" style={{ fontSize: 15, margin: 0 }}>
-                        {unidade.nome}
-                      </div>
+                      {/* A unidade leva à página dela, onde estão os lotados do
+                          RH e o cadastro deles em lote. */}
+                      <Link to={`/unidades/${unidade.id}`} className="link-unidade">
+                        <span className="unidade-nome" style={{ fontSize: 15, margin: 0 }}>
+                          {unidade.nome}
+                        </span>
+                      </Link>
+                      {unidade.codigoSiedos !== null && (
+                        <div className="secundaria mono">código {unidade.codigoSiedos}</div>
+                      )}
                     </td>
                     <td>
                       {unidade.responsavel ? (
@@ -246,68 +305,75 @@ export function Unidades() {
           </div>
 
           <div className="bloco-rodape">
-            O responsável só vê a unidade na tela dele quando ela foi reconhecida na edição
-            vigente — fora disso não existe lista de habilitados para gerenciar. A importação da
-            planilha de unidades ainda não está implementada.
+            Clique no nome da unidade para ver quem o RH aponta como lotado nela e cadastrar todos
+            de uma vez. O responsável só vê a unidade na tela dele quando ela foi reconhecida na
+            edição vigente — fora disso não existe lista de habilitados para gerenciar.
           </div>
         </div>
       )}
 
-      {confirmandoRh && (
+      {/* O relatório é a única coisa que sobra do envio: é onde estão as linhas
+          que não entraram, com o texto original, para corrigir a planilha. */}
+      {relatorio && (
         <Modal
-          titulo="Associar os responsáveis a partir do RH?"
-          descricao={`${semResponsavel} unidade(s) ainda sem responsável.`}
-          aoFechar={() => progresso === null && setConfirmandoRh(false)}
+          largo
+          titulo="Planilha importada"
+          descricao={`${relatorio.linhasLidas} linha(s) lida(s) · selos gravados na edição ${relatorio.edicaoAno}.`}
+          aoFechar={() => setRelatorio(null)}
           rodape={
-            <>
-              <button
-                type="button"
-                className="botao botao-neutro"
-                disabled={progresso !== null}
-                onClick={() => setConfirmandoRh(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="botao"
-                disabled={progresso !== null}
-                onClick={() => void designarPeloRh()}
-              >
-                {progresso !== null && <span className="giro" />}
-                {progresso !== null ? `Designando… (${progresso})` : 'Associar'}
-              </button>
-            </>
+            <button type="button" className="botao" onClick={() => setRelatorio(null)}>
+              Fechar
+            </button>
           }
         >
-          <Aviso tom="atencao" titulo="O que esta ação faz">
+          <Aviso tom={relatorio.erros.length > 0 ? 'atencao' : 'sucesso'}>
             <ul>
-              <li>
-                Pergunta ao RH quem responde por cada unidade sem responsável e designa essa
-                pessoa.
-              </li>
-              <li>
-                <strong>Cria o usuário</strong> de quem ainda não existe no sistema, com o papel
-                de magistrado e a lotação da unidade.
-              </li>
-              <li>
-                Quem já existe <strong>ganha o papel de magistrado</strong> se ainda não o tiver —
-                é o que a designação exige, porque é a tela dele que ela destrava. É concessão de
-                acesso, e o resumo diz quantas foram.
-              </li>
+              <li>{relatorio.designados} unidade(s) com responsável designado.</li>
+              <li>{relatorio.usuariosCriados} magistrado(s) criado(s) no cadastro de usuários.</li>
+              {relatorio.papelConcedido > 0 && (
+                <li>
+                  {relatorio.papelConcedido} já existia(m) e ganhou(aram) o papel de magistrado,
+                  que a designação exige.
+                </li>
+              )}
+              {relatorio.substituidos > 0 && (
+                <li>{relatorio.substituidos} responsável(is) anterior(es) substituído(s).</li>
+              )}
+              {relatorio.jaEram > 0 && (
+                <li>{relatorio.jaEram} já respondia(m) pela unidade — nada mudou.</li>
+              )}
+              <li>{relatorio.reconhecimentos} selo(s) gravado(s) como reconhecimento.</li>
             </ul>
           </Aviso>
 
-          <p className="apoio">
-            Designação já feita <strong>não é trocada</strong>: ela foi ato de alguém, e o RH não
-            desfaz decisão humana. Unidade que o RH não sabe responder, ou cujo responsável não tem
-            e-mail corporativo, fica como está e aparece no resumo.
-          </p>
-          <p className="apoio">
-            A varredura vai em rodadas de {POR_RODADA}, porque o RH aceita seis chamadas por
-            segundo. Com o tribunal inteiro cadastrado isso leva alguns minutos — deixe a aba
-            aberta.
-          </p>
+          {relatorio.erros.length > 0 && (
+            <>
+              <p className="apoio">
+                Estas linhas não entraram. As demais foram gravadas: corrija só estas e suba o
+                arquivo de novo — reenviar o que já entrou não duplica nada.
+              </p>
+              <div className="tabela-rolagem" style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <table className="tabela">
+                  <thead>
+                    <tr>
+                      <th>Linha</th>
+                      <th>Conteúdo</th>
+                      <th>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relatorio.erros.map((linha) => (
+                      <tr key={`${linha.linha}-${linha.motivo}`}>
+                        <td className="mono">{linha.linha}</td>
+                        <td className="secundaria mono">{linha.conteudo}</td>
+                        <td>{linha.motivo}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </Modal>
       )}
 

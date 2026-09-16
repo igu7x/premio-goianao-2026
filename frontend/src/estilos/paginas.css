@@ -1610,3 +1610,17 @@
 .pessoa-escolhida .botao {
   flex: none;
 }
+
+/* A unidade da lista leva à página dela. Sublinhado só no hover: com centenas
+   de linhas, uma tabela inteira sublinhada vira ruído. */
+.link-unidade {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-unidade:hover .unidade-nome,
+.link-unidade:focus-visible .unidade-nome {
+  color: var(--verde);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

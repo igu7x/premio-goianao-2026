@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Leitura da planilha de reconhecidos (004/RF-11)")
 class ImportadorCsvTest {
 
-    private final ImportadorCsv importador = new ImportadorCsv();
+    private final ImportadorCsv importador = new ImportadorCsv(new br.jus.tjgo.goianao.comum.LeitorCsv());
 
     private List<ImportadorCsv.LinhaCsv> ler(String csv) {
         return importador.ler(csv.getBytes(StandardCharsets.UTF_8));

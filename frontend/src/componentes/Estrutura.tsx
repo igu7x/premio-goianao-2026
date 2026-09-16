@@ -73,7 +73,7 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
       itens: [
         { para: '/usuarios', rotulo: 'Usuários do sistema', icone: 'equipe' },
         { para: '/unidades', rotulo: 'Unidades', icone: 'edicoes' },
-        { para: '/sincronizacao', rotulo: 'Sincronização com o RH', icone: 'trocar' },
+        { para: '/sincronizacao', rotulo: 'Sincronização de Unidades', icone: 'trocar' },
       ],
     })
   }

@@ -51,7 +51,7 @@ public class UnidadeService {
 
     @Transactional(readOnly = true)
     public UnidadeJudiciaria buscar(Long id) {
-        return repositorio.findById(id).orElseThrow(
+        return repositorio.findWithResponsavelById(id).orElseThrow(
                 () -> new NaoEncontradoException("Unidade " + id + " não encontrada."));
     }
 

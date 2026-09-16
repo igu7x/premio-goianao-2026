@@ -8,7 +8,6 @@ import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
 import br.jus.tjgo.goianao.edicao.EdicaoService;
 import br.jus.tjgo.goianao.integracao.egesp.EgespClient;
 import br.jus.tjgo.goianao.integracao.egesp.LotadoEgesp;
-import br.jus.tjgo.goianao.integracao.egesp.ResponsavelEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.ServidorEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.UnidadeEgesp;
 import br.jus.tjgo.goianao.servidor.OrigemServidor;
@@ -23,7 +22,6 @@ import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.ItemSincronizacao;
 import br.jus.tjgo.goianao.sincronizacao.dto.LotacaoAplicada;
 import br.jus.tjgo.goianao.sincronizacao.dto.LotadoDoRh;
-import br.jus.tjgo.goianao.sincronizacao.dto.ResponsaveisDoRh;
 import br.jus.tjgo.goianao.sincronizacao.dto.ServidorComparado;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
 import br.jus.tjgo.goianao.sincronizacao.dto.UnidadeComparada;
@@ -39,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -392,97 +389,6 @@ public class SincronizacaoService {
     public LotacaoAplicada cadastrarLotados(Long unidadeId) {
         UnidadeJudiciaria unidade = unidadeComCodigo(unidadeId);
         return cadastrarComoUsuarios(lotacaoResolvida(unidade), unidade);
-    }
-
-    /**
-     * Designa, a partir do RH, o responsavel das unidades que ainda nao tem um.
-     *
-     * <p>Quem responde pela unidade ja esta no RH; digitar isso unidade por
-     * unidade, com milhares delas, nao e caminho. O lote pergunta ao RH quem
-     * responde, encontra a pessoa pelo e-mail e designa — <b>criando o usuario
-     * quando ele ainda nao existe</b>.
-     *
-     * <p><b>Nao troca responsavel ja designado.</b> Designacao existente foi ato
-     * de um superadministrador, e o RH nao desfaz decisao humana. Para trocar,
-     * o caminho continua sendo o botao da linha.
-     *
-     * <p>A designacao exige o papel de magistrado — e a tela dele que ela
-     * destrava (008). Entao quem for apontado pelo RH e ainda nao o tiver,
-     * <b>ganha o papel</b>, e o numero vai na resposta: e uma concessao de
-     * acesso, e concessao silenciosa nao existe.
-     *
-     * @param desdeId cursor: so unidades com id maior que este
-     * @param limite  teto da rodada, por causa do ritmo de chamadas ao RH
-     */
-    @Transactional
-    public ResponsaveisDoRh designarResponsaveisDoRh(Long desdeId, int limite) {
-        List<UnidadeJudiciaria> pendentes = unidades
-                .findByResponsavelIsNullAndCodigoSiedosIsNotNullAndIdGreaterThanOrderByIdAsc(
-                        desdeId == null ? 0L : desdeId, PageRequest.of(0, limite));
-
-        int designados = 0;
-        int criados = 0;
-        int papelConcedido = 0;
-        int semResponsavel = 0;
-        int semEmail = 0;
-        Long ultimoId = desdeId;
-
-        for (UnidadeJudiciaria unidade : pendentes) {
-            ultimoId = unidade.getId();
-
-            Optional<ResponsavelEgesp> doRh =
-                    egesp.responsavelDaUnidade(unidade.getCodigoSiedos());
-            if (doRh.isEmpty()) {
-                semResponsavel++;
-                continue;
-            }
-
-            ResponsavelEgesp responsavel = doRh.get();
-            Optional<ServidorEgesp> pessoa = egesp.servidorPorMatricula(responsavel.matricula());
-            String email = pessoa.map(ServidorEgesp::email).filter(Email::valido).orElse(null);
-            if (email == null) {
-                semEmail++;
-                continue;
-            }
-
-            String nome = Texto.aparar(pessoa.map(ServidorEgesp::nome)
-                    .filter(n -> n != null && !n.isBlank())
-                    .orElse(responsavel.nome()));
-            String cpf = pessoa.map(ServidorEgesp::cpf).filter(Cpf::valido)
-                    .map(Cpf::normalizar).orElse(null);
-            String normalizado = Email.normalizar(email);
-
-            Usuario usuario = usuarios.findByEmailIgnoreCase(normalizado).orElse(null);
-            if (usuario == null) {
-                usuario = new Usuario(normalizado, nome, cpf, EnumSet.of(Papel.MAGISTRADO));
-                usuario.atualizarPeloRh(nome, cpf, responsavel.matricula(),
-                        loginDe(normalizado), unidade.getNome());
-                usuarios.save(usuario);
-                criados++;
-            } else {
-                usuario.atualizarPeloRh(nome, cpf, responsavel.matricula(),
-                        loginDe(normalizado), unidade.getNome());
-                if (!usuario.getPapeis().contains(Papel.MAGISTRADO)) {
-                    usuario.concederPapel(Papel.MAGISTRADO);
-                    papelConcedido++;
-                }
-            }
-
-            // Desativado nao pode responder por unidade (regra do cadastro); e
-            // reativar alguem sem ninguem pedir seria pior do que deixar a
-            // unidade sem responsavel.
-            if (!usuario.isAtivo()) {
-                semResponsavel++;
-                continue;
-            }
-
-            unidade.designarResponsavel(usuario);
-            designados++;
-        }
-
-        return new ResponsaveisDoRh(pendentes.size(), ultimoId, designados, criados,
-                papelConcedido, semResponsavel, semEmail,
-                unidades.countByResponsavelIsNullAndCodigoSiedosIsNotNull());
     }
 
     /**

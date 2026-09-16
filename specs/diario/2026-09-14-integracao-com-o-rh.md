@@ -175,3 +175,43 @@ para sempre.
 **No mock.** O `MockEgespClient` não respondia `responsavelDaUnidade` — a rotina
 passaria nos testes sem nunca ter designado ninguém. Agora o primeiro lotado
 responde pela unidade: arbitrário, mas determinístico.
+
+## A planilha de responsáveis, e a página de cada unidade (2026-09-16)
+
+Duas coisas entraram, e uma saiu.
+
+**Saiu** a designação de responsáveis a partir do RH, escrita algumas horas
+antes. A fonte está errada: quem responde por uma unidade no organograma
+corporativo não é necessariamente quem responde por ela **no prêmio** — e o
+selo, o RH não tem de jeito nenhum. Quem premia é a comissão, e o sistema nunca
+calcula vencedor (constituição, princípio 2).
+
+**Entrou** a planilha `nome;email;unidade;selo`, na tela de Unidades. A unidade
+vem pelo **código do SIEDOS** (o nome exato também é aceito) e o selo entre
+bronze, prata, ouro e diamante. Cada linha faz três coisas de uma vez, porque as
+três vêm juntas no arquivo: garante o usuário magistrado, designa quem responde
+pela unidade e grava o reconhecimento com o selo na edição.
+
+- **Linha ruim não derruba o lote.** Ela volta no relatório com o texto original
+  e o motivo; as demais são gravadas. Planilha de tribunal chega com unidade
+  extinta e linha em branco no meio, e recusar tudo obrigaria a refazer o arquivo
+  para corrigir um nome.
+- **Reenviar não duplica.** Quem já respondia pela unidade conta como "já era", e
+  o selo que já estava lá não é gravado de novo.
+- **Duas consequências ficam visíveis no resumo**, em vez de silenciosas: quem já
+  existia sem o papel de magistrado ganha o papel — que a designação exige, por
+  ser a tela dele que ela destrava — e o responsável anterior, quando havia, é
+  substituído. A planilha é ato humano; ela troca o que estava lá.
+- **Modelo de teste gerado da própria base:** um botão baixa um CSV com os
+  códigos reais das unidades da tela e nomes fictícios em `.example`. Exemplo com
+  código inventado falharia em todas as linhas e não provaria nada.
+
+**Entrou também a página de cada unidade** (`/unidades/:id`), alcançada clicando
+no nome na lista. Ela responde, sem edição escolhida, a pergunta que a tela de
+sincronização só respondia dentro de uma edição: *quem trabalha aqui, e quem
+desses já existe no sistema?* Puxar do RH é leitura; cadastrar cria os que faltam
+com papel de servidor e grava a lotação — e **não** habilita ninguém a emitir,
+que continua sendo a lista datada de uma edição (princípio 3b).
+
+**O parsing de CSV virou um `LeitorCsv` compartilhado.** Separador, BOM e aspas
+eram os mesmos nas duas planilhas; só o significado das colunas difere.

@@ -87,21 +87,44 @@ export interface LayoutsDaEdicao {
 }
 
 /**
- * Uma rodada da designação de responsáveis a partir do RH.
+ * Relatório da planilha de magistrados responsáveis (`nome;email;unidade;selo`).
  *
- * A rodada é limitada porque o RH cobra uma chamada por unidade: a tela chama de
- * novo com o `ultimoId` até `processadas` vir menor que o limite pedido.
+ * Uma linha ruim não derruba o lote: volta em `erros`, com o texto original, e
+ * as demais são gravadas.
  */
-export interface ResponsaveisDoRh {
-  processadas: number
-  ultimoId: number | null
+export interface ImportacaoResponsaveis {
+  linhasLidas: number
   designados: number
   usuariosCriados: number
   /** Já existiam sem o papel de magistrado, que a designação exige. */
   papelConcedido: number
-  semResponsavelNoRh: number
+  substituidos: number
+  jaEram: number
+  /** Selos gravados como reconhecimento; repetir a planilha não conta de novo. */
+  reconhecimentos: number
+  edicaoAno: number
+  erros: ErroDeLinha[]
+}
+
+/** Uma pessoa que o RH aponta como lotada na unidade, cruzada com o cadastro. */
+export interface LotadoDoRh {
+  matricula: number | null
+  nome: string
+  /** Nulo quando não há e-mail nem no RH nem no AD. */
+  email: string | null
+  semEmail: boolean
+  jaCadastrada: boolean
+  /** O usuário existe e já aponta para esta unidade. */
+  lotacaoCerta: boolean
+}
+
+/** Resumo do cadastro dos lotados de uma unidade. */
+export interface LotacaoAplicada {
+  lotadosNoRh: number
+  criados: number
+  atualizados: number
+  /** Ficaram de fora: sem e-mail o login não reconheceria a pessoa. */
   semEmail: number
-  restantes: number
 }
 
 /** Resultado do cadastro em lote das unidades que só existiam no RH. */

@@ -2,7 +2,6 @@ package br.jus.tjgo.goianao.unidade;
 
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -22,6 +21,15 @@ public interface UnidadeRepository extends JpaRepository<UnidadeJudiciaria, Long
     @EntityGraph(attributePaths = "responsavel")
     List<UnidadeJudiciaria> findAllByOrderByNomeAsc();
 
+    /**
+     * Traz o responsavel junto, pelo mesmo motivo da listagem: o campo e LAZY,
+     * {@code open-in-view} esta desligado e a resposta e montada fora da
+     * transacao. Sem isto, a pagina de uma unidade com responsavel designado
+     * responderia 500 — e so depois da primeira designacao.
+     */
+    @EntityGraph(attributePaths = "responsavel")
+    Optional<UnidadeJudiciaria> findWithResponsavelById(Long id);
+
     /** Casamento com a API corporativa (010), depois que o codigo foi gravado. */
     Optional<UnidadeJudiciaria> findByCodigoSiedos(Long codigoSiedos);
 
@@ -29,20 +37,4 @@ public interface UnidadeRepository extends JpaRepository<UnidadeJudiciaria, Long
     boolean existsByIdAndResponsavelEmail(Long id, String email);
 
     List<UnidadeJudiciaria> findByResponsavelEmailOrderByNomeAsc(String email);
-
-    /**
-     * Unidades ainda sem responsavel, para a designacao em lote a partir do RH.
-     *
-     * <p>Ordenadas por id e a partir de um cursor porque a rodada e limitada: o
-     * RH cobra uma chamada por unidade, e com o tribunal inteiro cadastrado uma
-     * varredura unica estouraria o tempo da rota. Sem o cursor, a rodada
-     * seguinte tentaria de novo exatamente as mesmas unidades — as que o RH nao
-     * tem responsavel continuam sem responsavel, e o lote nunca terminaria.
-     *
-     * <p>So entram as que tem codigo: sem ele nao ha o que perguntar ao RH.
-     */
-    List<UnidadeJudiciaria> findByResponsavelIsNullAndCodigoSiedosIsNotNullAndIdGreaterThanOrderByIdAsc(
-            Long desdeId, Pageable pagina);
-
-    long countByResponsavelIsNullAndCodigoSiedosIsNotNull();
 }
