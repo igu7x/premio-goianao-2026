@@ -86,6 +86,14 @@ export interface LayoutsDaEdicao {
   fonteInstitucionalDisponivel: boolean
 }
 
+/** Resultado do cadastro em lote das unidades que só existiam no RH. */
+export interface CadastroEmLote {
+  criadas: number
+  jaExistiam: number
+  /** Já existiam pelo nome e passaram a ter o código do SIEDOS. */
+  casadas: number
+}
+
 /** Resultado de preencher a edição com as artes padrão do prêmio. */
 export interface ArtesPadraoAplicadas {
   criados: number

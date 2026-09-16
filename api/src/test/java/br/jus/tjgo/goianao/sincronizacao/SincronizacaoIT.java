@@ -306,6 +306,67 @@ class SincronizacaoIT extends TesteDeIntegracao {
         return new Cenario(edicao.getId(), local.getId());
     }
 
+    @Test
+    @DisplayName("cadastra de uma vez todas as unidades que so existem no RH")
+    void cadastraTodasAsFaltantes() throws Exception {
+        long faltantes = compararUnidades().stream()
+                .filter(u -> u.situacao() == ItemSincronizacao.SO_NA_API)
+                .count();
+        assertThat(faltantes).as("o mock precisa ter o que cadastrar").isPositive();
+        long antes = unidadesRepo.count();
+
+        mvc.perform(post("/api/sincronizacao/unidades/em-lote")
+                        .param("codigo", Long.toString(MockEgespClient.CODIGO_RAIZ))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criadas").value((int) faltantes));
+
+        assertThat(unidadesRepo.count()).isEqualTo(antes + faltantes);
+
+        // Depois do lote nao sobra nenhuma so no RH, e repetir nao cria nada.
+        assertThat(compararUnidades())
+                .noneMatch(u -> u.situacao() == ItemSincronizacao.SO_NA_API);
+
+        mvc.perform(post("/api/sincronizacao/unidades/em-lote")
+                        .param("codigo", Long.toString(MockEgespClient.CODIGO_RAIZ))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criadas").value(0));
+        assertThat(unidadesRepo.count()).isEqualTo(antes + faltantes);
+    }
+
+    @Test
+    @DisplayName("o lote casa pelo nome a unidade que ainda nao tinha codigo, sem duplicar")
+    void loteCasaPeloNome() throws Exception {
+        UnidadeJudiciaria local = unidade(UNIDADE_A);
+        assertThat(local.getCodigoSiedos()).isNull();
+        long antes = unidadesRepo.count();
+        long faltantes = compararUnidades().stream()
+                .filter(u -> u.situacao() == ItemSincronizacao.SO_NA_API)
+                .count();
+
+        mvc.perform(post("/api/sincronizacao/unidades/em-lote")
+                        .param("codigo", Long.toString(MockEgespClient.CODIGO_RAIZ))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.casadas").value(1));
+
+        assertThat(unidadesRepo.findById(local.getId()).orElseThrow().getCodigoSiedos())
+                .as("a unidade digitada a mao passa a ser reconhecida pelo RH")
+                .isEqualTo(CODIGO_UNIDADE_A);
+        assertThat(unidadesRepo.count())
+                .as("a que ja existia foi casada, nao duplicada: so as faltantes nasceram")
+                .isEqualTo(antes + faltantes);
+    }
+
+    @Test
+    @DisplayName("o cadastro em lote e exclusivo do superadministrador")
+    void loteExigeSuperadmin() throws Exception {
+        mvc.perform(post("/api/sincronizacao/unidades/em-lote")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
+                .andExpect(status().isForbidden());
+    }
+
     private List<UnidadeComparada> compararUnidades() throws Exception {
         String resposta = mvc.perform(get("/api/sincronizacao/unidades")
                         .param("codigo", Long.toString(MockEgespClient.CODIGO_RAIZ))

@@ -329,3 +329,78 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
     expect(leituras.length).toBeGreaterThan(1)
   })
 })
+
+describe('Cadastro em lote das unidades que só existem no RH', () => {
+  it('cadastra todas as faltantes depois de confirmar, no escopo da comparação', async () => {
+    const chamadas = instalarApiFalsa([
+      ...rotasBase(true),
+      [
+        '/api/sincronizacao/unidades/em-lote',
+        { corpo: { criadas: 2, jaExistiam: 1, casadas: 0 } },
+      ],
+      ['/api/sincronizacao/unidades', { corpo: [SO_NA_API, DESATUALIZADA] }],
+    ])
+
+    renderizar()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /comparar a base completa do rh/i }),
+    )
+    await screen.findByRole('button', { name: /cadastrar as 1$/i })
+
+    // O botão anuncia quantas vai criar — e não dispara sem confirmação.
+    await userEvent.click(screen.getByRole('button', { name: /cadastrar as 1$/i }))
+    expect(screen.getByText(/cadastrar 1 unidade/i)).toBeInTheDocument()
+    expect(chamadas.some((c) => c.url.includes('em-lote'))).toBe(false)
+
+    await userEvent.click(screen.getByRole('button', { name: /cadastrar todas/i }))
+
+    const lote = await waitFor(() => {
+      const c = chamadas.find((x) => x.url.includes('em-lote'))
+      expect(c).toBeDefined()
+      return c!
+    })
+    expect(lote.metodo).toBe('POST')
+    // Comparou a base inteira: o lote vai sem código, como a comparação foi.
+    expect(lote.url).not.toContain('codigo=')
+  })
+
+  it('o lote de um ramo leva o mesmo código da comparação', async () => {
+    const chamadas = instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades/em-lote', { corpo: { criadas: 1, jaExistiam: 0, casadas: 0 } }],
+      ['/api/sincronizacao/unidades', { corpo: [SO_NA_API] }],
+    ])
+
+    renderizar()
+
+    await userEvent.type(await screen.findByLabelText(/código da unidade/i), '600000009')
+    await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
+    await screen.findByRole('button', { name: /cadastrar as 1$/i })
+
+    await userEvent.click(screen.getByRole('button', { name: /cadastrar as 1$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /cadastrar todas/i }))
+
+    const lote = await waitFor(() => {
+      const c = chamadas.find((x) => x.url.includes('em-lote'))
+      expect(c).toBeDefined()
+      return c!
+    })
+    expect(lote.url).toContain('codigo=600000009')
+  })
+
+  it('não oferece o lote quando não falta nenhuma unidade', async () => {
+    instalarApiFalsa([
+      ...rotasBase(true),
+      ['/api/sincronizacao/unidades', { corpo: [DESATUALIZADA] }],
+    ])
+
+    renderizar()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /comparar a base completa do rh/i }),
+    )
+    await screen.findByText('1a Vara Civel de Goiania')
+    expect(screen.queryByRole('button', { name: /cadastrar as /i })).not.toBeInTheDocument()
+  })
+})

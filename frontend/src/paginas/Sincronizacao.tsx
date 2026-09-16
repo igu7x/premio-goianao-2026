@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ErroApi } from '../api/cliente'
 import type {
+  CadastroEmLote,
   ComparacaoServidores,
   Edicao,
   ImportacaoDaUnidade,
@@ -87,6 +88,8 @@ export function Sincronizacao() {
    *  É o que a recomparação depois de aplicar precisa repetir. */
   const [consultado, setConsultado] = useState<string | null>(null)
   const [aplicando, setAplicando] = useState<string | null>(null)
+  const [cadastrandoLote, setCadastrandoLote] = useState(false)
+  const [confirmandoLote, setConfirmandoLote] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [aberta, setAberta] = useState<UnidadeComparada | null>(null)
   const [filtro, setFiltro] = useState('')
@@ -157,6 +160,41 @@ export function Sincronizacao() {
     }
   }
 
+  /**
+   * Cadastra de uma vez as unidades que só existem no RH.
+   *
+   * O escopo é o da comparação que está na tela — o mesmo código, ou a base
+   * inteira —, e não o que o filtro deixou visível: o filtro é lupa, não
+   * seleção, e criar só o que estava à vista seria uma surpresa silenciosa.
+   */
+  async function cadastrarTodasAsFaltantes() {
+    setCadastrandoLote(true)
+    setErro(null)
+    try {
+      const resumo = await api.post<CadastroEmLote>(
+        consultado === null
+          ? `${BASE}/unidades/em-lote`
+          : `${BASE}/unidades/em-lote?codigo=${consultado}`,
+        {},
+      )
+      setConfirmandoLote(false)
+      avisos.sucesso(
+        `${resumo.criadas} unidade(s) cadastrada(s)`,
+        [
+          resumo.casadas > 0 ? `${resumo.casadas} já existia(m) e ganhou(aram) o código do RH` : null,
+          resumo.jaExistiam > 0 ? `${resumo.jaExistiam} já estava(m) em dia` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Já podem receber reconhecimentos e lista de habilitados.',
+      )
+      await executar(consultado)
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Falha ao cadastrar as unidades.')
+    } finally {
+      setCadastrandoLote(false)
+    }
+  }
+
   function cadastrar(unidade: UnidadeComparada) {
     void aplicar(
       unidade,
@@ -191,6 +229,9 @@ export function Sincronizacao() {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
+  /** Total sem filtro: é o que o botão de lote vai criar de fato. */
+  const faltantes = (unidades ?? []).filter((u) => u.situacao === 'SO_NA_API').length
+
   const visiveis = (unidades ?? []).filter((u) => {
     if (!alvo) return true
     const texto = `${u.nomeNoSistema ?? ''} ${u.nomeNaApi ?? ''} ${u.comarca ?? ''} ${u.codigo ?? ''}`
@@ -418,6 +459,19 @@ export function Sincronizacao() {
                     </h2>
                     <p className="apoio">{EXPLICACAO_UNIDADE[grupo]}</p>
                   </div>
+                  {/* Com o tribunal inteiro são centenas de linhas: cadastrar uma
+                      a uma não é trabalho, é impossível. */}
+                  {grupo === 'SO_NA_API' && faltantes > 0 && (
+                    <button
+                      type="button"
+                      className="botao"
+                      disabled={cadastrandoLote || comparando !== null}
+                      onClick={() => setConfirmandoLote(true)}
+                    >
+                      <Icone nome="mais" tamanho={16} />
+                      Cadastrar as {faltantes}
+                    </button>
+                  )}
                 </div>
 
                 <div className="tabela-rolagem">
@@ -535,6 +589,58 @@ export function Sincronizacao() {
           </>
         )}
       </div>
+
+      {confirmandoLote && (
+        <Modal
+          titulo={`Cadastrar ${faltantes} unidade(s)?`}
+          descricao={
+            consultado === null
+              ? 'Todas as que a base do RH tem e este sistema ainda não.'
+              : `Todas as que faltam no ramo da unidade ${consultado}.`
+          }
+          aoFechar={() => setConfirmandoLote(false)}
+          rodape={
+            <>
+              <button
+                type="button"
+                className="botao botao-neutro"
+                disabled={cadastrandoLote}
+                onClick={() => setConfirmandoLote(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="botao"
+                disabled={cadastrandoLote}
+                onClick={() => void cadastrarTodasAsFaltantes()}
+              >
+                {cadastrandoLote && <span className="giro" />}
+                {cadastrandoLote ? 'Cadastrando…' : 'Cadastrar todas'}
+              </button>
+            </>
+          }
+        >
+          <Aviso tom="atencao" titulo="O que esta ação faz">
+            <ul>
+              <li>Cria cada unidade com o nome, a comarca e o código que o RH tem hoje.</li>
+              <li>
+                Unidade que já existe aqui não é renomeada — se o nome divergir, ela continua no
+                grupo “Desatualizado”, para ser resolvida uma a uma.
+              </li>
+              <li>Nada é removido: unidade órfã continua onde está.</li>
+            </ul>
+          </Aviso>
+
+          <p className="apoio">
+            {filtro.trim()
+              ? 'O filtro não limita esta ação: ele é lupa, não seleção. Serão cadastradas todas '
+                + 'as unidades da comparação, inclusive as que ele escondeu.'
+              : 'O nome vai impresso no certificado. Cadastrar não publica nada: a unidade passa '
+                + 'a existir e só entra num certificado quando for reconhecida numa edição.'}
+          </p>
+        </Modal>
+      )}
 
       {aberta && aberta.unidadeId !== null && edicaoId !== null && (
         <PainelDeServidores

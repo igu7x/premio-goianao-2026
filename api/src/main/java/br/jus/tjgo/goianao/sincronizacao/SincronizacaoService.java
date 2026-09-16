@@ -16,6 +16,7 @@ import br.jus.tjgo.goianao.servidor.ServidorHabilitadoRepository;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
 import br.jus.tjgo.goianao.seguranca.Papel;
 import br.jus.tjgo.goianao.servidor.dto.SemeaduraResposta;
+import br.jus.tjgo.goianao.sincronizacao.dto.CadastroEmLote;
 import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
 import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.ItemSincronizacao;
@@ -219,6 +220,60 @@ public class SincronizacaoService {
                 () -> unidades.save(new UnidadeJudiciaria(api.nome())));
         unidade.vincularAoSiedos(api.codigo(), api.comarca());
         return unidade;
+    }
+
+    /**
+     * Cadastra de uma vez todas as unidades que o RH tem e o sistema nao.
+     *
+     * <p>Existe porque a comparacao do tribunal inteiro devolve milhares de
+     * linhas: clicar em "cadastrar" uma a uma nao e trabalho, e impossivel. O
+     * escopo e o mesmo da comparacao que esta na tela — sem codigo, a base
+     * inteira; com codigo, so aquele ramo —, para que o botao crie exatamente o
+     * que a lista mostra.
+     *
+     * <p><b>So cria.</b> Nao renomeia, nao mexe em quem ja esta cadastrado e nao
+     * apaga orfa: essas continuam sendo decisoes linha a linha, porque mudam o
+     * nome que vai impresso em certificado. A unica coisa que faz numa unidade
+     * existente e gravar o codigo do SIEDOS quando ela ainda nao tinha — casar
+     * pelo nome e o que tira a unidade do limbo em que ela nao e reconhecida
+     * pelo RH.
+     */
+    @Transactional
+    public CadastroEmLote cadastrarUnidadesFaltantes(Long codigoRaiz) {
+        List<UnidadeEgesp> daApi = codigoRaiz == null
+                ? egesp.organogramaCompleto()
+                : egesp.hierarquia(codigoRaiz);
+
+        int criadas = 0;
+        int jaExistiam = 0;
+        int casadas = 0;
+        Set<Long> vistos = new LinkedHashSet<>();
+
+        for (UnidadeEgesp api : daApi) {
+            // Codigo repetido na mesma resposta nao vira duas unidades: a coluna
+            // tem unica, e o erro so apareceria no meio do lote.
+            if (api.codigo() == null || !vistos.add(api.codigo())) {
+                continue;
+            }
+
+            Optional<UnidadeJudiciaria> local = localDe(api);
+            if (local.isPresent()) {
+                UnidadeJudiciaria unidade = local.get();
+                if (unidade.getCodigoSiedos() == null) {
+                    unidade.vincularAoSiedos(api.codigo(), api.comarca());
+                    casadas++;
+                } else {
+                    jaExistiam++;
+                }
+                continue;
+            }
+
+            UnidadeJudiciaria nova = unidades.save(new UnidadeJudiciaria(api.nome()));
+            nova.vincularAoSiedos(api.codigo(), api.comarca());
+            criadas++;
+        }
+
+        return new CadastroEmLote(criadas, jaExistiam, casadas);
     }
 
     /** Adota nome e comarca do RH numa unidade ja cadastrada. */

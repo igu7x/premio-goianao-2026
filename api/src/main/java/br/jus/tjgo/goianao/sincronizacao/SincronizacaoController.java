@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.sincronizacao;
 
+import br.jus.tjgo.goianao.sincronizacao.dto.CadastroEmLote;
 import br.jus.tjgo.goianao.sincronizacao.dto.ComparacaoServidores;
 import br.jus.tjgo.goianao.sincronizacao.dto.ImportacaoDaUnidade;
 import br.jus.tjgo.goianao.sincronizacao.dto.SituacaoIntegracao;
@@ -69,6 +70,19 @@ public class SincronizacaoController {
     @ResponseStatus(HttpStatus.CREATED)
     public UnidadeResposta cadastrarUnidade(@RequestBody CadastrarUnidadeRequisicao requisicao) {
         return UnidadeResposta.de(servico.cadastrarUnidade(requisicao.codigo()));
+    }
+
+    /**
+     * Cadastra de uma vez as unidades que so existem no RH.
+     *
+     * O {@code codigo} e o mesmo da comparacao que esta na tela: sem ele, a base
+     * inteira. Assim o botao cria exatamente o que a lista mostra, e nao um
+     * conjunto diferente do que a pessoa acabou de ler.
+     */
+    @PostMapping("/unidades/em-lote")
+    public CadastroEmLote cadastrarUnidadesFaltantes(
+            @RequestParam(required = false) Long codigo) {
+        return servico.cadastrarUnidadesFaltantes(codigo);
     }
 
     @PutMapping("/unidades/{unidadeId}")
