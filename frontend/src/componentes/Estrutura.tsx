@@ -72,7 +72,6 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
       titulo: 'Superadministração',
       itens: [
         { para: '/usuarios', rotulo: 'Usuários do sistema', icone: 'equipe' },
-        { para: '/unidades', rotulo: 'Unidades', icone: 'edicoes' },
         { para: '/sincronizacao', rotulo: 'Sincronização de Unidades', icone: 'trocar' },
       ],
     })

@@ -102,6 +102,10 @@ export interface ImportacaoResponsaveis {
   jaEram: number
   /** Selos gravados como reconhecimento; repetir a planilha não conta de novo. */
   reconhecimentos: number
+  /** Listas de habilitados semeadas do RH no mesmo ato da designação. */
+  listasSemeadas: number
+  /** Servidores que entraram nessas listas. */
+  habilitados: number
   edicaoAno: number
   erros: ErroDeLinha[]
 }
@@ -327,6 +331,21 @@ export interface Unidade {
   comarca: string | null
   /** Quem responde pela unidade; nulo enquanto ninguém foi designado. */
   responsavel: { id: number; nome: string; email: string } | null
+  /** Habilitados nesta unidade na edição consultada; nulo fora de uma edição. */
+  habilitados: number | null
+}
+
+/**
+ * Resultado de designar quem responde pela unidade.
+ *
+ * Designar semeia a lista de habilitados no mesmo ato; `semeadura` é nula
+ * quando ela não aconteceu, e aí `aviso` diz por quê — a designação em si foi
+ * gravada de todo jeito.
+ */
+export interface Designacao {
+  unidade: Unidade
+  semeadura: Semeadura | null
+  aviso: string | null
 }
 
 /* ------------------------------------------------------------------ */

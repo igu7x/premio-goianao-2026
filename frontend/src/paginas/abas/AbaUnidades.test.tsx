@@ -2,10 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import type { Unidade } from '../api/tipos'
-import { ProvedorDeAvisos } from '../componentes/Avisos'
-import { instalarApiFalsa } from '../teste/api-falsa'
-import { Unidades } from './Unidades'
+import type { Edicao, Unidade } from '../../api/tipos'
+import { ProvedorDeAvisos } from '../../componentes/Avisos'
+import { instalarApiFalsa } from '../../teste/api-falsa'
+import { AbaUnidades } from './AbaUnidades'
 
 const COM_RESPONSAVEL: Unidade = {
   id: 1,
@@ -14,6 +14,7 @@ const COM_RESPONSAVEL: Unidade = {
   codigoSiedos: 600000009,
   comarca: null,
   responsavel: { id: 9, nome: 'Igor Freitas', email: 'ifccteixeira@tjgo.jus.br' },
+  habilitados: 38,
 }
 
 const SEM_RESPONSAVEL: Unidade = {
@@ -23,6 +24,7 @@ const SEM_RESPONSAVEL: Unidade = {
   codigoSiedos: 600000010,
   comarca: null,
   responsavel: null,
+  habilitados: 0,
 }
 
 const RELATORIO = {
@@ -33,15 +35,29 @@ const RELATORIO = {
   substituidos: 0,
   jaEram: 0,
   reconhecimentos: 2,
+  listasSemeadas: 2,
+  habilitados: 47,
   edicaoAno: 2026,
   erros: [{ linha: 3, conteudo: 'Fulano;errado;9999;ouro', motivo: 'Unidade não está cadastrada.' }],
+}
+
+const EDICAO: Edicao = {
+  id: 7,
+  ano: 2026,
+  descricao: null,
+  status: 'PUBLICADA',
+  vigente: true,
+  emitivel: true,
+  aceitaInclusoes: true,
+  criadoEm: '2026-01-10T09:00:00',
+  atualizadoEm: null,
 }
 
 function renderizar() {
   render(
     <MemoryRouter>
       <ProvedorDeAvisos>
-        <Unidades />
+        <AbaUnidades edicao={EDICAO} />
       </ProvedorDeAvisos>
     </MemoryRouter>,
   )
@@ -69,8 +85,13 @@ describe('Planilha de magistrados responsáveis', () => {
     expect(screen.getByText(/unidade não está cadastrada/i)).toBeInTheDocument()
     expect(screen.getByText('Fulano;errado;9999;ouro')).toBeInTheDocument()
 
+    // O relatório também diz quantas listas a planilha semeou do RH.
+    expect(screen.getByText(/2 lista\(s\) de servidores semeada\(s\)/i)).toBeInTheDocument()
+
     const envio = chamadas.find((c) => c.url.includes('responsaveis/importar'))
     expect(envio?.metodo).toBe('POST')
+    // Os selos e a semeadura são da edição aberta, não da vigente por suposição.
+    expect(envio?.url).toContain('edicaoId=7')
   })
 
   it('o modelo de teste usa os códigos reais das unidades da tela', async () => {
@@ -101,6 +122,59 @@ describe('Planilha de magistrados responsáveis', () => {
     // Nomes fictícios, no domínio reservado: ninguém confunde com a lista real.
     expect(gerado).toContain('@tjgo.example')
     vi.unstubAllGlobals()
+  })
+
+  it('designar semeia a lista da unidade e conta quem entrou', async () => {
+    const chamadas = instalarApiFalsa([
+      [
+        '/api/usuarios',
+        {
+          corpo: [
+            {
+              id: 9,
+              nome: 'Igor Freitas',
+              email: 'ifccteixeira@tjgo.jus.br',
+              ativo: true,
+              papeis: ['MAGISTRADO'],
+            },
+          ],
+        },
+      ],
+      [
+        /\/responsavel/,
+        {
+          corpo: {
+            unidade: { ...SEM_RESPONSAVEL, responsavel: COM_RESPONSAVEL.responsavel },
+            semeadura: {
+              retornadosPeloEgesp: 12,
+              incluidos: 12,
+              jaExistentes: 0,
+              preservadosRemovidos: 0,
+              ignoradosSemEmail: 0,
+              totalAtivos: 12,
+            },
+            aviso: null,
+          },
+        },
+      ],
+      ['/api/unidades', { corpo: [SEM_RESPONSAVEL] }],
+    ])
+
+    renderizar()
+    await userEvent.click(await screen.findByRole('button', { name: /designar/i }))
+    await userEvent.selectOptions(
+      await screen.findByRole('combobox', { name: /magistrado/i }),
+      '9',
+    )
+    // O da linha e o do modal têm o mesmo rótulo; o do modal é o segundo.
+    const [, confirmar] = screen.getAllByRole('button', { name: /^designar$/i })
+    await userEvent.click(confirmar)
+
+    // O aviso é a prova de que a equipe veio junto com a designação.
+    await screen.findByText(/12 incluído\(s\)/i)
+    const designacao = chamadas.find((c) => c.url.includes('/responsavel'))
+    expect(designacao?.metodo).toBe('PUT')
+    expect(designacao?.url).toContain('edicaoId=7')
   })
 
   it('a unidade leva para a página dela', async () => {

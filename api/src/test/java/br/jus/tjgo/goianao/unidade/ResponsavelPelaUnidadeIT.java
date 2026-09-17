@@ -84,8 +84,8 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuarioId\":" + chefeId + "}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.responsavel.nome").value("Helena Chefe"))
-                .andExpect(jsonPath("$.responsavel.email").value(EMAIL_CHEFE));
+                .andExpect(jsonPath("$.unidade.responsavel.nome").value("Helena Chefe"))
+                .andExpect(jsonPath("$.unidade.responsavel.email").value(EMAIL_CHEFE));
 
         // Depois: a unidade aparece e ele pode editar.
         mvc.perform(get("/api/magistrado/servidores")
@@ -114,10 +114,53 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.responsavel").doesNotExist());
+        // A retirada continua devolvendo a unidade em si: nao ha lista a semear.
 
         mvc.perform(get("/api/magistrado/servidores")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_CHEFE)))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    /**
+     * O ponto da emenda de 17/09/2026: designar passou a ser tambem o ato que
+     * traz a equipe do RH. Sem isto, o responsavel abria a tela dele numa
+     * unidade vazia e tinha de semear a mao — e em unidade nao reconhecida nem
+     * podia, porque nao havia lista nenhuma.
+     */
+    @Test
+    @DisplayName("designar semeia a lista da unidade, mesmo sem reconhecimento na edicao")
+    void designacaoSemeiaALista() throws Exception {
+        superadmin();
+        Long chefeId = chefeMagistrado();
+        Edicao edicao = edicaoVigente(2076);
+        // Unidade que ninguem venceu nesta edicao: so a designacao a traz.
+        Long unidadeId = unidade(UNIDADE_B).getId();
+
+        mvc.perform(put("/api/unidades/" + unidadeId + "/responsavel?edicaoId=" + edicao.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"usuarioId\":" + chefeId + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.semeadura.incluidos")
+                        .value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.aviso").doesNotExist());
+
+        // A lista aparece para ele pronta, sem passo nenhum no meio.
+        mvc.perform(get("/api/magistrado/servidores")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_CHEFE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].unidadeId").value(unidadeId))
+                .andExpect(jsonPath("$[0].servidores.length()")
+                        .value(org.hamcrest.Matchers.greaterThan(0)));
+
+        // E a lista da edicao mostra o numero, que e como o superadmin confere.
+        mvc.perform(get("/api/unidades?edicaoId=" + edicao.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + unidadeId + ")].habilitados")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.greaterThan(0))));
     }
 
     @Test

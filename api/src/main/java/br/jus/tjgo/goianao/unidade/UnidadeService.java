@@ -91,6 +91,12 @@ public class UnidadeService {
         return unidade;
     }
 
+    /** A unidade tem alguem designado? E o que abre a lista de habilitados dela. */
+    @Transactional(readOnly = true)
+    public boolean temResponsavel(Long unidadeId) {
+        return buscar(unidadeId).getResponsavel() != null;
+    }
+
     /** Escopo: a pessoa deste e-mail responde por esta unidade? */
     @Transactional(readOnly = true)
     public boolean ehResponsavel(Long unidadeId, String email) {

@@ -1,21 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ErroApi, lerToken, urlDaApi } from '../api/cliente'
-import type { ImportacaoResponsaveis, Unidade, Usuario } from '../api/tipos'
-import { useAvisos } from '../componentes/Avisos'
-import { Aviso, Carregando, EstadoVazio, Modal } from '../componentes/Basicos'
-import { Icone } from '../componentes/Icone'
+import { api, ErroApi, lerToken, urlDaApi } from '../../api/cliente'
+import type {
+  Designacao,
+  Edicao,
+  ImportacaoResponsaveis,
+  Unidade,
+  Usuario,
+} from '../../api/tipos'
+import { useAvisos } from '../../componentes/Avisos'
+import { Aviso, Carregando, EstadoVazio, Modal } from '../../componentes/Basicos'
+import { Icone } from '../../componentes/Icone'
+import { resumoDaSemeadura } from './resumoDaSemeadura'
 
 /**
- * Cadastro de unidades — exclusivo do superadministrador.
+ * Unidades da edição e quem responde por cada uma — aba do superadministrador.
  *
  * O que se faz aqui é designar o <b>superior responsável</b> por cada unidade.
  * Essa designação é o que passa a dar ao magistrado o direito de gerenciar a
  * lista de servidores habilitados dali — antes, o único caminho era ter sido
  * reconhecido no prêmio pela unidade, o que amarra duas coisas diferentes:
  * responder pela vara e ter vencido com ela.
+ *
+ * <p>Era uma tela solta no menu, fora de qualquer edição. Mas designar não é
+ * ato avulso: ele semeia a lista de habilitados <b>de uma edição</b>, e o selo
+ * da planilha é um reconhecimento <b>de uma edição</b>. Aqui dentro a edição é
+ * a que está aberta, e não mais a vigente por suposição.
  */
-export function Unidades() {
+export function AbaUnidades({ edicao }: { edicao: Edicao }) {
   const [unidades, setUnidades] = useState<Unidade[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
@@ -29,11 +41,13 @@ export function Unidades() {
 
   const carregar = useCallback(async () => {
     try {
-      setUnidades(await api.get<Unidade[]>('/api/unidades'))
+      // Com a edição na consulta, cada linha já vem com quantos estão
+      // habilitados nela — é assim que se vê que a semeadura pegou.
+      setUnidades(await api.get<Unidade[]>(`/api/unidades?edicaoId=${edicao.id}`))
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao carregar as unidades.')
     }
-  }, [])
+  }, [edicao.id])
 
   useEffect(() => {
     void carregar()
@@ -67,11 +81,14 @@ export function Unidades() {
       const corpo = new FormData()
       corpo.append('arquivo', csv)
 
-      const resposta = await fetch(urlDaApi('/api/unidades/responsaveis/importar'), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${lerToken() ?? ''}` },
-        body: corpo,
-      })
+      const resposta = await fetch(
+        urlDaApi(`/api/unidades/responsaveis/importar?edicaoId=${edicao.id}`),
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${lerToken() ?? ''}` },
+          body: corpo,
+        },
+      )
       const dados = await resposta.json()
       if (!resposta.ok) {
         throw new ErroApi(resposta.status, dados?.mensagem ?? 'Falha ao importar a planilha.')
@@ -85,6 +102,9 @@ export function Unidades() {
           lido.usuariosCriados > 0 ? `${lido.usuariosCriados} magistrado(s) criado(s)` : null,
           lido.reconhecimentos > 0
             ? `${lido.reconhecimentos} selo(s) gravado(s) na edição ${lido.edicaoAno}`
+            : null,
+          lido.listasSemeadas > 0
+            ? `${lido.listasSemeadas} lista(s) semeada(s) com ${lido.habilitados} servidor(es)`
             : null,
           lido.erros.length > 0 ? `${lido.erros.length} linha(s) com erro` : null,
         ]
@@ -152,17 +172,15 @@ export function Unidades() {
   const semResponsavel = (unidades ?? []).filter((u) => !u.responsavel).length
 
   return (
-    <div className="pagina">
-      <header className="cabecalho-pagina">
+    <>
+      <header className="cabecalho-pagina" style={{ marginBottom: 'var(--e4)' }}>
         <div>
-          <span className="rotulo">Superadministração</span>
-          <h1 className="titulo-pagina" style={{ marginTop: 4 }}>
-            Unidades
-          </h1>
-          <p>
-            Todas as unidades cadastradas e quem responde por cada uma. Designar o superior
-            responsável é o que libera, para ele, a aba “Servidores da unidade” — mesmo que a
-            unidade não o tenha reconhecido no prêmio.
+          <h2 className="titulo-secao">Unidades e responsáveis</h2>
+          <p className="apoio">
+            Todas as unidades cadastradas e quem responde por cada uma. Ao designar o responsável,
+            a lista de servidores habilitados da unidade é semeada do RH na hora, nesta edição — ele
+            abre a tela dele com a equipe já lá, mesmo que a unidade não o tenha reconhecido no
+            prêmio.
           </p>
         </div>
         {/* A lista de quem responde por cada unidade vem pronta, em planilha:
@@ -261,6 +279,7 @@ export function Unidades() {
                 <tr>
                   <th>Unidade</th>
                   <th>Superior responsável</th>
+                  <th>Habilitados</th>
                   <th className="direita">Ações</th>
                 </tr>
               </thead>
@@ -290,6 +309,11 @@ export function Unidades() {
                       )}
                     </td>
                     <td>
+                      {/* Zero com responsável é sinal de RH mudo na hora da
+                          designação, e não de unidade sem gente. */}
+                      <span className="numero-pequeno">{unidade.habilitados ?? '—'}</span>
+                    </td>
+                    <td>
                       <div className="acoes acoes-direita">
                         <button
                           type="button"
@@ -317,8 +341,8 @@ export function Unidades() {
 
           <div className="bloco-rodape">
             Clique no nome da unidade para ver quem o RH aponta como lotado nela e cadastrar todos
-            de uma vez. O responsável só vê a unidade na tela dele quando ela foi reconhecida na
-            edição vigente — fora disso não existe lista de habilitados para gerenciar.
+            de uma vez. Semear de novo mescla: acrescenta quem faltava, mantém as inclusões manuais
+            e não traz de volta quem o responsável removeu.
           </div>
         </div>
       )}
@@ -354,6 +378,10 @@ export function Unidades() {
                 <li>{relatorio.jaEram} já respondia(m) pela unidade — nada mudou.</li>
               )}
               <li>{relatorio.reconhecimentos} selo(s) gravado(s) como reconhecimento.</li>
+              <li>
+                {relatorio.listasSemeadas} lista(s) de servidores semeada(s) do RH, com{' '}
+                {relatorio.habilitados} servidor(es) incluído(s).
+              </li>
             </ul>
           </Aviso>
 
@@ -391,29 +419,35 @@ export function Unidades() {
       {designando && (
         <ModalDesignar
           unidade={designando}
+          edicao={edicao}
           aoFechar={() => setDesignando(null)}
-          aoDesignar={async (nome) => {
+          aoDesignar={async (resultado) => {
             setDesignando(null)
+            const nome = resultado.unidade.responsavel?.nome ?? 'O magistrado'
             avisos.sucesso(
               `${nome} responde por ${designando.nome}`,
-              'Ele já pode gerenciar a lista de servidores desta unidade.',
+              resultado.semeadura
+                ? `Lista da edição ${edicao.ano} semeada do RH: ${resumoDaSemeadura(resultado.semeadura)}`
+                : (resultado.aviso ?? 'Ele já pode gerenciar a lista de servidores desta unidade.'),
             )
             await carregar()
           }}
         />
       )}
-    </div>
+    </>
   )
 }
 
 function ModalDesignar({
   unidade,
+  edicao,
   aoFechar,
   aoDesignar,
 }: {
   unidade: Unidade
+  edicao: Edicao
   aoFechar: () => void
-  aoDesignar: (nome: string) => Promise<void>
+  aoDesignar: (resultado: Designacao) => Promise<void>
 }) {
   const [magistrados, setMagistrados] = useState<Usuario[] | null>(null)
   const [escolhido, setEscolhido] = useState<number | ''>('')
@@ -436,10 +470,11 @@ function ModalDesignar({
     setSalvando(true)
     setErro(null)
     try {
-      const atualizada = await api.put<Unidade>(`/api/unidades/${unidade.id}/responsavel`, {
-        usuarioId: escolhido,
-      })
-      await aoDesignar(atualizada.responsavel?.nome ?? 'O magistrado')
+      const resultado = await api.put<Designacao>(
+        `/api/unidades/${unidade.id}/responsavel?edicaoId=${edicao.id}`,
+        { usuarioId: escolhido },
+      )
+      await aoDesignar(resultado)
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao designar.')
       setSalvando(false)
@@ -449,7 +484,7 @@ function ModalDesignar({
   return (
     <Modal
       titulo={`Responsável por ${unidade.nome}`}
-      descricao="Quem responde pela unidade passa a gerenciar a lista de servidores habilitados dela na edição vigente."
+      descricao={`Quem responde pela unidade gerencia a lista de servidores habilitados dela. Ao designar, a lista da edição ${edicao.ano} é semeada do RH com os lotados na unidade.`}
       aoFechar={aoFechar}
       rodape={
         <>

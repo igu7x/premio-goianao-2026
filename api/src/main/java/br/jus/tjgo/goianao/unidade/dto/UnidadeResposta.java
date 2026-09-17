@@ -17,11 +17,17 @@ public record UnidadeResposta(
         /** Codigo no SIEDOS; nulo enquanto a unidade nao foi casada com o RH. */
         Long codigoSiedos,
         String comarca,
-        Responsavel responsavel) {
+        Responsavel responsavel,
+        /** Habilitados a emitir nesta unidade na edicao pedida; nulo fora de uma edicao. */
+        Integer habilitados) {
 
     public record Responsavel(Long id, String nome, String email) {}
 
     public static UnidadeResposta de(UnidadeJudiciaria unidade) {
+        return de(unidade, null);
+    }
+
+    public static UnidadeResposta de(UnidadeJudiciaria unidade, Integer habilitados) {
         Usuario r = unidade.getResponsavel();
         return new UnidadeResposta(
                 unidade.getId(),
@@ -29,6 +35,7 @@ public record UnidadeResposta(
                 unidade.isAtivo(),
                 unidade.getCodigoSiedos(),
                 unidade.getComarca(),
-                r == null ? null : new Responsavel(r.getId(), r.getNome(), r.getEmail()));
+                r == null ? null : new Responsavel(r.getId(), r.getNome(), r.getEmail()),
+                habilitados);
     }
 }

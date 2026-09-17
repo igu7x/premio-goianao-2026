@@ -14,6 +14,7 @@ const UNIDADE: Unidade = {
   codigoSiedos: 600000009,
   comarca: 'Goiânia',
   responsavel: null,
+  habilitados: null,
 }
 
 const LOTADOS: LotadoDoRh[] = [

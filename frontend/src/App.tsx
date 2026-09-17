@@ -9,7 +9,6 @@ import { MeusCertificados } from './paginas/MeusCertificados'
 import { MinhasUnidades } from './paginas/MinhasUnidades'
 import { Sincronizacao } from './paginas/Sincronizacao'
 import { UnidadeDetalhe } from './paginas/UnidadeDetalhe'
-import { Unidades } from './paginas/Unidades'
 import { Usuarios } from './paginas/Usuarios'
 import { Verificar } from './paginas/Verificar'
 import { useSessao } from './sessao/SessaoContexto'
@@ -106,14 +105,8 @@ export function App() {
             </Exige>
           }
         />
-        <Route
-          path="/unidades"
-          element={
-            <Exige papeis={['SUPERADMIN']}>
-              <Unidades />
-            </Exige>
-          }
-        />
+        {/* A lista de unidades virou aba da edição (17/09/2026); a página de
+            uma unidade continua, aberta pelo nome dela naquela aba. */}
         <Route
           path="/unidades/:id"
           element={

@@ -19,8 +19,9 @@ public record UsuarioAutenticado(String email, String nome, Set<Papel> papeis) {
         return papeis.contains(papel);
     }
 
+    /** SUPERADMIN implica ADMINISTRADOR, como nas authorities abaixo. */
     public boolean ehAdministrador() {
-        return tem(Papel.ADMINISTRADOR);
+        return tem(Papel.ADMINISTRADOR) || tem(Papel.SUPERADMIN);
     }
 
     public boolean ehSuperadmin() {

@@ -102,3 +102,19 @@ a lotação do RH.
   pela `AbaServidores`.
 - **Testes:** `ServidorHabilitadoIT.magistradoSemeiaSuaUnidade` e
   `magistradoNaoSemeiaForaDoEscopo`; `MinhasUnidades.test.tsx` cobre o botão.
+
+### Ajuste de 2026-09-17 — designar o responsável semeia a lista (CA-8)
+
+Designar quem responde pela unidade passou a criar a lista de habilitados dela
+na hora, com os lotados do RH, na edição em que a designação é feita. O detalhe
+de desenho está na **DI-27**; aqui ficam os efeitos sobre esta feature.
+
+- **A lista não exige mais reconhecimento.** `exigirUnidadeReconhecida` virou
+  `exigirListaPermitida`: unidade reconhecida na edição **ou** com responsável
+  designado. Sem nenhum dos dois, segue recusando com 422.
+- **O magistrado vê a unidade designada mesmo sem reconhecimento**
+  (`MagistradoServidoresController`): antes era escondida porque não havia lista;
+  agora há, semeada no ato da designação.
+- **Testes:** `ResponsavelPelaUnidadeIT.designacaoSemeiaALista` cobre a
+  semeadura, a visão do designado e a contagem por unidade;
+  `ServidorHabilitadoIT` segue cobrindo CA-1 a CA-7.

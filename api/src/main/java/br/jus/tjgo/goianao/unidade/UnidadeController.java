@@ -1,6 +1,8 @@
 package br.jus.tjgo.goianao.unidade;
 
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
+import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
+import br.jus.tjgo.goianao.unidade.dto.DesignacaoResposta;
 import br.jus.tjgo.goianao.unidade.dto.ImportacaoResponsaveis;
 import br.jus.tjgo.goianao.unidade.dto.UnidadeCadastrada;
 import br.jus.tjgo.goianao.unidade.dto.UnidadeEgespResposta;
@@ -10,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,10 +33,15 @@ public class UnidadeController {
 
     private final UnidadeService servico;
     private final ImportacaoResponsaveisService importacao;
+    private final DesignacaoService designacao;
+    private final ServidorHabilitadoService servidores;
 
-    public UnidadeController(UnidadeService servico, ImportacaoResponsaveisService importacao) {
+    public UnidadeController(UnidadeService servico, ImportacaoResponsaveisService importacao,
+                             DesignacaoService designacao, ServidorHabilitadoService servidores) {
         this.servico = servico;
         this.importacao = importacao;
+        this.designacao = designacao;
+        this.servidores = servidores;
     }
 
     /** Catalogo do EGESP, para o autocomplete do administrador (004/RF-1). */
@@ -51,8 +59,18 @@ public class UnidadeController {
      */
     @GetMapping
     @PreAuthorize("hasRole('SUPERADMIN')")
-    public List<UnidadeResposta> listar() {
-        return servico.listarLocais().stream().map(UnidadeResposta::de).toList();
+    public List<UnidadeResposta> listar(@RequestParam(required = false) Long edicaoId) {
+        // Com a edicao em maos, cada linha ja traz quantos estao habilitados
+        // nela: e como a tela mostra que a semeadura da designacao funcionou.
+        Map<Long, Integer> habilitados = edicaoId == null
+                ? Map.of()
+                : servidores.contagemPorUnidade(edicaoId);
+
+        return servico.listarLocais().stream()
+                .map(unidade -> UnidadeResposta.de(unidade, edicaoId == null
+                        ? null
+                        : habilitados.getOrDefault(unidade.getId(), 0)))
+                .toList();
     }
 
     /**
@@ -77,17 +95,19 @@ public class UnidadeController {
     }
 
     /**
-     * Designa o superior responsavel pela unidade.
+     * Designa o superior responsavel pela unidade e semeia a lista dela.
      *
      * A partir daqui o magistrado designado passa a ver a unidade na aba
      * "Servidores da unidade" e a poder gerenciar a lista de habilitados dela —
-     * mesmo sem ter sido reconhecido no premio por ela.
+     * mesmo sem ter sido reconhecido no premio por ela. A lotacao do RH entra na
+     * lista no mesmo ato, para que ele encontre a equipe pronta.
      */
     @PutMapping("/{id}/responsavel")
     @PreAuthorize("hasRole('SUPERADMIN')")
-    public UnidadeResposta designarResponsavel(@PathVariable Long id,
-                                               @Valid @RequestBody ResponsavelRequisicao dados) {
-        return UnidadeResposta.de(servico.designarResponsavel(id, dados.usuarioId()));
+    public DesignacaoResposta designarResponsavel(@PathVariable Long id,
+                                                  @RequestParam(required = false) Long edicaoId,
+                                                  @Valid @RequestBody ResponsavelRequisicao dados) {
+        return designacao.designar(id, dados.usuarioId(), edicaoId);
     }
 
     @DeleteMapping("/{id}/responsavel")

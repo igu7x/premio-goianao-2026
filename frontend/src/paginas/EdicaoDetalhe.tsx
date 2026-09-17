@@ -6,15 +6,23 @@ import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, SituacaoEdicao } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
 import { Trilha } from '../componentes/Trilha'
+import { useSessao } from '../sessao/SessaoContexto'
 import { AbaLayouts } from './abas/AbaLayouts'
 import { AbaMagistrados } from './abas/AbaMagistrados'
 import { AbaServidores } from './abas/AbaServidores'
+import { AbaUnidades } from './abas/AbaUnidades'
 
-type Aba = 'layouts' | 'magistrados' | 'servidores'
+type Aba = 'layouts' | 'magistrados' | 'unidades' | 'servidores'
 
-const ABAS: Array<{ id: Aba; rotulo: string }> = [
+/**
+ * "Unidades e responsáveis" só aparece para o superadministrador: designar quem
+ * responde por uma unidade é ato dele, e era uma tela própria no menu até
+ * 17/09/2026 — fora de qualquer edição, embora semeie a lista de uma edição.
+ */
+const ABAS: Array<{ id: Aba; rotulo: string; superadmin?: boolean }> = [
   { id: 'layouts', rotulo: 'Layouts do certificado' },
   { id: 'magistrados', rotulo: 'Magistrados reconhecidos' },
+  { id: 'unidades', rotulo: 'Unidades e responsáveis', superadmin: true },
   { id: 'servidores', rotulo: 'Servidores por unidade' },
 ]
 
@@ -27,6 +35,7 @@ export function EdicaoDetalhe() {
   const { edicaoId } = useParams()
   const navegar = useNavigate()
   const avisos = useAvisos()
+  const { tem } = useSessao()
   const id = Number(edicaoId)
 
   const [edicao, setEdicao] = useState<Edicao | null>(null)
@@ -168,7 +177,7 @@ export function EdicaoDetalhe() {
       )}
 
       <nav className="abas">
-        {ABAS.map((item) => (
+        {ABAS.filter((item) => !item.superadmin || tem('SUPERADMIN')).map((item) => (
           <button
             key={item.id}
             type="button"
@@ -184,6 +193,7 @@ export function EdicaoDetalhe() {
       <div className="aba-conteudo" key={`${edicao.id}-${aba}`}>
         {aba === 'layouts' && <AbaLayouts edicao={edicao} />}
         {aba === 'magistrados' && <AbaMagistrados edicao={edicao} />}
+        {aba === 'unidades' && tem('SUPERADMIN') && <AbaUnidades edicao={edicao} />}
         {aba === 'servidores' && <AbaServidores edicao={edicao} />}
       </div>
     </div>

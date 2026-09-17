@@ -16,7 +16,9 @@ import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
 import br.jus.tjgo.goianao.servidor.dto.SemeaduraResposta;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
 import br.jus.tjgo.goianao.unidade.UnidadeService;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,10 +86,22 @@ public class ServidorHabilitadoService {
         }
     }
 
-    private void exigirUnidadeReconhecida(Long edicaoId, Long unidadeId) {
-        if (!magistrados.unidadeEhReconhecida(edicaoId, unidadeId)) {
+    /**
+     * Existe lista a gerenciar nesta unidade?
+     *
+     * <p>Duas portas: a unidade foi <b>reconhecida</b> na edicao, ou tem
+     * <b>responsavel designado</b>. A segunda entrou quando a designacao passou
+     * a semear a lista na hora (emenda de 2026-09-17): o responsavel recebe a
+     * equipe pronta no mesmo ato, sem depender de a unidade ter vencido o
+     * premio. Uma unidade sem nenhum dos dois continua sem lista — a guarda
+     * serve para nao criar uma lista para unidade nenhuma.
+     */
+    private void exigirListaPermitida(Long edicaoId, Long unidadeId) {
+        if (!magistrados.unidadeEhReconhecida(edicaoId, unidadeId)
+                && !unidades.temResponsavel(unidadeId)) {
             throw new RegraDeNegocioException(
-                    "A unidade não foi reconhecida nesta edição, então não há lista a gerenciar.");
+                    "A unidade não foi reconhecida nesta edição e não tem responsável designado, "
+                            + "então não há lista a gerenciar.");
         }
     }
 
@@ -104,7 +118,7 @@ public class ServidorHabilitadoService {
     public SemeaduraResposta semear(Long edicaoId, Long unidadeId) {
         Edicao edicao = edicoes.buscar(edicaoId);
         UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
-        exigirUnidadeReconhecida(edicaoId, unidadeId);
+        exigirListaPermitida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
 
         // Pelo codigo sempre que a unidade o tem: o nome so serve para quem ainda
@@ -127,7 +141,7 @@ public class ServidorHabilitadoService {
                                        List<ServidorEgesp> doEgesp) {
         Edicao edicao = edicoes.buscar(edicaoId);
         UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
-        exigirUnidadeReconhecida(edicaoId, unidadeId);
+        exigirListaPermitida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
         return mesclar(edicao, unidade, doEgesp);
     }
@@ -200,7 +214,7 @@ public class ServidorHabilitadoService {
                                       String nome, String cpfBruto, OrigemServidor origem) {
         Edicao edicao = edicoes.buscar(edicaoId);
         UnidadeJudiciaria unidade = unidades.buscar(unidadeId);
-        exigirUnidadeReconhecida(edicaoId, unidadeId);
+        exigirListaPermitida(edicaoId, unidadeId);
         exigirPermissao(edicao, unidadeId);
 
         String email = Email.exigir(emailBruto);
@@ -248,6 +262,16 @@ public class ServidorHabilitadoService {
         edicoes.buscar(edicaoId);
         unidades.buscar(unidadeId);
         return repositorio.findByEdicaoIdAndUnidadeIdOrderByNomeAsc(edicaoId, unidadeId);
+    }
+
+    /** Quantos habilitados cada unidade tem nesta edicao, por id da unidade. */
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> contagemPorUnidade(Long edicaoId) {
+        Map<Long, Integer> contagem = new HashMap<>();
+        for (Object[] linha : repositorio.contagemPorUnidade(edicaoId)) {
+            contagem.put((Long) linha[0], ((Number) linha[1]).intValue());
+        }
+        return contagem;
     }
 
     // ------------------------------------------------------------------

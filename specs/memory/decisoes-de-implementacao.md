@@ -585,7 +585,9 @@ responsabilidade. A mensagem de erro diz onde ajustar o papel.
 
 **A unidade designada só aparece se estiver reconhecida na edição.** Sem
 reconhecimento não existe lista de habilitados para gerenciar, e um cartão que
-não leva a lugar nenhum é pior do que a ausência dele.
+não leva a lugar nenhum é pior do que a ausência dele. _(Revogado pela DI-27, de
+17/09/2026: designar passou a criar a lista na hora, então ela existe desde o
+primeiro momento e a unidade aparece sempre.)_
 
 **Consequência.** `GET /api/unidades` passou a ser exclusivo do
 superadministrador: a resposta agora traz quem responde por cada unidade, com
@@ -757,3 +759,48 @@ administrador recebe.
 
 **Verificação.** `LayoutIT`: com uma combinação já configurada, aplicar cria 7 e
 preserva a arte da oitava; aplicar de novo cria 0; magistrado recebe 403.
+
+## DI-27 — Designar o responsável passou a semear a lista, e a designação foi para dentro da edição
+
+**Contexto.** Designar quem responde pela unidade vivia num módulo próprio no
+menu (`/unidades`, DI-23), e era só isso: gravava o responsável. A lista de
+servidores habilitados dele continuava vazia até alguém semeá-la à mão, unidade
+por unidade. Pior: se a unidade não tivesse sido reconhecida naquela edição, não
+havia nem como semear — a guarda de 008 exigia reconhecimento. O resultado era
+um responsável designado que abria a tela dele e não via nada.
+
+**Decisão.** Designar é um ato só: grava o responsável **e** semeia a lista de
+habilitados daquela unidade, na edição em que se está, com os lotados que o RH
+aponta. Vale para a designação uma a uma e para cada linha da planilha de
+magistrados responsáveis.
+
+**Por isso a tela saiu do menu e virou aba da edição.** A designação em si não é
+de uma edição — quem responde pela vara não muda porque o prêmio mudou de ano
+(DI-23) —, mas tudo que ela dispara é: a lista semeada é de uma edição, e o selo
+da planilha é um reconhecimento de uma edição. Fora de uma edição, o código
+tinha de adivinhar a vigente. Dentro dela, a edição é a que o administrador
+abriu, e o CSV deixou de gravar selo em lugar que ninguém escolheu.
+
+**A lista deixou de exigir reconhecimento.** `exigirListaPermitida` aceita duas
+portas: unidade reconhecida na edição **ou** unidade com responsável designado.
+Sem nenhuma das duas continua recusando — a guarda existe para não criar lista
+para unidade nenhuma, e isso não mudou.
+
+**A semeadura não derruba a designação.** O RH é serviço externo. Se ele não
+responder, o responsável fica gravado, a resposta traz o aviso e a lista pode ser
+semeada depois pelo botão da tela dele. Na planilha, a linha entra em `erros`
+dizendo exatamente isso, e as demais seguem.
+
+**`ehAdministrador()` passou a incluir SUPERADMIN.** As authorities já tratavam
+SUPERADMIN como ADMINISTRADOR; o método não, e por isso um superadministrador
+puro não passava na guarda da semeadura que ele mesmo acabara de disparar.
+
+**Consequência.** `PUT /api/unidades/{id}/responsavel` responde
+`DesignacaoResposta` (unidade + semeadura + aviso) em vez da unidade, e aceita
+`?edicaoId=`. `GET /api/unidades?edicaoId=` traz `habilitados` por unidade, que é
+como a tela mostra que a semeadura pegou. A tela `/unidades` deixou de existir; a
+página de uma unidade (`/unidades/{id}`) continua, aberta pelo nome dela na aba.
+Verificado em `ResponsavelPelaUnidadeIT.designacaoSemeiaALista` e em
+`AbaUnidades.test.tsx`.
+
+---

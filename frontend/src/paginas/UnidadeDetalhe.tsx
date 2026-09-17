@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api, ErroApi } from '../api/cliente'
 import type { LotacaoAplicada, LotadoDoRh, Unidade } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
@@ -18,6 +18,7 @@ import { Icone } from '../componentes/Icone'
  */
 export function UnidadeDetalhe() {
   const { id } = useParams<{ id: string }>()
+  const navegar = useNavigate()
   const [unidade, setUnidade] = useState<Unidade | null>(null)
   const [lotados, setLotados] = useState<LotadoDoRh[] | null>(null)
   const [puxando, setPuxando] = useState(false)
@@ -87,10 +88,17 @@ export function UnidadeDetalhe() {
     <div className="pagina">
       <header className="cabecalho-pagina">
         <div>
-          <Link to="/unidades" className="botao botao-texto botao-pequeno" style={{ padding: 0 }}>
+          {/* Volta para onde se veio — a aba de unidades da edição, que é de
+              onde esta página é aberta desde que a lista saiu do menu. */}
+          <button
+            type="button"
+            className="botao botao-texto botao-pequeno"
+            style={{ padding: 0 }}
+            onClick={() => navegar(-1)}
+          >
             <Icone nome="seta" tamanho={14} />
-            Voltar para as unidades
-          </Link>
+            Voltar
+          </button>
           <h1 className="titulo-pagina" style={{ marginTop: 8 }}>
             {unidade?.nome ?? 'Unidade'}
           </h1>
@@ -122,7 +130,7 @@ export function UnidadeDetalhe() {
                 <p className="apoio">
                   {unidade.responsavel
                     ? 'Quem responde por esta unidade no prêmio. Ele gerencia a lista de servidores habilitados dela.'
-                    : 'Ninguém designado ainda. A designação vem da planilha de magistrados, na tela de Unidades.'}
+                    : 'Ninguém designado ainda. A designação é feita na aba “Unidades e responsáveis” da edição, uma a uma ou pela planilha de magistrados.'}
                 </p>
               </div>
             </div>

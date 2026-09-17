@@ -19,6 +19,9 @@ import java.util.List;
  * @param jaEram          a planilha confirmou quem ja respondia pela unidade
  * @param reconhecimentos selos gravados na edicao; repetir a planilha nao conta
  *                        de novo o que ja estava la
+ * @param listasSemeadas  unidades cuja lista de habilitados foi semeada do RH no
+ *                        mesmo ato da designacao
+ * @param habilitados     servidores que entraram nessas listas
  * @param edicaoAno       em que edicao os selos entraram — a planilha nao diz,
  *                        entao a tela precisa mostrar qual foi
  */
@@ -30,6 +33,8 @@ public record ImportacaoResponsaveis(
         int substituidos,
         int jaEram,
         int reconhecimentos,
+        int listasSemeadas,
+        int habilitados,
         int edicaoAno,
         List<ErroDeLinha> erros) {
 

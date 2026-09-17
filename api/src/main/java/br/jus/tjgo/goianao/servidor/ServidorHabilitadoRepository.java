@@ -24,6 +24,16 @@ public interface ServidorHabilitadoRepository extends JpaRepository<ServidorHabi
 
     long countByEdicaoIdAndUnidadeIdAndAtivoTrue(Long edicaoId, Long unidadeId);
 
+    /**
+     * Quantos habilitados por unidade na edicao, de uma vez.
+     *
+     * <p>A lista de unidades da edicao mostra esse numero em cada linha: uma
+     * contagem por linha seriam quase duzentas consultas para desenhar a tela.
+     */
+    @Query("select s.unidade.id, count(s) from ServidorHabilitado s"
+            + " where s.edicao.id = :edicaoId and s.ativo = true group by s.unidade.id")
+    List<Object[]> contagemPorUnidade(@Param("edicaoId") Long edicaoId);
+
     /** Ids das unidades em que o e-mail esta habilitado na edicao (006/RF-2). */
     @Query("select s.unidade.id from ServidorHabilitado s"
             + " where s.edicao.id = :edicaoId and s.email = :email and s.ativo = true")

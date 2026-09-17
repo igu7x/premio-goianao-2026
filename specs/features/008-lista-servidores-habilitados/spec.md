@@ -12,6 +12,10 @@
   das suas unidades (reconhecidas ou sob sua responsabilidade), com a mesma
   restrição do RF-4: só na edição vigente. Semear passa a ter a mesma guarda de
   escopo que incluir e remover.
+- **Emenda (2026-09-17, DI-27):** designar o **superior responsável** por uma
+  unidade passa a **semear** a lista dela na edição, com os lotados do RH. Em
+  consequência, a lista deixa de exigir reconhecimento: ela existe para unidade
+  reconhecida **ou** com responsável designado.
 
 > Esta spec descreve **o quê** e **por quê**.
 
@@ -95,6 +99,9 @@ lista, inclusive para edições anteriores.
   quando ele semeia a lista de A pela tela "Servidores da unidade", então os
   lotados em A segundo o EGESP entram mesclados; em unidade alheia ou em edição
   não vigente, a semeadura é negada.
+- **CA-8:** Dada uma unidade **não reconhecida** na edição, quando o
+  superadministrador designa o responsável por ela, então a lista de habilitados
+  daquela unidade é semeada do RH e o designado passa a vê-la na tela dele.
 
 ## 8. Fora de escopo
 
@@ -107,4 +114,7 @@ lista, inclusive para edições anteriores.
 - **RESOLVIDO:** ressemear **mescla** — adiciona novos servidores do EGESP e
   **preserva** as inclusões/remoções manuais já feitas (não desfaz ajustes).
 - [NEEDS CLARIFICATION: o EGESP expõe "servidores por unidade"? (dependência
-  externa; mock nesta fase). Adiado.]
+  externa; mock nesta fase). Adiado.]- **Emenda (2026-09-17):** designar o **superior responsável** por uma unidade
+  passa a **semear** a lista dela na edição, com os lotados do RH. Em
+  consequência, a lista deixa de exigir que a unidade tenha sido reconhecida: ela
+  existe para unidade reconhecida **ou** com responsável designado (DI-27).

@@ -55,20 +55,20 @@ public class MagistradoServidoresController {
          *
          * 1. aquelas pelas quais ele foi reconhecido nesta edição;
          * 2. aquelas pelas quais ele responde, por designação do
-         *    superadministrador no cadastro de unidades.
+         *    superadministrador.
          *
-         * As designadas só entram quando a unidade foi reconhecida na edição —
-         * fora disso não existe lista de habilitados para gerenciar, e mostrar
-         * um cartão que não leva a lugar algum seria pior do que omiti-lo.
+         * As designadas entravam só quando a unidade também tinha sido
+         * reconhecida, porque antes disso não havia lista nenhuma para
+         * gerenciar. Desde que a designação passou a semear a lista na hora
+         * (2026-09-17), ela existe desde o primeiro momento — e esconder a
+         * unidade de quem responde por ela seria esconder a própria equipe.
          */
         Map<Long, String> unidades = new LinkedHashMap<>();
         for (Reconhecimento r : magistrados.reconhecimentosDe(edicao.getId(), email)) {
             unidades.putIfAbsent(r.getUnidade().getId(), r.getUnidade().getNome());
         }
         for (UnidadeJudiciaria u : unidadesDoCadastro.unidadesSobResponsabilidade(email)) {
-            if (magistrados.unidadeEhReconhecida(edicao.getId(), u.getId())) {
-                unidades.putIfAbsent(u.getId(), u.getNome());
-            }
+            unidades.putIfAbsent(u.getId(), u.getNome());
         }
 
         List<ListaHabilitadosResposta> resposta = new ArrayList<>();
