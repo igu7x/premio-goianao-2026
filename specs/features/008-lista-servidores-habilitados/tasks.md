@@ -118,3 +118,8 @@ de desenho está na **DI-27**; aqui ficam os efeitos sobre esta feature.
 - **Testes:** `ResponsavelPelaUnidadeIT.designacaoSemeiaALista` cobre a
   semeadura, a visão do designado e a contagem por unidade;
   `ServidorHabilitadoIT` segue cobrindo CA-1 a CA-7.
+
+**Correção do mesmo dia.** A aba "Unidades e responsáveis" durou algumas horas:
+a designação passou a vir só da planilha de magistrados responsáveis, subida na
+aba "Magistrados reconhecidos" (DI-27). Os endpoints de designar e retirar
+continuam na API, sem tela que os chame.

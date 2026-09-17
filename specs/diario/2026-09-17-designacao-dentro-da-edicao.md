@@ -25,14 +25,15 @@ que ela entrega é uma lista de habilitados — e lista de habilitados é de uma
   responsável designado. Sem nenhuma das duas, segue 422.
 - **A planilha semeia linha a linha.** O relatório ganhou `listasSemeadas` e
   `habilitados`; RH mudo numa linha vira erro só daquela linha.
-- **A aba "Unidades e responsáveis"** entrou em `EdicaoDetalhe`, visível só para
-  o superadministrador, com a lista, a busca, o CSV e uma coluna de habilitados —
-  que é como se vê que a semeadura pegou.
+- **O CSV de magistrados responsáveis** foi para a aba "Magistrados
+  reconhecidos", ao lado do cadastro de reconhecidos — é do que ele trata. Fica
+  disponível em qualquer edição, inclusive na vigente, porque designar e semear
+  não altera certificado já emitido.
 - **O item "Unidades" saiu do menu** e a rota `/unidades` deixou de existir. A
   página de uma unidade (`/unidades/{id}`) ficou: é onde se vê a lotação do RH e
   se cadastra todo mundo de uma vez, útil quando alguém fica de fora da
-  semeadura por não ter e-mail no RH. Ela é aberta pelo nome da unidade na aba, e
-  o "Voltar" agora volta para de onde se veio.
+  semeadura por não ter e-mail no RH. É aberta pelo nome da unidade na aba
+  "Servidores por unidade", e o "Voltar" volta para de onde se veio.
 
 ## Uma correção que apareceu no caminho
 
@@ -46,11 +47,19 @@ designar. Passou a considerar os dois papéis.
 - `ResponsavelPelaUnidadeIT.designacaoSemeiaALista`: designa numa unidade **não
   reconhecida** na edição, confere que a lista foi semeada, que o designado passa
   a vê-la e que a contagem aparece em `GET /api/unidades?edicaoId=`.
-- `AbaUnidades.test.tsx`: a designação manda `edicaoId`, mostra o resumo da
-  semeadura, e o relatório da planilha diz quantas listas foram semeadas.
-- No navegador, com a API local: a aba aparece só para o superadministrador,
-  designar mostra o resumo do RH (10 no EGESP · 10 já constavam) e o número de
-  habilitados na linha.
+- `CsvDeResponsaveis.test.tsx`: o envio manda `edicaoId` e o relatório diz
+  quantas listas foram semeadas e quantos servidores entraram.
+- No navegador, com a API local: subir uma planilha de duas linhas na edição
+  vigente designou o responsável, criou o magistrado, gravou o selo e semeou a
+  lista; a linha com código inexistente voltou no relatório com o motivo.
+
+## Um caminho que não deu certo
+
+A primeira tentativa recriou a tela de unidades como aba da edição, com as 190
+linhas e o Designar/Trocar/Retirar. Estava fiel ao que existia e errado como
+produto: as unidades entram pela sincronização, e as que interessam são as que a
+planilha nomeia. Listar todas para designar uma é ruído. Ficou só o CSV, e a
+designação passou a vir sempre dele.
 
 ## O que ficou para depois
 

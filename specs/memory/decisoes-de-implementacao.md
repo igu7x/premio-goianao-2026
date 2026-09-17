@@ -795,12 +795,27 @@ dizendo exatamente isso, e as demais seguem.
 SUPERADMIN como ADMINISTRADOR; o método não, e por isso um superadministrador
 puro não passava na guarda da semeadura que ele mesmo acabara de disparar.
 
+**A designação passou a vir só da planilha.** A primeira tentativa recriou a
+lista das 190 unidades como aba da edição, com Designar/Trocar/Retirar linha a
+linha. Não se sustentou: as unidades entram pela sincronização, e as que
+interessam são as que a planilha nomeia — listar todas para designar uma é ruído.
+O que sobrou é o **CSV de magistrados responsáveis**, ao lado do cadastro de
+reconhecidos, que é do que ele trata: quem foi reconhecido, por qual unidade e
+com qual selo. Reenviar o arquivo corrigido troca o responsável.
+
+**O CSV vale em qualquer edição.** O "Importar planilha" dos reconhecidos é
+restrito a rascunho, porque mexe no que o certificado imprime. A planilha de
+responsáveis não: designar e semear não altera certificado emitido. Por isso o
+botão fica disponível também na edição vigente, onde o resto do cadastro é só
+inclusão.
+
 **Consequência.** `PUT /api/unidades/{id}/responsavel` responde
 `DesignacaoResposta` (unidade + semeadura + aviso) em vez da unidade, e aceita
-`?edicaoId=`. `GET /api/unidades?edicaoId=` traz `habilitados` por unidade, que é
-como a tela mostra que a semeadura pegou. A tela `/unidades` deixou de existir; a
-página de uma unidade (`/unidades/{id}`) continua, aberta pelo nome dela na aba.
-Verificado em `ResponsavelPelaUnidadeIT.designacaoSemeiaALista` e em
-`AbaUnidades.test.tsx`.
+`?edicaoId=` — segue existindo na API, sem tela que o chame. `GET
+/api/unidades?edicaoId=` traz `habilitados` por unidade. A tela `/unidades`
+deixou de existir; a página de uma unidade (`/unidades/{id}`) continua, aberta
+pelo nome dela na aba "Servidores por unidade", que lista justamente as unidades
+em uso na edição. Verificado em `ResponsavelPelaUnidadeIT.designacaoSemeiaALista`
+e em `CsvDeResponsaveis.test.tsx`.
 
 ---

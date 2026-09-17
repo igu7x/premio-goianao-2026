@@ -1776,3 +1776,15 @@
   font-size: 13px;
   color: var(--tinta-3);
 }
+
+/* Planilha de responsáveis, ao lado do cadastro de reconhecidos. */
+.csv-responsaveis {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  flex-wrap: wrap;
+}
+
+.csv-responsaveis .secundaria {
+  font-size: 12px;
+}

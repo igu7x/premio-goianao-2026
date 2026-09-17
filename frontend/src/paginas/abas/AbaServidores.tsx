@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useCallback, useEffect, useState } from 'react'
 import { api, ErroApi } from '../../api/cliente'
 import type { Edicao, ListaHabilitados, Semeadura, UnidadeReconhecida } from '../../api/tipos'
@@ -104,9 +105,14 @@ export function AbaServidores({ edicao }: { edicao: Edicao }) {
                       >
                         {unidade.maiorSelo && <Disco selo={unidade.maiorSelo} tamanho="m" />}
                         <div style={{ minWidth: 0 }}>
-                          <div className="unidade-nome" style={{ fontSize: 16, margin: 0 }}>
-                            {unidade.nome}
-                          </div>
+                          {/* Leva à página da unidade, com a lotação do RH e o
+                              cadastro em lote — o caminho para quem ficou de
+                              fora da semeadura por não ter e-mail no RH. */}
+                          <Link to={`/unidades/${unidade.unidadeId}`} className="link-unidade">
+                            <div className="unidade-nome" style={{ fontSize: 16, margin: 0 }}>
+                              {unidade.nome}
+                            </div>
+                          </Link>
                           <div className="secundaria">
                             reconhecida por {unidade.magistrados} magistrado(s)
                           </div>

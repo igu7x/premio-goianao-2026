@@ -13,6 +13,7 @@ import type {
 import { Aviso, Carregando, EstadoVazio, Modal } from '../../componentes/Basicos'
 import { Icone } from '../../componentes/Icone'
 import { Disco } from '../../componentes/Selo'
+import { CsvDeResponsaveis } from './CsvDeResponsaveis'
 
 const SELOS: Selo[] = ['BRONZE', 'PRATA', 'OURO', 'DIAMANTE']
 
@@ -104,6 +105,12 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
             <p className="apoio">
               {magistrados.length} cadastrado(s) na edição {edicao.ano}
             </p>
+            {/* A planilha designa o responsável e semeia a lista da unidade, o
+                que não mexe em certificado emitido: vale em qualquer edição,
+                inclusive na vigente, onde o resto do cadastro é só inclusão. */}
+            <div style={{ marginTop: 'var(--e3)' }}>
+              <CsvDeResponsaveis edicao={edicao} aoImportar={carregar} />
+            </div>
           </div>
           <div className="acoes">
             {!somenteInclusao && (

@@ -88,8 +88,8 @@ export function UnidadeDetalhe() {
     <div className="pagina">
       <header className="cabecalho-pagina">
         <div>
-          {/* Volta para onde se veio — a aba de unidades da edição, que é de
-              onde esta página é aberta desde que a lista saiu do menu. */}
+          {/* Volta para onde se veio — a aba "Servidores por unidade" da
+              edição, que é de onde esta página é aberta. */}
           <button
             type="button"
             className="botao botao-texto botao-pequeno"
@@ -130,7 +130,7 @@ export function UnidadeDetalhe() {
                 <p className="apoio">
                   {unidade.responsavel
                     ? 'Quem responde por esta unidade no prêmio. Ele gerencia a lista de servidores habilitados dela.'
-                    : 'Ninguém designado ainda. A designação é feita na aba “Unidades e responsáveis” da edição, uma a uma ou pela planilha de magistrados.'}
+                    : 'Ninguém designado ainda. A designação vem da planilha de magistrados, subida na aba “Magistrados reconhecidos” da edição.'}
                 </p>
               </div>
             </div>

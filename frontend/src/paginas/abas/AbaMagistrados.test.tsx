@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Edicao, Magistrado, PessoaDoRh } from '../../api/tipos'
+import { ProvedorDeAvisos } from '../../componentes/Avisos'
 import { instalarApiFalsa } from '../../teste/api-falsa'
 import { AbaMagistrados } from './AbaMagistrados'
 
@@ -14,6 +15,14 @@ const MAGISTRADO: Magistrado = {
   reconhecimentos: [
     { id: 1, unidadeId: 1, unidadeNome: '1ª Vara Cível da Comarca de Goiânia', selo: 'OURO' },
   ],
+}
+
+function renderizar(e: Edicao) {
+  return render(
+    <ProvedorDeAvisos>
+      <AbaMagistrados edicao={e} />
+    </ProvedorDeAvisos>,
+  )
 }
 
 function edicao(parcial: Partial<Edicao>): Edicao {
@@ -35,7 +44,7 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
   it('em rascunho, permite incluir, importar em lote e remover', async () => {
     instalarApiFalsa([['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }]])
 
-    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    renderizar(edicao({ status: 'RASCUNHO' }))
 
     await screen.findByText('Rafael Siqueira Bittencourt')
     expect(screen.getByRole('button', { name: /novo magistrado/i })).toBeEnabled()
@@ -47,11 +56,7 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
   it('na edição vigente, entra em modo somente-inclusão (009/RF-3)', async () => {
     instalarApiFalsa([['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }]])
 
-    render(
-      <AbaMagistrados
-        edicao={edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true })}
-      />,
-    )
+    renderizar(edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true }))
 
     await screen.findByText('Rafael Siqueira Bittencourt')
 
@@ -67,11 +72,7 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
   it('na edição publicada e não vigente, o cadastro fica congelado', async () => {
     instalarApiFalsa([['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }]])
 
-    render(
-      <AbaMagistrados
-        edicao={edicao({ status: 'PUBLICADA', vigente: false, aceitaInclusoes: false })}
-      />,
-    )
+    renderizar(edicao({ status: 'PUBLICADA', vigente: false, aceitaInclusoes: false }))
 
     await screen.findByText('Rafael Siqueira Bittencourt')
 
@@ -87,11 +88,7 @@ describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
-    render(
-      <AbaMagistrados
-        edicao={edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true })}
-      />,
-    )
+    renderizar(edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true }))
 
     await screen.findByText('Rafael Siqueira Bittencourt')
     await userEvent.click(screen.getByRole('button', { name: /adicionar unidade/i }))
@@ -133,7 +130,7 @@ describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
-    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    renderizar(edicao({ status: 'RASCUNHO' }))
     await screen.findByText('Rafael Siqueira Bittencourt')
     await userEvent.click(screen.getByRole('button', { name: /novo magistrado/i }))
 
@@ -157,7 +154,7 @@ describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
-    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    renderizar(edicao({ status: 'RASCUNHO' }))
     await screen.findByText('Rafael Siqueira Bittencourt')
     await userEvent.click(screen.getByRole('button', { name: /novo magistrado/i }))
 
@@ -174,7 +171,7 @@ describe('Escolha do magistrado no RH, em vez do e-mail digitado', () => {
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
-    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO' })} />)
+    renderizar(edicao({ status: 'RASCUNHO' }))
     await screen.findByText('Rafael Siqueira Bittencourt')
     await userEvent.click(screen.getByRole('button', { name: /novo magistrado/i }))
 
@@ -196,9 +193,7 @@ describe('Lista de unidades do reconhecimento', () => {
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
-    render(
-      <AbaMagistrados edicao={edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true })} />,
-    )
+    renderizar(edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true }))
     await screen.findByText('Rafael Siqueira Bittencourt')
     await userEvent.click(screen.getByRole('button', { name: /adicionar unidade/i }))
 
@@ -218,9 +213,7 @@ describe('Lista de unidades do reconhecimento', () => {
       ['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }],
     ])
 
-    render(
-      <AbaMagistrados edicao={edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true })} />,
-    )
+    renderizar(edicao({ status: 'PUBLICADA', vigente: true, aceitaInclusoes: true }))
     await screen.findByText('Rafael Siqueira Bittencourt')
     await userEvent.click(screen.getByRole('button', { name: /adicionar unidade/i }))
 
@@ -249,7 +242,7 @@ describe('Busca do magistrado no sistema e no RH', () => {
       ['/api/edicoes/1/magistrados', { corpo: [] }],
     ])
 
-    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO', vigente: false, aceitaInclusoes: true })} />)
+    renderizar(edicao({ status: 'RASCUNHO', vigente: false, aceitaInclusoes: true }))
     await userEvent.click(await screen.findByRole('button', { name: /novo magistrado/i }))
     await userEvent.type(await screen.findByLabelText('Magistrado'), 'rebelo')
 
@@ -268,7 +261,7 @@ describe('Busca do magistrado no sistema e no RH', () => {
       ['/api/edicoes/1/magistrados', { corpo: [] }],
     ])
 
-    render(<AbaMagistrados edicao={edicao({ status: 'RASCUNHO', vigente: false, aceitaInclusoes: true })} />)
+    renderizar(edicao({ status: 'RASCUNHO', vigente: false, aceitaInclusoes: true }))
     await userEvent.click(await screen.findByRole('button', { name: /novo magistrado/i }))
     await userEvent.type(await screen.findByLabelText('Magistrado'), 'rebelo')
 
