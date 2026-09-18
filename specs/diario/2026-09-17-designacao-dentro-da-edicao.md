@@ -95,3 +95,12 @@ semeia a lista · `89b6d5b` o CSV foi para "Magistrados reconhecidos" ·
   habilitado continua habilitado —, mas ninguém pediu de um jeito nem de outro.
 - Quanto tempo a fila leva com as 190 unidades de verdade. Se incomodar, o
   caminho é o mesmo da atualização da base: disparar e sair da tela.
+
+## Depois do fechamento
+
+O aviso de "ninguém encontrado" na busca de servidores trazia o cadastro como
+link no fim da frase, do mesmo tamanho e cor do texto ao redor. Como ali o
+cadastro é a única saída — o campo não aceita mais digitar o e-mail à mão —, o
+rótulo virou botão sólido abaixo do texto (`.aviso-acao`). Junto veio a regra
+que faltava para qualquer `<a class="botao">`: o `a:hover` global repintava o
+rótulo de verde e o sublinhava por cima do fundo cheio.

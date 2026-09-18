@@ -343,12 +343,18 @@ function NaoCadastrado({
           {rhRespondeu
             ? 'Não há ninguém com esse nome nos usuários do sistema nem no RH.'
             : 'O RH não respondeu agora, então a busca olhou só os usuários do sistema.'}{' '}
-          {podeCadastrar ? (
-            <Link to="/usuarios?novo=">Cadastrar o usuário</Link>
-          ) : (
-            'Peça o cadastro ao superadministrador e volte aqui.'
-          )}
+          {!podeCadastrar && 'Peça o cadastro ao superadministrador e volte aqui.'}
         </p>
+        {/* O cadastro é a única saída daqui: o rótulo perdido no meio da frase
+            virava só mais texto, então vira botão logo abaixo do aviso. */}
+        {podeCadastrar && (
+          <div className="aviso-acao">
+            <Link to="/usuarios?novo=" className="botao botao-pequeno">
+              <Icone nome="mais" tamanho={15} />
+              Cadastrar o usuário
+            </Link>
+          </div>
+        )}
       </Aviso>
     </div>
   )

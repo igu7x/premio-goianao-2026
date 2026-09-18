@@ -973,6 +973,18 @@ textarea {
   font-size: 12.5px;
 }
 
+/* Link com cara de botão: sem isto o hover global de <a> repinta o rótulo de
+   verde e o sublinha por cima do fundo sólido. */
+a.botao:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+a.botao-neutro:hover,
+a.botao-texto:hover {
+  color: var(--tinta);
+}
+
 .acoes {
   display: flex;
   align-items: center;
@@ -1127,6 +1139,10 @@ fieldset {
 .aviso ul {
   margin: 6px 0 0;
   padding-left: 18px;
+}
+
+.aviso-acao {
+  margin-top: var(--e3);
 }
 
 .aviso-colunas {
