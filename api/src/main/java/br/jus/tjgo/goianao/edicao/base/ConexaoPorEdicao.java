@@ -17,10 +17,10 @@ import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
  *
  * <p>O caminho de busca tem dois schemas, nesta ordem: o da edicao e o
  * compartilhado. O segundo existe por causa da tabela {@code edicao} — o
- * catalogo e um so, e precisa ser visivel de dentro de qualquer edicao. Como
- * nenhuma tabela do dominio existe nos dois (as antigas viraram {@code legado_*}
- * na migracao), a ordem nunca decide empate: ou a tabela e da edicao, ou e do
- * catalogo.
+ * catalogo e um so, e precisa ser visivel de dentro de qualquer edicao. As
+ * tabelas de antes da feature 011 continuam no compartilhado (ver
+ * {@link MigracaoDosDadosAnteriores}), mas a edicao vem primeiro e tem todas as
+ * tabelas do dominio: a busca para nela e nunca chega as antigas.
  *
  * <p>A conexao volta ao pool com o caminho restaurado para o compartilhado. Sem
  * isso, quem pegasse a conexao por fora do Hibernate — um {@code JdbcTemplate},

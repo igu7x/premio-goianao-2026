@@ -28,8 +28,8 @@ Duas decisões foram tomadas com o Igor antes de começar:
   edição nasceria sem quem a administrasse.
 - Rota que fala de outra edição que não a da sessão é recusada. O catálogo
   (publicar, tornar vigente) alcança todas.
-- Na subida, a base antiga é levada para o schema de cada edição e as tabelas
-  originais ficam como `legado_*`.
+- Na subida, a base antiga é copiada para o schema de cada edição, e as tabelas
+  originais ficam intactas — voltar atrás é reimplantar a versão anterior.
 
 ## O que apareceu no caminho
 
@@ -50,16 +50,14 @@ Duas decisões foram tomadas com o Igor antes de começar:
 **No repositório** (`main`): spec da 011 · backend da base por edição · guarda
 de rota e testes novos · seletor de edição no frontend · este registro.
 
-**Antes do deploy em homologação:**
-
-1. **Backup do banco.** A primeira subida da versão nova migra o banco de
-   homologação sozinha — cria os schemas, copia os dados e renomeia as tabelas
-   antigas. É idempotente e não apaga nada, mas é a primeira vez que ela roda
-   contra dados reais. Um dump antes custa pouco. Pedido para a infra, junto com
-   o que mais houver.
-2. **Permissão de `CREATE SCHEMA`** para o usuário do banco. Sem ela a aplicação
-   não sobe. Em homologação o usuário é dono do banco e deve ter; vale confirmar
-   com a infra no mesmo pedido.
+**Deploy em homologação sem a infra.** O Igor sobe hoje, sem backup e sem
+poder rodar comando no banco. Por isso a migração deixou de renomear as
+tabelas antigas: o original fica intacto, e a versão anterior continua
+funcionando sobre ele. O ciclo completo (anterior → nova → anterior → nova) foi
+conferido num PostgreSQL 16 descartável. O único ponto não verificável daqui é
+a permissão de `CREATE SCHEMA` do usuário do banco em homologação: sem ela o pod
+novo não sobe e o anterior segue no ar, com nada alterado além de uma coluna e
+uma tabela a mais, que a versão anterior ignora.
 
 **A conferir em homologação depois do deploy:**
 

@@ -117,8 +117,14 @@ a `012`. Frontend: `componentes/SeletorDeEdicao.tsx` e a sessão em
   subida — e passou a checar se alguma base tem unidade.
 - Os testes de integração perderam a transação com rollback; `BasesDeTeste`
   reconstrói a base antes de cada um.
+- **As tabelas antigas não são mais renomeadas** para `legado_*`, contra o que
+  o plano previa (T-005). Ficam intactas em `public` para que reimplantar a
+  versão anterior baste como reversão — em homologação não se roda comando no
+  banco. A cópia só roda para edição que chega à subida sem base.
 
 **Verificação.** 267 testes do backend e 49 do frontend passando. Conferido no
 navegador contra o banco H2 de desenvolvimento, que tinha dados anteriores: a
 migração levou as duas edições para os seus schemas, o seletor troca a base, e o
-detalhe de uma edição fora da sessão oferece entrar nela.
+detalhe de uma edição fora da sessão oferece entrar nela. Em PostgreSQL 16, o
+ciclo completo: versão anterior → nova → anterior de novo → nova de novo, sem
+tocar no banco e sem duplicar dados (detalhes na DI-30).

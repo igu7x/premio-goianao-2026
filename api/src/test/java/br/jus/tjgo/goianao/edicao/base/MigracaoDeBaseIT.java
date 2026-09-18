@@ -19,26 +19,21 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * A subida que leva o banco de antes da feature 011 para uma base por edicao
  * (011/RF-12, CA-8).
  *
- * <p>O banco de teste ja passou por essa migracao ao subir — as tabelas antigas
- * estao la, vazias, como {@code legado_*}. O teste as devolve ao nome original,
- * povoa como estaria um banco de homologacao com duas edicoes e sobe a base de
- * novo, conferindo que cada edicao recebeu o que era dela.
+ * <p>As tabelas de antes da feature 011 existem, vazias, no esquema compartilhado
+ * do banco de teste. O teste as povoa como estaria um banco de homologacao com
+ * duas edicoes sem base propria e sobe a base de novo, conferindo que cada
+ * edicao recebeu o que era dela e que o original ficou onde estava.
  */
 @DisplayName("Migracao do banco anterior para a base por edicao (feature 011)")
 class MigracaoDeBaseIT extends TesteDeIntegracao {
 
-    /** Na ordem das chaves estrangeiras. */
-    private static final List<String> TABELAS = List.of(
-            "usuario", "usuario_papel", "administrador", "unidade_judiciaria",
-            "magistrado_reconhecido", "reconhecimento", "layout_certificado",
-            "arte_layout", "servidor_habilitado", "certificado_emitido");
 
     @Autowired private JdbcTemplate jdbc;
     @Autowired private BaseDaEdicao base;
     @Autowired private UsuarioRepository usuarios;
 
     @Test
-    @DisplayName("CA-8: cada edicao recebe os seus dados e os compartilhados; o original fica como legado")
+    @DisplayName("CA-8: cada edicao recebe os seus dados e os compartilhados; o original fica intacto")
     void migraCadaEdicaoParaOSeuSchema() {
         montarBancoAnterior();
 
@@ -65,9 +60,15 @@ class MigracaoDeBaseIT extends TesteDeIntegracao {
                         + "WHERE i.codigo_validacao = 'AAAA-BBBB-CCCC'", Integer.class))
                 .isEqualTo(2501);
 
-        // O original nao foi apagado: ficou como legado.
-        assertThat(contar("legado_usuario")).isEqualTo(1);
-        assertThat(contar("legado_certificado_emitido")).isEqualTo(1);
+        // O original ficou onde estava, com o mesmo nome: e o que deixa a versao
+        // anterior da aplicacao funcionar se for preciso voltar atras.
+        assertThat(contar("public.usuario")).isEqualTo(1);
+        assertThat(contar("public.certificado_emitido")).isEqualTo(1);
+
+        // Uma segunda subida nao copia de novo: as edicoes ja tem base.
+        base.preparar();
+        assertThat(contar("edicao_2501.usuario")).isEqualTo(1);
+        assertThat(contar("edicao_2501.certificado_emitido")).isEqualTo(1);
 
         // A numeracao continua depois dos ids migrados: cadastrar nao colide.
         Long novo = EdicaoCorrente.executarEm("edicao_2501", () -> usuarios.save(new Usuario(
@@ -82,7 +83,6 @@ class MigracaoDeBaseIT extends TesteDeIntegracao {
                 .forEach(schema -> jdbc.execute("DROP SCHEMA " + schema + " CASCADE"));
         jdbc.update("DELETE FROM certificado_indice");
         jdbc.update("DELETE FROM edicao");
-        TABELAS.forEach(t -> jdbc.execute("ALTER TABLE legado_" + t + " RENAME TO " + t));
 
         LocalDateTime agora = LocalDateTime.now();
         jdbc.update("INSERT INTO edicao (id, ano, status, vigente, criado_em) "
@@ -111,14 +111,15 @@ class MigracaoDeBaseIT extends TesteDeIntegracao {
     }
 
     /**
-     * O legado e compartilhado entre os testes: esvaziado aqui para o proximo
-     * teste — e a limpeza da base, que apaga as edicoes — nao esbarrar nele.
+     * As tabelas antigas sao compartilhadas entre os testes: esvaziadas aqui para
+     * o proximo teste — e a limpeza da base, que apaga as edicoes — nao esbarrar
+     * nelas.
      */
     @AfterEach
-    void esvaziarLegado() {
+    void esvaziarTabelasAntigas() {
         List.of("certificado_emitido", "servidor_habilitado", "arte_layout",
                         "layout_certificado", "reconhecimento", "magistrado_reconhecido",
                         "unidade_judiciaria", "administrador", "usuario_papel", "usuario")
-                .forEach(t -> jdbc.update("DELETE FROM legado_" + t));
+                .forEach(t -> jdbc.update("DELETE FROM public." + t));
     }
 }

@@ -14,32 +14,31 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Leva para dentro do schema de cada edicao os dados que hoje estao no esquema
  * compartilhado (011/RF-12).
  *
- * <p>Roda uma unica vez, na subida em que a feature 011 chega a um banco que ja
- * tem dados — em homologacao, hoje. A condicao e simples e nao depende de
- * marcador proprio: existe a tabela {@code usuario} no esquema compartilhado?
- * Entao a migracao ainda nao aconteceu.
+ * <p>Roda para cada edicao que ainda nao tinha base — {@code schema_dados} nulo
+ * no inicio da subida. Na primeira subida da feature 011 sobre homologacao, sao
+ * todas; depois, so a edicao que o sistema cria para si num banco novo. Edicao
+ * criada pela tela ja nasce com base e nunca passa por aqui.
  *
  * <p>O que e hoje compartilhado — usuarios, papeis, administradores, unidades e
  * artes — vai para <b>todas</b> as edicoes: ate aqui essas linhas valiam para
  * todas, e tirar isso de alguma delas seria perder dado que estava em uso. O que
  * ja era por edicao vai so para a sua.
  *
- * <p>No fim, as tabelas originais sao <b>renomeadas</b> para {@code legado_*},
- * nunca apagadas. Sao o backup imediato desta migracao, e o nome novo garante
- * que o caminho de busca das conexoes nao caia nelas por engano se um schema de
- * edicao vier incompleto: a consulta falha alto em vez de responder o dado
- * errado.
+ * <p><b>As tabelas originais ficam intactas.</b> A primeira versao as renomeava
+ * para {@code legado_*}; mudou porque, em homologacao, ninguem do projeto roda
+ * comando no banco. Com o original no lugar, a versao anterior da aplicacao
+ * continua funcionando sobre ele — durante a troca de pods e, se for preciso
+ * voltar atras, depois dela: reimplantar a versao anterior basta.
+ *
+ * <p>O preco e que as tabelas antigas continuam no caminho de busca, depois do
+ * schema da edicao. Nunca sao alcancadas, porque o schema da edicao e criado
+ * completo pelo changelog dela; so seriam se uma tabela faltasse la.
  */
 @Component
 public class MigracaoDosDadosAnteriores {
 
     private static final Logger log = LoggerFactory.getLogger(MigracaoDosDadosAnteriores.class);
 
-    /** Tabelas do dominio, na ordem em que as chaves estrangeiras permitem copiar. */
-    private static final List<String> TABELAS = List.of(
-            "usuario", "usuario_papel", "administrador", "unidade_judiciaria",
-            "magistrado_reconhecido", "reconhecimento", "layout_certificado",
-            "arte_layout", "servidor_habilitado", "certificado_emitido");
 
     /** Tabelas cuja identidade precisa ser reposicionada depois da copia de ids. */
     private static final List<String> COM_IDENTIDADE = List.of(
@@ -59,25 +58,27 @@ public class MigracaoDosDadosAnteriores {
         this.compartilhado = compartilhado.nome();
     }
 
-    public void migrarSeNecessario(List<EdicaoNoCatalogo> edicoes) {
-        if (!precisaMigrar()) {
+    /**
+     * @param edicoesSemBase as edicoes que chegaram a esta subida sem base propria
+     */
+    public void migrarSeNecessario(List<EdicaoNoCatalogo> edicoesSemBase) {
+        if (edicoesSemBase.isEmpty() || !haTabelasAnteriores()) {
             return;
         }
-        log.info("Migrando a base compartilhada para o schema de cada edição ({} edições).",
-                edicoes.size());
+        log.info("Copiando a base compartilhada para o schema de cada edição ({} edições).",
+                edicoesSemBase.size());
         transacao.executeWithoutResult(status -> {
-            for (EdicaoNoCatalogo edicao : edicoes) {
+            for (EdicaoNoCatalogo edicao : edicoesSemBase) {
                 migrar(edicao);
+                preencherIndiceDeVerificacao(edicao.id());
             }
-            preencherIndiceDeVerificacao();
-            aposentarTabelasAnteriores();
         });
-        log.info("Migração concluída. As tabelas anteriores ficaram como legado_* em {}.",
+        log.info("Migração concluída. As tabelas originais em {} ficaram intactas.",
                 compartilhado);
     }
 
-    /** Ha o que migrar enquanto as tabelas do dominio existirem no compartilhado. */
-    private boolean precisaMigrar() {
+    /** O banco veio de antes da feature 011: as tabelas do dominio estao no compartilhado. */
+    private boolean haTabelasAnteriores() {
         Integer quantas = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables "
                         + "WHERE LOWER(table_schema) = LOWER(?) AND LOWER(table_name) = 'usuario'",
@@ -150,18 +151,16 @@ public class MigracaoDosDadosAnteriores {
     }
 
     /** O indice que a verificacao publica usa para achar a edicao de um codigo. */
-    private void preencherIndiceDeVerificacao() {
+    private void preencherIndiceDeVerificacao(Long edicaoId) {
         int linhas = jdbc.update(
                 "INSERT INTO " + compartilhado + ".certificado_indice "
                         + "(codigo_validacao, edicao_id, criado_em) "
-                        + "SELECT codigo_validacao, edicao_id, emitido_em FROM "
-                        + compartilhado + ".certificado_emitido");
-        log.info("Índice de verificação pública: {} certificado(s).", linhas);
-    }
-
-    private void aposentarTabelasAnteriores() {
-        // Da ultima para a primeira: o inverso da ordem de dependencia.
-        TABELAS.reversed().forEach(tabela -> jdbc.execute("ALTER TABLE " + compartilhado + "."
-                + tabela + " RENAME TO legado_" + tabela));
+                        + "SELECT c.codigo_validacao, c.edicao_id, c.emitido_em FROM "
+                        + compartilhado + ".certificado_emitido c "
+                        + "WHERE c.edicao_id = ? AND NOT EXISTS (SELECT 1 FROM "
+                        + compartilhado + ".certificado_indice i "
+                        + "WHERE i.codigo_validacao = c.codigo_validacao)", edicaoId);
+        log.info("Índice de verificação pública: {} certificado(s) da edição {}.",
+                linhas, edicaoId);
     }
 }

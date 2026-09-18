@@ -73,11 +73,20 @@ public class BaseDaEdicao {
             edicoes = catalogo.todas();
         }
 
+        // Quem chegou sem base e quem recebe a copia do banco anterior. Edicao que
+        // ja tinha base nao e tocada: copiar de novo por cima duplicaria tudo.
+        List<Long> semBase = edicoes.stream()
+                .filter(edicao -> edicao.schemaDados() == null)
+                .map(EdicaoNoCatalogo::id)
+                .toList();
+
         for (EdicaoNoCatalogo edicao : edicoes) {
             prepararSchemaDe(edicao);
         }
 
-        migracao.migrarSeNecessario(catalogo.todas());
+        migracao.migrarSeNecessario(catalogo.todas().stream()
+                .filter(edicao -> semBase.contains(edicao.id()))
+                .toList());
 
         String padrao = catalogo.padrao()
                 .map(EdicaoNoCatalogo::schemaDados)

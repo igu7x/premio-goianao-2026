@@ -922,12 +922,27 @@ com `{edicaoId}` ou `?edicaoId=` diferente da sessão é 403; o catálogo
   não herda a edição da requisição: ela vai junto, explícita.
 - Publicar confere os layouts na base da edição publicada, fora de transação.
 
-**Migração.** Na subida, cada edição existente ganha o schema; o que era
-compartilhado é copiado para todas, o que era de uma edição vai só para ela, e
-as tabelas antigas ficam como `legado_*` — renomeadas, nunca apagadas. Banco
-novo passa pelo mesmo caminho (as migrações 001–011 criam as tabelas em
-`public`, e a subida as leva para a edição do ano, criada se não houver
-nenhuma).
+**Migração.** Na subida, cada edição que ainda não tinha base ganha o schema; o
+que era compartilhado é copiado para todas, o que era de uma edição vai só para
+ela. **As tabelas originais ficam intactas em `public`.** Banco novo passa pelo
+mesmo caminho (as migrações 001–011 criam as tabelas em `public`, e a subida as
+copia para a edição do ano, criada se não houver nenhuma).
+
+**Por que não renomear o original.** A primeira versão renomeava as tabelas
+antigas para `legado_*`, para que o caminho de busca nunca caísse nelas. Mudou
+no mesmo dia: em homologação ninguém do projeto roda comando no banco, e com o
+original renomeado voltar atrás exigiria um script. Mantido no lugar, a versão
+anterior da aplicação continua funcionando sobre ele — durante a troca de pods
+e depois, se for preciso reverter. Voltar atrás é reimplantar. O que se grava
+na versão nova fica nos schemas e não aparece na antiga; o que se grava na
+antiga depois de uma reversão não é copiado de novo, porque a cópia só roda
+para edição sem base.
+
+**Verificado em PostgreSQL 16** (contêiner descartável): versão anterior cria o
+banco e emite um certificado; a nova migra, confere o código antigo, reemite com
+o mesmo código, troca de edição, cria edição vazia e recusa rota de outra
+edição; a anterior volta a subir sobre o banco migrado e emite; a nova sobe de
+novo sem duplicar nada.
 
 **Consequência nos testes.** Os testes de integração deixaram de rodar numa
 transação com rollback: dentro dela a conexão, e portanto a base, ficava fixa.
