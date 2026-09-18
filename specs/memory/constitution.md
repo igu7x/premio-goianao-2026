@@ -60,6 +60,11 @@
    edição vigente por padrão, mas qualquer edição **publicada** anterior continua
    disponível para **reemissão**, sempre com o layout e os dados daquela edição.
    Não há "encerramento" que bloqueie emissão.
+   - *Emenda de 2026-09-17 (feature 011, DI-30):* cada edição tem a sua própria
+     base de dados — usuários, unidades, reconhecidos, listas, layouts e
+     certificados. Uma edição nova nasce vazia (só os superadministradores vão
+     junto). A edição vigente continua sendo o padrão de quem entra, mas quem só
+     existe numa edição anterior entra nela, e segue podendo reemitir.
 
 ## Restrições conhecidas
 

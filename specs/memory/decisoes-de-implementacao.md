@@ -884,3 +884,55 @@ quem ajusta a lista da unidade dele, e sem a busca a tela voltaria ao e-mail
 digitado à mão. Coberto por `PainelDaLista.test.tsx`.
 
 ---
+
+## DI-30 — Cada edição tem a sua base de dados, num schema próprio
+
+**Contexto.** Parte do que o sistema guardava era por edição (reconhecidos,
+listas, layouts, certificados) e parte era de todas (usuários, unidades,
+responsáveis). O pedido foi isolamento completo: cada edição com a própria
+base, uma edição nova nascendo vazia, as mesmas funcionalidades dentro dela
+(feature 011).
+
+**Decisão.** Um schema do PostgreSQL por edição, no mesmo banco
+(`edicao_2026`, `edicao_2027`...). O esquema compartilhado guarda só o catálogo
+de edições e o índice da verificação pública. A conexão de cada requisição é
+apontada para o schema da edição da sessão (multi-tenancy por schema do
+Hibernate), e o código de domínio não mudou: consulta que esquece de filtrar
+por ano não enxerga outro ano. As colunas `edicao_id` continuaram, redundantes
+dentro do schema, para não reescrever as consultas de cinco features.
+
+**A edição vai no token, não num cabeçalho.** Trocar de edição é `POST
+/api/auth/edicao/{id}`, que confere que a pessoa existe lá e devolve token novo
+com os papéis daquela edição. O login procura a pessoa em todas as edições e
+entra na vigente, ou na mais recente em que ela existe — é o que mantém o
+premiado de 2026 com acesso ao certificado depois que 2027 vira vigente. Rota
+com `{edicaoId}` ou `?edicaoId=` diferente da sessão é 403; o catálogo
+(`/api/edicoes/{id}`) continua alcançando todas.
+
+**Detalhes que custaram uma tentativa cada.**
+
+- O Liquibase não reescreve SQL cru: `defaultSchemaName` não leva um `CREATE
+  TABLE` escrito à mão para o schema da edição. Quem decide é a conexão
+  (`DataSourceDaEdicao`). No H2, apontar exige `SET SCHEMA` *e*
+  `SET SCHEMA_SEARCH_PATH`; só o segundo deixava o DDL cair no schema errado.
+- `ddl-auto: validate` inspeciona o schema corrente, e a tabela `edicao` mora
+  no compartilhado. Ela saiu só da validação (`ValidacaoForaDoCatalogo`), não
+  a validação inteira.
+- Trabalho em segundo plano (semeadura em lote, atualização pelo RH no login)
+  não herda a edição da requisição: ela vai junto, explícita.
+- Publicar confere os layouts na base da edição publicada, fora de transação.
+
+**Migração.** Na subida, cada edição existente ganha o schema; o que era
+compartilhado é copiado para todas, o que era de uma edição vai só para ela, e
+as tabelas antigas ficam como `legado_*` — renomeadas, nunca apagadas. Banco
+novo passa pelo mesmo caminho (as migrações 001–011 criam as tabelas em
+`public`, e a subida as leva para a edição do ano, criada se não houver
+nenhuma).
+
+**Consequência nos testes.** Os testes de integração deixaram de rodar numa
+transação com rollback: dentro dela a conexão, e portanto a base, ficava fixa.
+Cada teste recomeça de uma base reconstruída (`BasesDeTeste`). Isso revelou um
+defeito antigo, corrigido junto: editar magistrado mantendo a mesma unidade
+dava 409 (o Hibernate inseria antes de apagar).
+
+---
