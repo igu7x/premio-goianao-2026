@@ -14,6 +14,7 @@ import br.jus.tjgo.goianao.unidade.UnidadeRepository;
 import br.jus.tjgo.goianao.usuario.dto.AtualizarUsuarioRequisicao;
 import br.jus.tjgo.goianao.usuario.dto.UsuarioRequisicao;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -73,10 +74,19 @@ public class UsuarioService {
                 ? usuario.getCpf()
                 : Cpf.opcional(dados.cpf());
 
-        exigirQueSobreSuperadmin(usuario, dados.papeis());
+        // SUPERADMIN nao se altera por aqui: ele e dado e tirado por promover e
+        // rebaixar. O formulario de edicao nem mostra esse papel, entao os papeis
+        // que chegam nunca o trazem — e substitui-los como vieram tirava o
+        // superadmin de quem so teve o nome corrigido.
+        Set<Papel> papeis = EnumSet.noneOf(Papel.class);
+        papeis.addAll(dados.papeis());
+        papeis.remove(Papel.SUPERADMIN);
+        if (usuario.getPapeis().contains(Papel.SUPERADMIN)) {
+            papeis.add(Papel.SUPERADMIN);
+        }
 
         usuario.alterarDados(dados.nome().trim(), cpf, dados.unidadeLotacao(),
-                areaDe(dados.papeis(), dados.areaAtuacao()), dados.papeis());
+                areaDe(papeis, dados.areaAtuacao()), papeis);
         if (dados.senha() != null && !dados.senha().isBlank()) {
             usuario.definirSenhaHash(encoder.encode(dados.senha()));
         }

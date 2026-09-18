@@ -154,6 +154,33 @@ class UsuarioIT extends TesteDeIntegracao {
                 .andExpect(jsonPath("$.cpfMascarado").value("***.506.702-**"));
     }
 
+    /**
+     * O formulario de edicao nao mostra o papel de superadmin — ele e dado e
+     * tirado por promover e rebaixar — e por isso nunca o envia. Com mais de um
+     * superadmin, a guarda do ultimo nao entrava, e salvar tirava o papel.
+     */
+    @Test
+    @DisplayName("editar um superadmin pelo formulario nao tira o papel de superadmin")
+    void edicaoPreservaSuperadmin() throws Exception {
+        darSuperadminAo("super11@tjgo.jus.br", "uma-senha-boa");
+        darSuperadminAo("super12@tjgo.jus.br", "uma-senha-boa");
+        Long id = usuarios.findByEmailIgnoreCase("super12@tjgo.jus.br").orElseThrow().getId();
+
+        Map<String, Object> corpo = Map.of(
+                "nome", "Super Renomeado",
+                "cpf", "",
+                "papeis", List.of("ADMINISTRADOR", "MAGISTRADO"));
+
+        mvc.perform(put("/api/usuarios/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, bearer("super11@tjgo.jus.br"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpo(corpo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Super Renomeado"))
+                .andExpect(jsonPath("$.papeis", Matchers.containsInAnyOrder(
+                        "ADMINISTRADOR", "MAGISTRADO", "SUPERADMIN")));
+    }
+
     @Test
     @DisplayName("area de atuacao so e guardada para magistrado")
     void areaSoParaMagistrado() throws Exception {
