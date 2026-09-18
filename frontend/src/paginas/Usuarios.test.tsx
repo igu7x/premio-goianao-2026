@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { SituacaoDaAtualizacao, Usuario } from '../api/tipos'
 import { ProvedorDeAvisos } from '../componentes/Avisos'
@@ -46,9 +47,11 @@ const USUARIOS = [
 
 function renderizar() {
   render(
-    <ProvedorDeAvisos>
-      <Usuarios />
-    </ProvedorDeAvisos>,
+    <MemoryRouter>
+      <ProvedorDeAvisos>
+        <Usuarios />
+      </ProvedorDeAvisos>
+    </MemoryRouter>,
   )
 }
 
@@ -128,5 +131,45 @@ describe('Atualizar base de usuários', () => {
     expect(await screen.findByText(/50 de 200 unidade/i)).toBeInTheDocument()
     expect(screen.getByText(/agora em central de expediçao/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /atualizando… 25%/i })).toBeDisabled()
+  })
+})
+
+describe('Busca na lista de usuários', () => {
+  it('filtra por nome, e-mail ou lotação, sem acento e sem caixa', async () => {
+    instalarApiFalsa([
+      ['/api/usuarios/atualizacao-rh', { corpo: NUNCA }],
+      [
+        '/api/usuarios',
+        {
+          corpo: [
+            ...USUARIOS,
+            usuario({
+              id: 4,
+              nome: 'Marcos Paula',
+              email: 'mpaula@tjgo.jus.br',
+              unidadeLotacao: 'CENTRAL DE INTIMAÇÃO REMOTA',
+            }),
+          ],
+        },
+      ],
+    ])
+    renderizar()
+
+    await screen.findByText('João Ribeiro')
+    const busca = screen.getByLabelText('Buscar')
+
+    await userEvent.type(busca, 'joao')
+    expect(screen.getByText('João Ribeiro')).toBeInTheDocument()
+    expect(screen.queryByText('Diuly Caliny')).not.toBeInTheDocument()
+
+    // A lotação também entra na busca: é como se acha a equipe de uma unidade.
+    await userEvent.clear(busca)
+    await userEvent.type(busca, 'intimacao')
+    expect(screen.getByText('Marcos Paula')).toBeInTheDocument()
+    expect(screen.queryByText('João Ribeiro')).not.toBeInTheDocument()
+
+    await userEvent.clear(busca)
+    await userEvent.type(busca, 'ninguém com esse nome')
+    expect(await screen.findByText(/ninguém com esse termo/i)).toBeInTheDocument()
   })
 })

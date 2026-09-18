@@ -1,7 +1,9 @@
 package br.jus.tjgo.goianao.unidade;
 
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
+import br.jus.tjgo.goianao.servidor.SemeaduraEmLote;
 import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
+import br.jus.tjgo.goianao.servidor.dto.SituacaoDaSemeadura;
 import br.jus.tjgo.goianao.unidade.dto.DesignacaoResposta;
 import br.jus.tjgo.goianao.unidade.dto.ImportacaoResponsaveis;
 import br.jus.tjgo.goianao.unidade.dto.UnidadeCadastrada;
@@ -35,13 +37,16 @@ public class UnidadeController {
     private final ImportacaoResponsaveisService importacao;
     private final DesignacaoService designacao;
     private final ServidorHabilitadoService servidores;
+    private final SemeaduraEmLote semeadura;
 
     public UnidadeController(UnidadeService servico, ImportacaoResponsaveisService importacao,
-                             DesignacaoService designacao, ServidorHabilitadoService servidores) {
+                             DesignacaoService designacao, ServidorHabilitadoService servidores,
+                             SemeaduraEmLote semeadura) {
         this.servico = servico;
         this.importacao = importacao;
         this.designacao = designacao;
         this.servidores = servidores;
+        this.semeadura = semeadura;
     }
 
     /** Catalogo do EGESP, para o autocomplete do administrador (004/RF-1). */
@@ -137,6 +142,18 @@ public class UnidadeController {
         } catch (IOException e) {
             throw new UncheckedIOException("Falha ao ler o arquivo enviado.", e);
         }
+    }
+
+    /**
+     * Como vai a semeadura disparada pela planilha.
+     *
+     * <p>A importacao responde assim que grava o cadastro; as listas continuam
+     * sendo semeadas em segundo plano, e e por aqui que a tela acompanha.
+     */
+    @GetMapping("/responsaveis/semeadura")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public SituacaoDaSemeadura situacaoDaSemeadura() {
+        return semeadura.situacao();
     }
 
     public record ResponsavelRequisicao(

@@ -19,8 +19,7 @@ const RELATORIO = {
   substituidos: 0,
   jaEram: 0,
   reconhecimentos: 2,
-  listasSemeadas: 2,
-  habilitados: 47,
+  listasParaSemear: 2,
   edicaoAno: 2026,
   erros: [{ linha: 3, conteudo: 'Fulano;errado;9999;ouro', motivo: 'Unidade não está cadastrada.' }],
 }
@@ -49,6 +48,26 @@ describe('Planilha de magistrados responsáveis', () => {
   it('sobe o CSV e mostra o que entrou e as linhas que não entraram', async () => {
     const chamadas = instalarApiFalsa([
       ['/api/unidades/responsaveis/importar', { corpo: RELATORIO }],
+      [
+        '/api/unidades/responsaveis/semeadura',
+        {
+          corpo: {
+            estado: 'CONCLUIDA',
+            edicaoAno: 2026,
+            unidadesTotal: 2,
+            unidadesProcessadas: 2,
+            unidadeAtual: null,
+            incluidos: 47,
+            jaExistentes: 0,
+            semEmail: 0,
+            unidadesComFalha: 0,
+            ultimaFalha: null,
+            iniciadaEm: null,
+            terminadaEm: null,
+            mensagem: null,
+          },
+        },
+      ],
       ['/api/unidades/cadastradas', { corpo: UNIDADES }],
     ])
 
@@ -66,7 +85,12 @@ describe('Planilha de magistrados responsáveis', () => {
     expect(screen.getByText(/unidade não está cadastrada/i)).toBeInTheDocument()
     expect(screen.getByText('Fulano;errado;9999;ouro')).toBeInTheDocument()
     // E quantas listas de servidores a planilha semeou do RH.
-    expect(screen.getByText(/2 lista\(s\) de servidores semeada\(s\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/2 lista\(s\) de servidores entraram na fila/i)).toBeInTheDocument()
+
+    // A semeadura roda em segundo plano: a tela pergunta como vai e conta o fim.
+    expect(
+      await screen.findByText(/47 servidor\(es\) incluído\(s\) em 2 unidade\(s\)/i),
+    ).toBeInTheDocument()
 
     const envio = chamadas.find((c) => c.url.includes('responsaveis/importar'))
     expect(envio?.metodo).toBe('POST')

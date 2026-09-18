@@ -29,9 +29,15 @@ import org.springframework.web.bind.annotation.RestController;
  * tem o e-mail que o login reconhece. E o RH fora do ar nao esvazia a busca — os
  * do sistema continuam aparecendo, e a resposta avisa que o RH nao respondeu.
  */
+/*
+ * Aberta tambem ao magistrado desde 17/09/2026: e ele quem ajusta a lista de
+ * habilitados da unidade dele, e ali a pessoa passou a ser escolhida da busca em
+ * vez de digitada. Sem isto, a tela dele voltaria ao e-mail digitado a mao — e
+ * uma letra errada cria um habilitado que nunca conseguira emitir.
+ */
 @RestController
 @RequestMapping("/api/pessoas")
-@PreAuthorize("hasRole('ADMINISTRADOR')")
+@PreAuthorize("hasAnyRole('ADMINISTRADOR', 'MAGISTRADO')")
 public class BuscaDePessoasController {
 
     private static final Logger log = LoggerFactory.getLogger(BuscaDePessoasController.class);

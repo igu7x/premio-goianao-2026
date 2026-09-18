@@ -19,9 +19,11 @@ import java.util.List;
  * @param jaEram          a planilha confirmou quem ja respondia pela unidade
  * @param reconhecimentos selos gravados na edicao; repetir a planilha nao conta
  *                        de novo o que ja estava la
- * @param listasSemeadas  unidades cuja lista de habilitados foi semeada do RH no
- *                        mesmo ato da designacao
- * @param habilitados     servidores que entraram nessas listas
+ * @param listasParaSemear unidades que entraram na fila de semeadura do RH. Ela
+ *                        roda em segundo plano — uma planilha do tamanho do
+ *                        tribunal leva minutos de chamadas, e a rota cairia
+ *                        antes de o relatorio voltar. A tela acompanha por
+ *                        {@code GET /api/unidades/responsaveis/semeadura}
  * @param edicaoAno       em que edicao os selos entraram — a planilha nao diz,
  *                        entao a tela precisa mostrar qual foi
  */
@@ -33,8 +35,7 @@ public record ImportacaoResponsaveis(
         int substituidos,
         int jaEram,
         int reconhecimentos,
-        int listasSemeadas,
-        int habilitados,
+        int listasParaSemear,
         int edicaoAno,
         List<ErroDeLinha> erros) {
 

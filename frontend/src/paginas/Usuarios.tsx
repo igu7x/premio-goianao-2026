@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, ErroApi } from '../api/cliente'
 import type { Papel, Unidade, Usuario } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
@@ -35,7 +36,39 @@ export function Usuarios() {
   /** Confirmação da exclusão: apagar cadastro é ação sem volta. */
   const [excluindo, setExcluindo] = useState<Usuario | null>(null)
   const [promovendo, setPromovendo] = useState(false)
+  const [filtro, setFiltro] = useState('')
   const avisos = useAvisos()
+  const [parametros, definirParametros] = useSearchParams()
+
+  /*
+   * A lista de habilitados manda para cá quem ela não encontrou no cadastro,
+   * por `?novo=<e-mail>`. Abrir o formulário já com o endereço poupa quem veio
+   * de lá de digitá-lo de novo — e de digitá-lo diferente.
+   */
+  const [emailDoLink, setEmailDoLink] = useState('')
+  const novoDoLink = parametros.get('novo')
+  useEffect(() => {
+    if (novoDoLink === null) return
+    // Guardar antes de limpar a URL: o formulário só monta na renderização
+    // seguinte, quando o parâmetro já não existe mais.
+    setEmailDoLink(novoDoLink)
+    setEditando('novo')
+    definirParametros({}, { replace: true })
+  }, [novoDoLink, definirParametros])
+
+  /*
+   * Com a base do tribunal inteira aqui dentro, rolar até alguém deixou de ser
+   * caminho. A busca é local: a lista já veio inteira, e uma ida ao servidor a
+   * cada letra digitada só atrasaria a resposta.
+   */
+  const termos = semAcento(filtro).split(/\s+/).filter(Boolean)
+  const visiveis = (usuarios ?? []).filter((usuario) => {
+    if (termos.length === 0) return true
+    const alvo = semAcento(
+      `${usuario.nome} ${usuario.email} ${usuario.unidadeLotacao ?? ''} ${usuario.areaAtuacao ?? ''}`,
+    )
+    return termos.every((termo) => alvo.includes(termo))
+  })
 
   const carregar = useCallback(async () => {
     try {
@@ -142,6 +175,36 @@ export function Usuarios() {
         </div>
       ) : (
         <div className="bloco">
+          <div className="bloco-cabecalho">
+            <div>
+              <h2 className="titulo-secao">
+                {visiveis.length === usuarios.length
+                  ? `${usuarios.length} usuário(s)`
+                  : `${visiveis.length} de ${usuarios.length} usuário(s)`}
+              </h2>
+              <p className="apoio">
+                A busca olha nome, e-mail e lotação, sem ligar para acento nem maiúsculas.
+              </p>
+            </div>
+            <div className="campo" style={{ margin: 0, minWidth: 260 }}>
+              <label htmlFor="filtro-usuario" className="rotulo">
+                Buscar
+              </label>
+              <input
+                id="filtro-usuario"
+                placeholder="Nome, e-mail ou lotação…"
+                value={filtro}
+                onChange={(evento) => setFiltro(evento.target.value)}
+              />
+            </div>
+          </div>
+
+          {visiveis.length === 0 ? (
+            <EstadoVazio
+              titulo="Ninguém com esse termo"
+              descricao="Tente outro trecho do nome, do e-mail ou da lotação — sobrenome costuma encontrar mais."
+            />
+          ) : (
           <div className="tabela-rolagem">
             <table className="tabela">
               <thead>
@@ -154,7 +217,7 @@ export function Usuarios() {
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((usuario) => (
+                {visiveis.map((usuario) => (
                   <tr key={usuario.id} style={{ opacity: usuario.ativo ? 1 : 0.5 }}>
                     <td>
                       <div className="unidade-nome" style={{ fontSize: 15, margin: 0 }}>
@@ -219,6 +282,7 @@ export function Usuarios() {
               </tbody>
             </table>
           </div>
+          )}
           <div className="bloco-rodape">
             Excluir apaga o cadastro. Quem já emitiu certificado, foi reconhecido ou está em
             alguma lista de habilitados não pode ser apagado — nesse caso a tela oferece desativar,
@@ -277,7 +341,11 @@ export function Usuarios() {
       {editando && (
         <ModalUsuario
           usuario={editando === 'novo' ? null : editando}
-          aoFechar={() => setEditando(null)}
+          emailInicial={editando === 'novo' ? emailDoLink : ''}
+          aoFechar={() => {
+            setEditando(null)
+            setEmailDoLink('')
+          }}
           aoSalvar={async () => {
             setEditando(null)
             await carregar()
@@ -302,14 +370,17 @@ export function Usuarios() {
 
 function ModalUsuario({
   usuario,
+  emailInicial = '',
   aoFechar,
   aoSalvar,
 }: {
   usuario: Usuario | null
+  /** Vem de quem mandou cadastrar alguém que a busca não encontrou. */
+  emailInicial?: string
   aoFechar: () => void
   aoSalvar: () => Promise<void>
 }) {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(emailInicial)
   const [nome, setNome] = useState(usuario?.nome ?? '')
   const [cpf, setCpf] = useState('')
   const [unidade, setUnidade] = useState(usuario?.unidadeLotacao ?? '')

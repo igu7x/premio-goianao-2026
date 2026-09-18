@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { ErroApi, api, lerToken, urlDaApi } from '../../api/cliente'
-import type { Edicao, ImportacaoResponsaveis, UnidadeCadastrada } from '../../api/tipos'
+import type {
+  Edicao,
+  ImportacaoResponsaveis,
+  SituacaoDaSemeadura,
+  UnidadeCadastrada,
+} from '../../api/tipos'
 import { useAvisos } from '../../componentes/Avisos'
 import { Aviso, Modal } from '../../componentes/Basicos'
 import { Icone } from '../../componentes/Icone'
+
+/** Rápido o bastante para a tela parecer viva, sem martelar a API. */
+const ESPERA_ENTRE_PERGUNTAS = 3000
 
 /**
  * Planilha de magistrados responsáveis pelas unidades.
@@ -21,6 +29,9 @@ import { Icone } from '../../componentes/Icone'
  * <p>Diferente do "Importar planilha" dos reconhecidos, está disponível em
  * qualquer edição — designar responsável e semear a lista não altera
  * certificado já emitido.
+ *
+ * <p>A semeadura das listas não acontece na requisição: ela entra numa fila que
+ * roda em segundo plano, e esta tela acompanha o andamento.
  */
 export function CsvDeResponsaveis({
   edicao,
@@ -35,8 +46,60 @@ export function CsvDeResponsaveis({
    *  aparecem as linhas que o arquivo não conseguiu gravar. */
   const [relatorio, setRelatorio] = useState<ImportacaoResponsaveis | null>(null)
   const [unidades, setUnidades] = useState<UnidadeCadastrada[]>([])
+  /** Enquanto verdadeiro, a tela pergunta de tempos em tempos como vai a fila. */
+  const [acompanhando, setAcompanhando] = useState(false)
+  const [semeadura, setSemeadura] = useState<SituacaoDaSemeadura | null>(null)
   const arquivo = useRef<HTMLInputElement>(null)
   const avisos = useAvisos()
+
+  /*
+   * A semeadura das listas roda em segundo plano: uma planilha do tamanho do
+   * tribunal são centenas de consultas ao RH, a seis por segundo, e a rota
+   * derrubaria a conexão muito antes da resposta. A importação devolve o
+   * cadastro gravado na hora; daqui em diante é só perguntar como vai.
+   */
+  useEffect(() => {
+    if (!acompanhando) return
+    let ativo = true
+
+    const perguntar = async () => {
+      try {
+        const situacao = await api.get<SituacaoDaSemeadura>(
+          '/api/unidades/responsaveis/semeadura',
+        )
+        if (!ativo) return
+        setSemeadura(situacao)
+        if (situacao.estado !== 'EM_ANDAMENTO') {
+          setAcompanhando(false)
+          if (situacao.estado === 'CONCLUIDA') {
+            avisos.sucesso(
+              `Listas semeadas em ${situacao.unidadesTotal} unidade(s)`,
+              [
+                `${situacao.incluidos} servidor(es) incluído(s)`,
+                `${situacao.jaExistentes} já constavam`,
+                situacao.unidadesComFalha > 0
+                  ? `${situacao.unidadesComFalha} unidade(s) com falha no RH`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            )
+          }
+          await aoImportar()
+        }
+      } catch {
+        // Perder uma pergunta não é motivo para parar de acompanhar: a próxima
+        // tentativa vem logo, e a fila segue no servidor de qualquer forma.
+      }
+    }
+
+    void perguntar()
+    const relogio = setInterval(() => void perguntar(), ESPERA_ENTRE_PERGUNTAS)
+    return () => {
+      ativo = false
+      clearInterval(relogio)
+    }
+  }, [acompanhando, avisos, aoImportar])
 
   // Só para gerar o modelo com códigos de verdade; a tela não lista unidades.
   useEffect(() => {
@@ -84,14 +147,17 @@ export function CsvDeResponsaveis({
           lido.reconhecimentos > 0
             ? `${lido.reconhecimentos} selo(s) gravado(s) na edição ${lido.edicaoAno}`
             : null,
-          lido.listasSemeadas > 0
-            ? `${lido.listasSemeadas} lista(s) semeada(s) com ${lido.habilitados} servidor(es)`
+          lido.listasParaSemear > 0
+            ? `${lido.listasParaSemear} lista(s) sendo semeada(s) do RH em segundo plano`
             : null,
           lido.erros.length > 0 ? `${lido.erros.length} linha(s) com erro` : null,
         ]
           .filter(Boolean)
           .join(' · ') || 'Tudo na planilha já estava gravado.',
       )
+      if (lido.listasParaSemear > 0) {
+        setAcompanhando(true)
+      }
       await aoImportar()
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao importar a planilha.')
@@ -184,6 +250,37 @@ export function CsvDeResponsaveis({
         <span className="secundaria mono">nome;e-mail;código da unidade;selo</span>
       </div>
 
+      {/* Sinal de vida da fila: sem isto, a tela ficaria muda por minutos e
+          pareceria que a planilha não fez nada. */}
+      {semeadura && semeadura.estado !== 'NUNCA_EXECUTADA' && (
+        <div className="semeadura-andamento">
+          {semeadura.estado === 'EM_ANDAMENTO' ? (
+            <>
+              <span className="giro" />
+              <span>
+                Semeando as listas do RH: {semeadura.unidadesProcessadas} de{' '}
+                {semeadura.unidadesTotal} unidade(s)
+                {semeadura.unidadeAtual ? ` · ${semeadura.unidadeAtual}` : ''}
+              </span>
+            </>
+          ) : semeadura.estado === 'FALHOU' ? (
+            <span>
+              A semeadura parou: {semeadura.mensagem ?? 'falha ao consultar o RH.'} Suba a planilha
+              de novo quando o RH responder — reenviar não duplica nada.
+            </span>
+          ) : (
+            <span>
+              Listas semeadas: {semeadura.incluidos} servidor(es) incluído(s) em{' '}
+              {semeadura.unidadesTotal} unidade(s)
+              {semeadura.unidadesComFalha > 0
+                ? ` · ${semeadura.unidadesComFalha} com falha no RH`
+                : ''}
+              .
+            </span>
+          )}
+        </div>
+      )}
+
       {/* O relatório é a única coisa que sobra do envio: é onde estão as linhas
           que não entraram, com o texto original, para corrigir a planilha. */}
       {relatorio && (
@@ -216,8 +313,8 @@ export function CsvDeResponsaveis({
               )}
               <li>{relatorio.reconhecimentos} selo(s) gravado(s) como reconhecimento.</li>
               <li>
-                {relatorio.listasSemeadas} lista(s) de servidores semeada(s) do RH, com{' '}
-                {relatorio.habilitados} servidor(es) incluído(s).
+                {relatorio.listasParaSemear} lista(s) de servidores entraram na fila de semeadura
+                do RH, que roda em segundo plano — o andamento aparece na tela.
               </li>
             </ul>
           </Aviso>

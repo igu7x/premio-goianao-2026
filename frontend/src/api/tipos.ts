@@ -102,10 +102,8 @@ export interface ImportacaoResponsaveis {
   jaEram: number
   /** Selos gravados como reconhecimento; repetir a planilha não conta de novo. */
   reconhecimentos: number
-  /** Listas de habilitados semeadas do RH no mesmo ato da designação. */
-  listasSemeadas: number
-  /** Servidores que entraram nessas listas. */
-  habilitados: number
+  /** Unidades que entraram na fila de semeadura, que roda em segundo plano. */
+  listasParaSemear: number
   edicaoAno: number
   erros: ErroDeLinha[]
 }
@@ -333,6 +331,24 @@ export interface Unidade {
   responsavel: { id: number; nome: string; email: string } | null
   /** Habilitados nesta unidade na edição consultada; nulo fora de uma edição. */
   habilitados: number | null
+}
+
+/** Como vai a semeadura em lote disparada pela planilha de responsáveis. */
+export interface SituacaoDaSemeadura {
+  estado: 'NUNCA_EXECUTADA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'FALHOU'
+  edicaoAno: number | null
+  unidadesTotal: number
+  unidadesProcessadas: number
+  /** A que está sendo semeada agora; é o sinal de vida da operação. */
+  unidadeAtual: string | null
+  incluidos: number
+  jaExistentes: number
+  semEmail: number
+  unidadesComFalha: number
+  ultimaFalha: string | null
+  iniciadaEm: string | null
+  terminadaEm: string | null
+  mensagem: string | null
 }
 
 /**

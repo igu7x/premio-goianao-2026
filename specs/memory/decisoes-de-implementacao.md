@@ -819,3 +819,68 @@ em uso na edição. Verificado em `ResponsavelPelaUnidadeIT.designacaoSemeiaALis
 e em `CsvDeResponsaveis.test.tsx`.
 
 ---
+
+## DI-28 — A semeadura da planilha saiu da requisição
+
+**Contexto.** A planilha de responsáveis passou a semear a lista de cada unidade
+designada (DI-27), e isso funcionou com três linhas. Com o modelo de teste
+inteiro — uma linha por unidade cadastrada, 190 delas —, a importação em
+homologação morreu: cada linha é uma consulta ao RH, mais uma por matrícula sem
+e-mail, com teto de seis chamadas por segundo. A rota do OpenShift derruba a
+conexão muito antes da resposta, e o navegador reporta o que sobra: erro de CORS
+no console, que não era CORS nenhum.
+
+**Decisão.** A importação faz o que é barato e responde: lê o CSV, cria os
+magistrados, grava os selos e designa os responsáveis — tudo banco, tudo na
+transação. As unidades entram numa fila e são semeadas em **segundo plano**, no
+mesmo padrão da atualização da base de usuários (`SemeaduraEmLote`, thread
+única, estado em memória). A tela pergunta o andamento por
+`GET /api/unidades/responsaveis/semeadura`.
+
+**A fila só começa depois do commit.** Ela lê o banco por conta própria: disparada
+dentro da transação, poderia começar antes do commit e não encontrar as
+designações recém-gravadas — a guarda de escopo recusaria a unidade e a lista
+chegaria vazia por uma corrida entre threads. O disparo vai num
+`TransactionSynchronization.afterCommit`.
+
+**A identidade de quem pediu viaja junto.** Fora da requisição não há usuário, e
+as guardas de escopo e a autoria do registro olham para ele. Em vez de o serviço
+virar "sistema" e escapar das guardas, o `UsuarioAutenticado` é capturado no
+disparo e reinstalado na thread da fila.
+
+**Designar uma unidade continua semeando na hora.** Ali é uma unidade só, uma
+consulta: mandar para a fila só adiaria a resposta que a tela já espera.
+
+**Consequência.** O relatório troca `listasSemeadas`/`habilitados` por
+`listasParaSemear`. Testar isto exigiu duas coberturas separadas, porque os
+testes de integração rodam em transação com rollback e o `afterCommit` nunca
+dispararia: `ImportacaoResponsaveisIT.naoSemeiaNaRequisicao` prova que a
+requisição não semeia, e `SemeaduraEmLoteIT` comita de propósito para exercitar
+a fila de verdade — com ano e unidade exclusivos, e limpeza no fim, porque o
+banco é compartilhado pelos demais testes.
+
+---
+
+## DI-29 — Na lista de habilitados, a pessoa é escolhida, não digitada
+
+**Contexto.** A inclusão manual na lista de habilitados pedia e-mail, nome e CPF
+em campos livres. O e-mail é a chave da pessoa (DI-24): uma letra errada cria um
+habilitado que nunca conseguirá emitir, e ninguém descobre até o servidor tentar.
+
+**Decisão.** O formulário virou uma busca: digita-se parte do nome e escolhe-se
+entre os usuários do sistema e as pessoas do RH, como já se fazia no cadastro de
+magistrados. O que vai para a lista é o e-mail que veio do cadastro.
+
+**Quem não tem cadastro aparece marcado.** Ele pode entrar na lista — ela guarda
+e-mail e nome, não um id de usuário —, mas não entraria no sistema para emitir.
+A tela diz isso e oferece o caminho: `/usuarios?novo=<e-mail>`, que abre o
+cadastro já com o endereço preenchido. Para quem não é superadministrador, o
+texto manda pedir o cadastro, porque a tela de usuários é só dele.
+
+**O CPF saiu.** Era opcional e só informativo, e o que vem do RH chega mascarado.
+
+**Consequência.** `GET /api/pessoas` passou a aceitar também MAGISTRADO: é ele
+quem ajusta a lista da unidade dele, e sem a busca a tela voltaria ao e-mail
+digitado à mão. Coberto por `PainelDaLista.test.tsx`.
+
+---

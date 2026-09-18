@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.unidade;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +10,7 @@ import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.edicao.Edicao;
 import br.jus.tjgo.goianao.magistrado.MagistradoRepository;
 import br.jus.tjgo.goianao.seguranca.Papel;
+import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
 import br.jus.tjgo.goianao.suporte.TesteDeIntegracao;
 import br.jus.tjgo.goianao.usuario.Usuario;
 import br.jus.tjgo.goianao.usuario.UsuarioRepository;
@@ -38,6 +40,7 @@ class ImportacaoResponsaveisIT extends TesteDeIntegracao {
     @Autowired private UsuarioRepository usuarios;
     @Autowired private UnidadeRepository unidades;
     @Autowired private MagistradoRepository reconhecidos;
+    @Autowired private ServidorHabilitadoService servidores;
 
     private Edicao edicao;
     private UnidadeJudiciaria unidade;
@@ -83,6 +86,35 @@ class ImportacaoResponsaveisIT extends TesteDeIntegracao {
                 .satisfies(m -> assertThat(m.getReconhecimentos())
                         .singleElement()
                         .satisfies(r -> assertThat(r.getSelo()).isEqualTo(Selo.DIAMANTE)));
+    }
+
+    /**
+     * A semeadura saiu da requisicao em 17/09/2026: com a planilha inteira do
+     * tribunal, as chamadas ao RH passavam de minutos e a rota do OpenShift
+     * derrubava a conexao antes da resposta. O relatorio volta na hora dizendo
+     * quantas listas entraram na fila; o resto acontece em segundo plano.
+     */
+    @Test
+    @DisplayName("a requisicao nao semeia: ela so enfileira e responde")
+    void naoSemeiaNaRequisicao() throws Exception {
+        importar("""
+                nome;email;unidade;selo
+                Igor Freitas;ifccteixeira@tjgo.example;%d;diamante
+                """.formatted(CODIGO))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.listasParaSemear").value(1));
+
+        // Se a semeadura ainda estivesse aqui dentro, a lista ja teria gente —
+        // e a planilha inteira do tribunal estouraria o tempo da rota.
+        assertThat(servidores.listar(edicao.getId(), unidade.getId()))
+                .as("a lista e semeada depois, pela fila em segundo plano")
+                .isEmpty();
+
+        // O relatorio volta na hora, e a fila e acompanhada por este endpoint.
+        mvc.perform(get("/api/unidades/responsaveis/semeadura")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").exists());
     }
 
     @Test

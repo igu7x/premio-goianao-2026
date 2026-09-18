@@ -123,3 +123,13 @@ de desenho está na **DI-27**; aqui ficam os efeitos sobre esta feature.
 a designação passou a vir só da planilha de magistrados responsáveis, subida na
 aba "Magistrados reconhecidos" (DI-27). Os endpoints de designar e retirar
 continuam na API, sem tela que os chame.
+
+### Ajuste de 2026-09-17 (tarde) — fila de semeadura e inclusão por busca
+
+- **A semeadura da planilha foi para segundo plano** (DI-28): com 190 linhas, as
+  chamadas ao RH estouravam o tempo da rota e a importação morria com erro de
+  rede. A importação grava o cadastro e responde; `SemeaduraEmLote` semeia depois,
+  e a tela acompanha por `GET /api/unidades/responsaveis/semeadura`.
+- **A inclusão manual virou busca** (DI-29): em vez de digitar e-mail, nome e
+  CPF, escolhe-se a pessoa entre os usuários do sistema e os do RH. Quem não tem
+  cadastro é apontado como tal, com link para criá-lo.

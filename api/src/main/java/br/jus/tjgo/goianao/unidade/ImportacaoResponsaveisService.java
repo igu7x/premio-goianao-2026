@@ -13,17 +13,21 @@ import br.jus.tjgo.goianao.magistrado.MagistradoService;
 import br.jus.tjgo.goianao.magistrado.dto.MagistradoRequisicao;
 import br.jus.tjgo.goianao.magistrado.dto.ReconhecimentoRequisicao;
 import br.jus.tjgo.goianao.seguranca.Papel;
-import br.jus.tjgo.goianao.servidor.ServidorHabilitadoService;
+import br.jus.tjgo.goianao.servidor.SemeaduraEmLote;
 import br.jus.tjgo.goianao.unidade.dto.ImportacaoResponsaveis;
 import br.jus.tjgo.goianao.usuario.Usuario;
 import br.jus.tjgo.goianao.usuario.UsuarioRepository;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Planilha que diz qual magistrado responde por qual unidade, e com que selo.
@@ -54,19 +58,19 @@ public class ImportacaoResponsaveisService {
     private final MagistradoService magistrados;
     private final MagistradoRepository reconhecidos;
     private final EdicaoService edicoes;
-    private final ServidorHabilitadoService servidores;
+    private final SemeaduraEmLote semeadura;
 
     public ImportacaoResponsaveisService(LeitorCsv leitor, UnidadeRepository unidades,
                                          UsuarioRepository usuarios, MagistradoService magistrados,
                                          MagistradoRepository reconhecidos, EdicaoService edicoes,
-                                         ServidorHabilitadoService servidores) {
+                                         SemeaduraEmLote semeadura) {
         this.leitor = leitor;
         this.unidades = unidades;
         this.usuarios = usuarios;
         this.magistrados = magistrados;
         this.reconhecidos = reconhecidos;
         this.edicoes = edicoes;
-        this.servidores = servidores;
+        this.semeadura = semeadura;
     }
 
     /**
@@ -98,8 +102,8 @@ public class ImportacaoResponsaveisService {
         int substituidos = 0;
         int jaEram = 0;
         int reconhecimentos = 0;
-        int semeadas = 0;
-        int habilitados = 0;
+        // Unidades da planilha que terao a lista semeada depois, id -> nome.
+        Map<Long, String> aSemear = new LinkedHashMap<>();
 
         for (LeitorCsv.LinhaBruta linha : linhas) {
             String nome = linha.coluna(0);
@@ -185,22 +189,42 @@ public class ImportacaoResponsaveisService {
                 jaEram++;
             }
 
-            // A lista de habilitados nasce junto da designacao: sem isto, o
-            // responsavel recem-designado abriria a tela dele numa unidade
-            // vazia e teria de semear a mao, uma a uma.
-            try {
-                habilitados += servidores.semear(edicao.getId(), unidade.getId()).incluidos();
-                semeadas++;
-            } catch (RuntimeException e) {
-                erros.add(erro(linha, "Responsável designado, mas a lista de servidores não pôde "
-                        + "ser semeada: " + (e.getMessage() == null
-                                ? "falha ao consultar o RH." : e.getMessage())));
-            }
+            // A lista de habilitados nasce junto da designacao, mas nao aqui: a
+            // unidade entra na fila e o RH e consultado em segundo plano. Uma
+            // planilha do tamanho do tribunal levaria minutos de chamadas, e a
+            // rota derrubaria a conexao antes de o relatorio voltar.
+            aSemear.putIfAbsent(unidade.getId(), unidade.getNome());
         }
 
+        enfileirarAposGravar(edicao, aSemear);
+
         return new ImportacaoResponsaveis(linhas.size(), designados, criados, papelConcedido,
-                substituidos, jaEram, reconhecimentos, semeadas, habilitados, edicao.getAno(),
-                erros);
+                substituidos, jaEram, reconhecimentos, aSemear.size(), edicao.getAno(), erros);
+    }
+
+    /**
+     * Enfileira a semeadura <b>depois do commit</b>.
+     *
+     * <p>A thread da semeadura le o banco por conta propria. Disparada aqui
+     * dentro, ela poderia comecar antes de a transacao fechar e nao encontrar as
+     * designacoes recem-gravadas — a guarda de escopo recusaria a unidade e a
+     * lista chegaria vazia por uma corrida entre threads, o pior tipo de defeito
+     * para se descobrir depois.
+     */
+    private void enfileirarAposGravar(Edicao edicao, Map<Long, String> unidades) {
+        if (unidades.isEmpty()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            semeadura.semear(edicao.getId(), edicao.getAno(), unidades);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                semeadura.semear(edicao.getId(), edicao.getAno(), unidades);
+            }
+        });
     }
 
     /**

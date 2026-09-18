@@ -1788,3 +1788,16 @@
 .csv-responsaveis .secundaria {
   font-size: 12px;
 }
+
+.semeadura-andamento {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  margin-top: var(--e3);
+  padding: 10px 12px;
+  background: var(--superficie-2);
+  border: 1px solid var(--traco);
+  border-radius: var(--raio);
+  font-size: 13px;
+  color: var(--tinta-2);
+}
