@@ -36,7 +36,6 @@ export function EdicaoDetalhe() {
   const { identidade, trocarEdicao } = useSessao()
   const id = Number(edicaoId)
   const naSessao = identidade?.edicao?.id === id
-  const podeEntrar = identidade?.edicoesDisponiveis.some((e) => e.id === id) ?? false
   const [entrando, setEntrando] = useState(false)
 
   const [edicao, setEdicao] = useState<Edicao | null>(null)
@@ -199,21 +198,21 @@ export function EdicaoDetalhe() {
           <p>
             Cada edição tem a sua própria base: layouts, magistrados reconhecidos e listas de
             servidores da edição {edicao.ano} ficam nela.
-            {!podeEntrar && ' Você não tem cadastro nesta edição.'}
           </p>
-          {podeEntrar && (
-            <div className="aviso-acao">
-              <button
-                type="button"
-                className="botao botao-pequeno"
-                disabled={entrando}
-                onClick={() => void entrar()}
-              >
-                {entrando ? <span className="giro" /> : <Icone nome="trocar" tamanho={15} />}
-                Entrar na edição {edicao.ano}
-              </button>
-            </div>
-          )}
+          {/* O botão aparece sempre: quem decide se a pessoa pode entrar é o
+              servidor. A lista de edições da sessão é de quando ela abriu, e
+              uma edição criada depois não estaria nela. */}
+          <div className="aviso-acao">
+            <button
+              type="button"
+              className="botao botao-pequeno"
+              disabled={entrando}
+              onClick={() => void entrar()}
+            >
+              {entrando ? <span className="giro" /> : <Icone nome="trocar" tamanho={15} />}
+              Entrar na edição {edicao.ano}
+            </button>
+          </div>
         </Aviso>
       ) : (
         <>

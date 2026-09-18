@@ -31,6 +31,11 @@ interface ContextoSessao {
    * um token novo, com os papéis daquela edição.
    */
   trocarEdicao: (edicaoId: number) => Promise<void>
+  /**
+   * Pergunta de novo ao servidor em quais edições a pessoa existe. A lista vem
+   * no login; uma edição criada depois não estaria nela até a próxima carga.
+   */
+  recarregarIdentidade: () => Promise<void>
   tem: (papel: Papel) => boolean
 }
 
@@ -107,6 +112,10 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
    * jeito de garantir que nenhuma continue mostrando o ano errado. O caminho
    * atual é mantido — quem estava em Usuários vê os usuários da outra edição.
    */
+  const recarregarIdentidade = useCallback(async () => {
+    setIdentidade(await api.get<Identidade>('/api/auth/me'))
+  }, [])
+
   const trocarEdicao = useCallback(async (edicaoId: number) => {
     const sessao = await api.post<Sessao>(`/api/auth/edicao/${edicaoId}`)
     guardarToken(sessao.token)
@@ -149,9 +158,19 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
       adotarToken,
       sair,
       trocarEdicao,
+      recarregarIdentidade,
       tem: (papel) => identidade?.papeis.includes(papel) ?? false,
     }),
-    [identidade, carregando, entrar, entrarComSenha, adotarToken, sair, trocarEdicao],
+    [
+      identidade,
+      carregando,
+      entrar,
+      entrarComSenha,
+      adotarToken,
+      sair,
+      trocarEdicao,
+      recarregarIdentidade,
+    ],
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>

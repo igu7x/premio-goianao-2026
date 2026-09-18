@@ -12,6 +12,7 @@ import {
   formatarData,
 } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
+import { useSessao } from '../sessao/SessaoContexto'
 
 /**
  * Ciclo de vida das edições: criar, publicar e definir a vigente (feature 002).
@@ -196,12 +197,16 @@ function ModalNovaEdicao({
   const [descricao, setDescricao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const { recarregarIdentidade } = useSessao()
 
   async function salvar() {
     setSalvando(true)
     setErro(null)
     try {
       await api.post('/api/edicoes', { ano: Number(ano), descricao: descricao || null })
+      // A edição nova já tem o superadministrador na base dela: o seletor do
+      // topo precisa saber disso sem esperar o próximo login.
+      await recarregarIdentidade().catch(() => undefined)
       await aoCriar()
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Falha ao criar a edição.')
