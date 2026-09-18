@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.servidor;
 
+import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
 import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
 import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
 import br.jus.tjgo.goianao.servidor.dto.SemeaduraResposta;
@@ -34,6 +35,10 @@ import org.springframework.stereotype.Service;
  * <p>O estado fica em memoria, como na atualizacao da base: se o pod reiniciar
  * no meio, o progresso some da tela, mas o que foi semeado esta gravado, e
  * semear de novo mescla sem duplicar ninguem.
+ *
+ * <p>A <b>edicao viaja junto com a identidade</b> de quem pediu. A thread de
+ * segundo plano nao herda o contexto da requisicao, e sem isso a semeadura da
+ * edicao de 2026 gravaria na base da vigente (011/RF-11).
  */
 @Service
 public class SemeaduraEmLote {
@@ -74,15 +79,18 @@ public class SemeaduraEmLote {
         // identidade dele viaja junto em vez de o servico virar "sistema".
         UsuarioAutenticado quemPediu = UsuarioAtual.obrigatorio();
         Map<Long, String> fila = new LinkedHashMap<>(unidades);
+        String base = EdicaoCorrente.schema();
 
         situacao.set(SituacaoDaSemeadura.iniciada(edicaoAno, fila.size()));
-        executor.submit(() -> varrer(edicaoId, fila, quemPediu));
+        executor.submit(() -> varrer(edicaoId, fila, quemPediu, base));
         return situacao.get();
     }
 
-    private void varrer(Long edicaoId, Map<Long, String> unidades, UsuarioAutenticado quemPediu) {
+    private void varrer(Long edicaoId, Map<Long, String> unidades, UsuarioAutenticado quemPediu,
+                        String base) {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(quemPediu, null, quemPediu.authorities()));
+        EdicaoCorrente.definir(base);
         try {
             for (Map.Entry<Long, String> unidade : unidades.entrySet()) {
                 situacao.updateAndGet(s -> s.naUnidade(unidade.getValue()));
@@ -105,6 +113,7 @@ public class SemeaduraEmLote {
                     ? "A consulta ao RH falhou." : e.getMessage()));
         } finally {
             SecurityContextHolder.clearContext();
+            EdicaoCorrente.limpar();
         }
     }
 

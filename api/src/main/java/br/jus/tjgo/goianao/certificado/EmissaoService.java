@@ -9,6 +9,7 @@ import br.jus.tjgo.goianao.edicao.Edicao;
 import br.jus.tjgo.goianao.layout.LayoutCertificado;
 import br.jus.tjgo.goianao.layout.LayoutRepository;
 import br.jus.tjgo.goianao.layout.render.CertificadoRenderer;
+import br.jus.tjgo.goianao.publico.IndiceDeVerificacao;
 import br.jus.tjgo.goianao.unidade.UnidadeJudiciaria;
 import java.util.Locale;
 import java.util.Optional;
@@ -33,17 +34,20 @@ public class EmissaoService {
     private final LayoutRepository layouts;
     private final CertificadoRenderer renderer;
     private final GeradorCodigoValidacao gerador;
+    private final IndiceDeVerificacao indice;
     private final String baseVerificacao;
 
     public EmissaoService(CertificadoEmitidoRepository repositorio,
                           LayoutRepository layouts,
                           CertificadoRenderer renderer,
                           GeradorCodigoValidacao gerador,
+                          IndiceDeVerificacao indice,
                           GoianaoProperties props) {
         this.repositorio = repositorio;
         this.layouts = layouts;
         this.renderer = renderer;
         this.gerador = gerador;
+        this.indice = indice;
         this.baseVerificacao = props.baseVerificacao();
     }
 
@@ -70,6 +74,11 @@ public class EmissaoService {
         }
 
         String codigo = certificado.getCodigoValidacao();
+
+        // O certificado mora na base da edicao; a pagina publica que confere o
+        // codigo nao tem sessao e nao saberia em qual base procurar (011/RF-10).
+        indice.registrar(codigo, edicao.getId());
+
         byte[] pdf = renderer.renderizar(layout, new CertificadoRenderer.DadosCertificado(
                 nomeImpresso, unidade.getNome(), codigo, urlDeVerificacao(codigo)));
 

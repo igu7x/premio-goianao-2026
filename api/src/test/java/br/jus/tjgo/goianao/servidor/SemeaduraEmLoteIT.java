@@ -51,10 +51,9 @@ class SemeaduraEmLoteIT extends TesteDeIntegracao {
         Long edicaoId = edicao.getId();
         Long unidadeId = unidade.getId();
 
-        // A thread da fila le o banco por conta propria: sem commit, nao veria
-        // nada do que foi montado aqui.
-        TestTransaction.flagForCommit();
-        TestTransaction.end();
+        // A thread da fila le o banco por conta propria; desde a feature 011 os
+        // testes nao rodam mais numa transacao de teste, entao o que a fixture
+        // montou ja esta gravado.
 
         atuandoComo(EMAIL_ADMIN);
         Map<Long, String> fila = new LinkedHashMap<>();
@@ -74,23 +73,6 @@ class SemeaduraEmLoteIT extends TesteDeIntegracao {
                 .isNotEmpty();
     }
 
-    /** Na ordem das chaves estrangeiras, e so o que este teste criou. */
-    @AfterEach
-    void limpar() {
-        if (TestTransaction.isActive()) {
-            TestTransaction.flagForCommit();
-            TestTransaction.end();
-        }
-        jdbc.update("delete from servidor_habilitado where edicao_id in"
-                + " (select id from edicao where ano = ?)", ANO);
-        jdbc.update("delete from reconhecimento where magistrado_id in"
-                + " (select id from magistrado_reconhecido where edicao_id in"
-                + " (select id from edicao where ano = ?))", ANO);
-        jdbc.update("delete from magistrado_reconhecido where edicao_id in"
-                + " (select id from edicao where ano = ?)", ANO);
-        jdbc.update("delete from layout_certificado where edicao_id in"
-                + " (select id from edicao where ano = ?)", ANO);
-        jdbc.update("delete from edicao where ano = ?", ANO);
-        jdbc.update("delete from unidade_judiciaria where nome = ?", UNIDADE);
-    }
+    // Sem limpeza propria: desde a feature 011 cada teste de integracao
+    // comeca de uma base reconstruida (BasesDeTeste).
 }

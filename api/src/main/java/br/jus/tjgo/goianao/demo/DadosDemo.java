@@ -7,6 +7,7 @@ import br.jus.tjgo.goianao.comum.Selo;
 import br.jus.tjgo.goianao.edicao.Edicao;
 import br.jus.tjgo.goianao.edicao.EdicaoRepository;
 import br.jus.tjgo.goianao.edicao.EdicaoService;
+import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
 import br.jus.tjgo.goianao.edicao.dto.CriarEdicaoRequisicao;
 import br.jus.tjgo.goianao.layout.LayoutService;
 import br.jus.tjgo.goianao.magistrado.MagistradoService;
@@ -36,7 +37,13 @@ import org.springframework.transaction.annotation.Transactional;
  * reconhecidos e listas de servidores semeadas — para que o sistema possa ser
  * percorrido de ponta a ponta sem cadastro manual.
  *
- * <p>Ela e idempotente: se ja houver alguma edicao, nao faz nada.
+ * <p>Ela e idempotente: se ja houver unidade cadastrada em alguma base, nao faz
+ * nada. A verificacao nao pode ser "ja existe edicao" desde a feature 011 — o
+ * sistema garante uma edicao na subida, e ela existe antes de a carga comecar.
+ *
+ * <p>Cada bloco roda dentro da base da edicao a que pertence: as edicoes de
+ * demonstracao sao independentes, como quaisquer outras, e povoar uma nao povoa
+ * a outra.
  */
 @Component
 @ConditionalOnProperty(name = "goianao.dados-demo", havingValue = "true")
@@ -75,20 +82,19 @@ public class DadosDemo {
 
     @EventListener(ApplicationReadyEvent.class)
     public void semear() {
-        if (edicoesRepo.count() > 0) {
+        if (jaSemeado()) {
             log.info("Dados de demonstracao ja presentes; nada a fazer.");
             return;
         }
         try {
             autenticarComoAdministradorDeCarga();
             log.info("Gerando dados de demonstracao (pode levar alguns segundos).");
-            criarAdministradores();
 
             int anoVigente = Year.now().getValue() - 1;
             Edicao publicada = criarEdicaoCompleta(anoVigente);
             edicoes.publicar(publicada.getId());
             edicoes.tornarVigente(publicada.getId());
-            semearListas(publicada.getId());
+            naBaseDe(publicada, () -> semearListas(publicada.getId()));
 
             criarEdicaoCompleta(anoVigente + 1);
 
@@ -100,16 +106,32 @@ public class DadosDemo {
         }
     }
 
+    /** Ja ha demonstracao se alguma base tem unidade cadastrada. */
+    private boolean jaSemeado() {
+        return edicoesRepo.findAll().stream()
+                .filter(edicao -> edicao.getSchemaDados() != null)
+                .anyMatch(edicao -> EdicaoCorrente.executarEm(edicao.getSchemaDados(),
+                        () -> !unidades.listarLocais().isEmpty()));
+    }
+
+    /** Roda o trecho na base da edicao indicada. */
+    private void naBaseDe(Edicao edicao, Runnable trecho) {
+        EdicaoCorrente.executarEm(edicao.getSchemaDados(), trecho);
+    }
+
     /**
      * A carga usa os mesmos servicos que a aplicacao — inclusive as guardas de
      * autorizacao. Por isso ela se apresenta como o administrador de referencia
      * em vez de escrever direto no banco.
      */
     private void autenticarComoAdministradorDeCarga() {
+        // Sem edicao na identidade: a carga diz explicitamente, a cada bloco,
+        // sobre qual base esta agindo (011).
         UsuarioAutenticado carga = new UsuarioAutenticado(
                 MockIdentityProvider.EMAIL_ADMIN,
                 "Carga de demonstração",
-                EnumSet.of(Papel.ADMINISTRADOR));
+                EnumSet.of(Papel.ADMINISTRADOR),
+                null);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(carga, null, carga.authorities()));
     }
@@ -124,12 +146,17 @@ public class DadosDemo {
     }
 
     private Edicao criarEdicaoCompleta(int ano) {
-        Edicao edicao = edicoes.criar(new CriarEdicaoRequisicao(ano,
-                "Edição " + ano + " do Prêmio Goianão — reconhecimento das unidades "
-                        + "judiciárias de destaque do TJGO."));
+        Edicao edicao = edicoesRepo.findByAno(ano).orElseGet(() ->
+                edicoes.criar(new CriarEdicaoRequisicao(ano,
+                        "Edição " + ano + " do Prêmio Goianão — reconhecimento das unidades "
+                                + "judiciárias de destaque do TJGO.")));
 
-        criarLayouts(edicao);
-        criarReconhecidos(edicao.getId());
+        naBaseDe(edicao, () -> {
+            // Os administradores sao cadastro, e cadastro e por edicao (011/RF-1).
+            criarAdministradores();
+            criarLayouts(edicao);
+            criarReconhecidos(edicao.getId());
+        });
         return edicao;
     }
 

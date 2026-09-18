@@ -1,0 +1,12 @@
+# Changelog da base de UMA edição (feature 011).
+#
+# Não é o changelog da aplicação: o Spring Boot não o aplica na subida. Quem o
+# aplica é `BaseDaEdicao`, uma vez por edição, com o `defaultSchemaName`
+# apontado para o schema daquela edição — de modo que cada uma ganha o seu
+# próprio `databasechangelog` e evolui sem tocar nas outras.
+#
+# Acrescentar uma tabela ou coluna ao domínio do prêmio significa acrescentar um
+# arquivo aqui. Ele será aplicado a todas as edições na próxima subida, e às
+# edições criadas depois no momento em que nascerem.
+databaseChangeLog:
+  - include: { file: db/edicao/001-base-da-edicao.sql }

@@ -150,6 +150,8 @@ class ServidorHabilitadoIT extends TesteDeIntegracao {
     void magistradoBloqueadoForaDaVigente() throws Exception {
         Cenario anterior = cenarioVigente(2114);
         edicaoVigente(2115); // a anterior deixa de ser vigente
+        // Agir sobre a anterior e entrar nela (011/RF-6).
+        usando(anterior.edicao());
 
         mvc.perform(post(base(anterior))
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO))

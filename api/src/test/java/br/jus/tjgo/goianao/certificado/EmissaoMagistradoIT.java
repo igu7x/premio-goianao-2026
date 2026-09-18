@@ -186,6 +186,9 @@ class EmissaoMagistradoIT extends TesteDeIntegracao {
     void reemissaoDeEdicaoAnterior() throws Exception {
         Edicao anterior = cenarioVigente(2087);
         edicaoVigente(2088);
+        // O magistrado so existe na base de 2087; e nela que a sessao dele
+        // entra, mesmo com 2088 vigente (011/RF-7).
+        usando(anterior);
 
         mvc.perform(get("/api/magistrado/certificados/edicoes")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_MAGISTRADO)))

@@ -1,16 +1,15 @@
 package br.jus.tjgo.goianao.auth.sso;
 
 import br.jus.tjgo.goianao.auth.IdentidadeAutenticada;
-import br.jus.tjgo.goianao.auth.PapeisResolver;
-import br.jus.tjgo.goianao.seguranca.JwtService;
-import br.jus.tjgo.goianao.seguranca.Papel;
-import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
+import br.jus.tjgo.goianao.auth.MontadorDeSessao;
+import br.jus.tjgo.goianao.auth.dto.SessaoResposta;
+import br.jus.tjgo.goianao.comum.erro.AcessoNegadoException;
+import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,17 +42,15 @@ public class SsoController {
 
     private final SsoProperties props;
     private final ClienteKeycloak keycloak;
-    private final PapeisResolver papeisResolver;
-    private final JwtService jwtService;
+    private final MontadorDeSessao sessoes;
     private final ApplicationEventPublisher eventos;
 
     public SsoController(SsoProperties props, ClienteKeycloak keycloak,
-                         PapeisResolver papeisResolver, JwtService jwtService,
+                         MontadorDeSessao sessoes,
                          ApplicationEventPublisher eventos) {
         this.props = props;
         this.keycloak = keycloak;
-        this.papeisResolver = papeisResolver;
-        this.jwtService = jwtService;
+        this.sessoes = sessoes;
         this.eventos = eventos;
     }
 
@@ -106,15 +103,21 @@ public class SsoController {
 
         try {
             IdentidadeAutenticada identidade = keycloak.autenticar(codigo);
-            Set<Papel> papeis = papeisResolver.resolver(identidade.email());
-            UsuarioAutenticado usuario =
-                    new UsuarioAutenticado(identidade.email(), identidade.nome(), papeis);
+
+            // A identidade veio do Keycloak; em qual edicao ela entra e outra
+            // pergunta, e quem responde e o cadastro de cada base (011/RF-7).
+            SessaoResposta sessao = sessoes.paraEntrada(identidade);
 
             // O cadastro e atualizado pelo RH depois, fora deste caminho: o
-            // login nao espera por sistema de terceiro (010/RNF-2).
-            eventos.publishEvent(new LoginPeloSso(identidade.email()));
+            // login nao espera por sistema de terceiro (010/RNF-2). Vai junto a
+            // edicao em que a pessoa entrou — a atualizacao roda em outra thread,
+            // e sem isso cairia na base da edicao vigente.
+            eventos.publishEvent(new LoginPeloSso(identidade.email(), EdicaoCorrente.schema()));
 
-            return paraFrontend("token=" + enc(jwtService.gerar(usuario)), state);
+            return paraFrontend("token=" + enc(sessao.token()), state);
+        } catch (AcessoNegadoException e) {
+            // Autenticou no tribunal, mas nao tem cadastro em edicao nenhuma.
+            return paraFrontend("erro=" + enc(e.getMessage()), state);
         } catch (SsoException e) {
             return paraFrontend("erro=" + enc(e.getMessage()), state);
         }

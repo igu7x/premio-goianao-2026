@@ -45,7 +45,6 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
 
     @Autowired private UsuarioRepository usuarios;
     @Autowired private UnidadeRepository unidadesRepo;
-    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager em;
 
     private Long superadmin() {
         return usuarios.save(new Usuario(EMAIL_SUPER, "Super de Teste", null,
@@ -69,9 +68,9 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     @Test
     @DisplayName("designado passa a ver e a gerenciar a unidade, sem ter sido reconhecido nela")
     void designacaoDaEscopo() throws Exception {
+        Long unidadeId = unidadeReconhecidaPorOutro(2070, "1ª Vara Cível da Comarca de Goiânia");
         superadmin();
         Long chefeId = chefeMagistrado();
-        Long unidadeId = unidadeReconhecidaPorOutro(2070, "1ª Vara Cível da Comarca de Goiânia");
 
         // Antes da designação: a unidade não é dele.
         mvc.perform(get("/api/magistrado/servidores")
@@ -99,9 +98,9 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     @Test
     @DisplayName("retirar a designacao devolve o escopo ao que era")
     void removerDesignacao() throws Exception {
+        Long unidadeId = unidadeReconhecidaPorOutro(2071, "2ª Vara Cível da Comarca de Goiânia");
         superadmin();
         Long chefeId = chefeMagistrado();
-        Long unidadeId = unidadeReconhecidaPorOutro(2071, "2ª Vara Cível da Comarca de Goiânia");
 
         mvc.perform(put("/api/unidades/" + unidadeId + "/responsavel")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
@@ -130,9 +129,9 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     @Test
     @DisplayName("designar semeia a lista da unidade, mesmo sem reconhecimento na edicao")
     void designacaoSemeiaALista() throws Exception {
+        Edicao edicao = edicaoVigente(2076);
         superadmin();
         Long chefeId = chefeMagistrado();
-        Edicao edicao = edicaoVigente(2076);
         // Unidade que ninguem venceu nesta edicao: so a designacao a traz.
         Long unidadeId = unidade(UNIDADE_B).getId();
 
@@ -166,10 +165,10 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
     @Test
     @DisplayName("so magistrado pode responder por unidade — a tela liberada e a dele")
     void exigePapelDeMagistrado() throws Exception {
+        Long unidadeId = unidadeReconhecidaPorOutro(2072, "3ª Vara Criminal da Comarca de Goiânia");
         superadmin();
         Long semPapel = usuarios.save(new Usuario("servidor.comum@tjgo.example", "Servidor Comum",
                 null, Set.of(Papel.SERVIDOR))).getId();
-        Long unidadeId = unidadeReconhecidaPorOutro(2072, "3ª Vara Criminal da Comarca de Goiânia");
 
         mvc.perform(put("/api/unidades/" + unidadeId + "/responsavel")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SUPER))
@@ -186,22 +185,18 @@ class ResponsavelPelaUnidadeIT extends TesteDeIntegracao {
      * primeira unidade designada derruba a tela inteira com 500 — foi o que
      * aconteceu em homologacao em 15/09/2026.
      *
-     * <p>Limpar o contexto de persistencia e o que torna este teste honesto:
-     * sem isso a entidade ja estaria na memoria da propria transacao do teste,
-     * o proxy resolveria sozinho e o defeito passaria batido, que e exatamente
-     * como ele escapou da primeira vez.
+     * <p>Desde a feature 011 o teste nao roda numa transacao propria: a
+     * listagem abre e fecha a dela, e o que volta e o que a tela receberia. Se
+     * o responsavel viesse preguicoso, nada mais o resolveria aqui fora.
      */
     @Test
     @DisplayName("a listagem traz o responsavel carregado, e nao um proxy preguicoso")
     void responsavelVemCarregado() {
+        Long unidadeId = unidadeReconhecidaPorOutro(2075, UNIDADE_C);
         superadmin();
         Long chefeId = chefeMagistrado();
-        Long unidadeId = unidadeReconhecidaPorOutro(2075, UNIDADE_C);
         atuandoComo(EMAIL_SUPER);
         unidades.designarResponsavel(unidadeId, chefeId);
-
-        em.flush();
-        em.clear();
 
         List<UnidadeJudiciaria> listadas = unidadesRepo.findAllByOrderByNomeAsc();
 

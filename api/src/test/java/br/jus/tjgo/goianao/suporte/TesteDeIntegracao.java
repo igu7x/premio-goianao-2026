@@ -8,6 +8,7 @@ import br.jus.tjgo.goianao.comum.TipoCertificado;
 import br.jus.tjgo.goianao.edicao.Edicao;
 import br.jus.tjgo.goianao.edicao.EdicaoRepository;
 import br.jus.tjgo.goianao.edicao.EdicaoService;
+import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
 import br.jus.tjgo.goianao.edicao.dto.CriarEdicaoRequisicao;
 import br.jus.tjgo.goianao.layout.Alinhamento;
 import br.jus.tjgo.goianao.layout.AreaCodigo;
@@ -29,6 +30,8 @@ import br.jus.tjgo.goianao.unidade.UnidadeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,20 +39,26 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Base dos testes de integracao: sobe o contexto completo, usa o MockMvc real
  * (com o filtro JWT no caminho) e monta fixtures pelos mesmos servicos da
  * aplicacao — inclusive passando pelas guardas de autorizacao.
  *
- * <p>Cada teste roda em transacao com rollback, entao os cenarios nao se
- * contaminam.
+ * <p><b>Nao ha transacao de teste com rollback.</b> Havia, ate a feature 011: a
+ * base passou a ser uma por edicao, e a edicao e escolhida quando a conexao e
+ * aberta. Dentro de uma transacao unica, a conexao e a mesma do inicio ao fim —
+ * uma fixture que criasse a edicao de 2030 e gravasse nela estaria, na verdade,
+ * gravando na base em que a transacao comecou. O rollback escondia isso.
+ *
+ * <p>No lugar dele, cada teste comeca de uma base limpa: {@link #recomecar()}
+ * derruba os schemas de edicao e os reconstroi. Fica mais proximo do que
+ * acontece em producao, onde cada requisicao abre a sua propria transacao na
+ * base da edicao da sessao.
  */
 @SpringBootTest
 @org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Transactional
 public abstract class TesteDeIntegracao {
 
     /*
@@ -82,13 +91,47 @@ public abstract class TesteDeIntegracao {
     @Autowired protected ServidorHabilitadoService servidores;
     @Autowired protected UnidadeService unidades;
     @Autowired protected br.jus.tjgo.goianao.certificado.CertificadoEmitidoRepository certificados;
+    @Autowired protected br.jus.tjgo.goianao.suporte.BasesDeTeste bases;
+
+    /** A edicao sobre a qual as fixtures e os tokens deste teste agem. */
+    private Long edicaoDoTeste;
 
     @BeforeEach
-    void prepararAdministrador() {
+    void prepararBase() {
+        bases.recomecar();
+        edicaoDoTeste = null;
         if (!administradores.existsByEmail(EMAIL_ADMIN)) {
             administradores.save(new Administrador(EMAIL_ADMIN, "Ana Cristina Marques Rebelo"));
         }
         SecurityContextHolder.clearContext();
+    }
+
+    @AfterEach
+    void encerrar() {
+        SecurityContextHolder.clearContext();
+        EdicaoCorrente.limpar();
+    }
+
+    // ------------------------------------------------------------------
+    // Base da edicao
+    // ------------------------------------------------------------------
+
+    /**
+     * Passa a agir sobre a base desta edicao — como faz o filtro da requisicao
+     * quando a sessao entra nela (011/RF-4).
+     */
+    protected void usando(Edicao edicao) {
+        edicaoDoTeste = edicao.getId();
+        EdicaoCorrente.definir(edicao.getSchemaDados());
+    }
+
+    /** Roda o trecho na base da edicao indicada e volta ao contexto anterior. */
+    protected <T> T naEdicao(Edicao edicao, Supplier<T> trecho) {
+        return EdicaoCorrente.executarEm(edicao.getSchemaDados(), trecho);
+    }
+
+    protected void naEdicao(Edicao edicao, Runnable trecho) {
+        EdicaoCorrente.executarEm(edicao.getSchemaDados(), trecho);
     }
 
     // ------------------------------------------------------------------
@@ -101,7 +144,8 @@ public abstract class TesteDeIntegracao {
     }
 
     protected String token(String email, String nome) {
-        return jwtService.gerar(new UsuarioAutenticado(email, nome, papeisResolver.resolver(email)));
+        return jwtService.gerar(new UsuarioAutenticado(
+                email, nome, papeisResolver.resolver(email), edicaoDoTeste));
     }
 
     protected String bearer(String email) {
@@ -114,7 +158,7 @@ public abstract class TesteDeIntegracao {
      */
     protected void atuandoComo(String email) {
         UsuarioAutenticado usuario = new UsuarioAutenticado(email, "Usuario " + email,
-                EnumSet.copyOf(papeisResolver.resolver(email)));
+                EnumSet.copyOf(papeisResolver.resolver(email)), edicaoDoTeste);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(usuario, null, usuario.authorities()));
     }
@@ -123,9 +167,20 @@ public abstract class TesteDeIntegracao {
     // Fixtures
     // ------------------------------------------------------------------
 
+    /**
+     * Cria a edicao e <b>passa a agir na base dela</b>: e o que a sessao de quem
+     * entra naquela edicao faz, e sem isso a fixture gravaria os dados numa base
+     * e o teste os procuraria em outra.
+     */
     protected Edicao novaEdicao(int ano) {
         atuandoComo(EMAIL_ADMIN);
-        return edicoes.criar(new CriarEdicaoRequisicao(ano, "Edicao de teste " + ano));
+        Edicao edicao = edicoes.criar(new CriarEdicaoRequisicao(ano, "Edicao de teste " + ano));
+        usando(edicao);
+        if (!administradores.existsByEmail(EMAIL_ADMIN)) {
+            administradores.save(new Administrador(EMAIL_ADMIN, "Ana Cristina Marques Rebelo"));
+        }
+        atuandoComo(EMAIL_ADMIN);
+        return edicao;
     }
 
     /** Cria a edicao ja com as 8 combinacoes de layout, pronta para publicar. */

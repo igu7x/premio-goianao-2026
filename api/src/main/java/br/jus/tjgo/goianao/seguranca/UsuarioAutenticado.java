@@ -12,8 +12,14 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
  * senha) e os papeis sao resolvidos pelo {@code PapeisResolver}. O e-mail e a
  * chave da pessoa (DI-24) e nunca e digitado pelo emissor (constituicao,
  * principio 3).
+ *
+ * <p>Desde a feature 011 a identidade carrega tambem a <b>edicao</b> sobre a qual
+ * a sessao age. Ela nao e um detalhe de navegacao: cada edicao tem a sua base, e
+ * os papeis aqui sao os daquela edicao — a mesma pessoa pode ser magistrada em um
+ * ano e apenas servidora em outro (011/RF-8). Trocar de edicao e trocar de sessao,
+ * por {@code POST /api/auth/edicao/{id}}.
  */
-public record UsuarioAutenticado(String email, String nome, Set<Papel> papeis) {
+public record UsuarioAutenticado(String email, String nome, Set<Papel> papeis, Long edicaoId) {
 
     public boolean tem(Papel papel) {
         return papeis.contains(papel);

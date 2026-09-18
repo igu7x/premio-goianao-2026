@@ -41,6 +41,16 @@ public class Edicao {
     @Column(name = "vigente_unico", length = 1)
     private String vigenteUnico;
 
+    /**
+     * Onde ficam os dados desta edicao (feature 011).
+     *
+     * <p>Cada edicao tem a sua base, num schema proprio. Guardar o nome aqui, em
+     * vez de deriva-lo do ano toda vez, e o que permite mudar a convencao sem
+     * perder o rastro das edicoes ja criadas.
+     */
+    @Column(name = "schema_dados", length = 63)
+    private String schemaDados;
+
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 
@@ -49,9 +59,10 @@ public class Edicao {
 
     protected Edicao() {}
 
-    public Edicao(Integer ano, String descricao) {
+    public Edicao(Integer ano, String descricao, String schemaDados) {
         this.ano = ano;
         this.descricao = descricao;
+        this.schemaDados = schemaDados;
         this.status = StatusEdicao.RASCUNHO;
         this.vigente = false;
         this.vigenteUnico = null;
@@ -108,6 +119,11 @@ public class Edicao {
 
     public boolean isVigente() {
         return vigente;
+    }
+
+    /** O schema onde vive a base desta edicao (011). */
+    public String getSchemaDados() {
+        return schemaDados;
     }
 
     public LocalDateTime getCriadoEm() {

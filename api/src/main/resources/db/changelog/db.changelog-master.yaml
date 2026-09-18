@@ -11,6 +11,10 @@
 # A lista é explícita, não includeAll: acrescentar uma migração deve ser um ato
 # deliberado, e não algo que acontece porque um arquivo apareceu na pasta.
 #
+# A partir da feature 011 este e o changelog do esquema COMPARTILHADO: nele
+# ficam o catalogo de edicoes e o indice de verificacao publica. O esquema de
+# cada edicao vive em db/edicao/, aplicado schema a schema por BaseDaEdicao.
+#
 # Cada arquivo é imutável depois de aplicado — o Liquibase guarda o checksum e
 # recusa alterações. Correção de esquema entra como arquivo novo.
 databaseChangeLog:
@@ -25,3 +29,4 @@ databaseChangeLog:
   - include: { file: db/changelog/009-superadministrador-inicial.sql }
   - include: { file: db/changelog/010-email-como-chave.sql }
   - include: { file: db/changelog/011-codigos-do-siedos.sql }
+  - include: { file: db/changelog/012-base-por-edicao.sql }

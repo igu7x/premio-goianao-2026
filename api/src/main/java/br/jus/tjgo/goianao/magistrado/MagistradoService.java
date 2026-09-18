@@ -148,6 +148,11 @@ public class MagistradoService {
         magistrado.renomear(exigirNome(requisicao.nome()));
         magistrado.definirCpf(Cpf.opcional(requisicao.cpf()));
         magistrado.limparReconhecimentos();
+        // Grava a remocao antes de incluir de novo. Sem o flush, o Hibernate
+        // insere os reconhecimentos novos antes de apagar os antigos, e manter a
+        // mesma unidade na edicao esbarra na unicidade (magistrado, unidade). A
+        // transacao de teste escondia isso ate a feature 011.
+        magistrados.flush();
         aplicarReconhecimentos(magistrado, requisicao.reconhecimentos());
         return magistrado;
     }

@@ -19,8 +19,14 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 /**
- * Sessao stateless em JWT. O token carrega e-mail (no subject), nome e os papeis, tem validade
- * de 8h e **nao ha refresh**: expirado, o usuario faz novo login (001/plan).
+ * Sessao stateless em JWT. O token carrega e-mail (no subject), nome, os papeis e a edicao
+ * sobre a qual a sessao age, tem validade de 8h e **nao ha refresh**: expirado, o usuario faz
+ * novo login (001/plan).
+ *
+ * <p>A edicao esta no token, e nao num cabecalho da requisicao, porque ela decide qual base o
+ * sistema inteiro enxerga (011/RF-5). Num cabecalho, trocar de base seria escolha do
+ * navegador: bastaria mandar outro numero. Aqui ela so muda por um token novo, emitido depois
+ * de o servidor conferir que a pessoa existe naquela edicao.
  */
 @Service
 public class JwtService {
@@ -71,6 +77,7 @@ public class JwtService {
                 .subject(usuario.email())
                 .claim("nome", usuario.nome())
                 .claim("papeis", usuario.papeisComoTexto())
+                .claim("edicao", usuario.edicaoId())
                 .issuer("goianao-tjgo")
                 .issuedAt(Date.from(agora))
                 .expiration(Date.from(agora.plus(validade)))
@@ -98,8 +105,13 @@ public class JwtService {
                     : papeis.stream().map(Papel::valueOf)
                             .collect(java.util.stream.Collectors.toCollection(() -> EnumSet.noneOf(Papel.class)));
 
+            // Token emitido antes da feature 011 nao tem edicao: a sessao cai na
+            // edicao vigente, como quem chega sem token.
+            Number edicao = claims.get("edicao", Number.class);
+
             return Optional.of(new UsuarioAutenticado(
-                    claims.getSubject(), claims.get("nome", String.class), conjunto));
+                    claims.getSubject(), claims.get("nome", String.class), conjunto,
+                    edicao == null ? null : edicao.longValue()));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

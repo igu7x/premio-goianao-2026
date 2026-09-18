@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.auth.sso;
 
 import br.jus.tjgo.goianao.comum.Cpf;
+import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
 import br.jus.tjgo.goianao.integracao.egesp.EgespClient;
 import br.jus.tjgo.goianao.integracao.egesp.ServidorEgesp;
 import br.jus.tjgo.goianao.usuario.Usuario;
@@ -10,10 +11,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Atualiza o cadastro de quem acabou de entrar com o que o RH tem (010/RF-8).
@@ -31,6 +32,11 @@ import org.springframework.transaction.event.TransactionPhase;
  *       Uma rotina de login que habilitasse alguem quebraria a reemissao de
  *       edicoes antigas.</li>
  * </ul>
+ *
+ * <p>Atualiza o cadastro <b>da edicao em que a pessoa entrou</b>, que vem no
+ * evento. Rodando em outra thread, ela nao herda a edicao da requisicao: sem o
+ * schema explicito, o login de quem entrou numa edicao anterior atualizaria o
+ * cadastro da vigente (011/RF-11).
  */
 @Component
 public class AtualizacaoPeloRh {
@@ -39,10 +45,15 @@ public class AtualizacaoPeloRh {
 
     private final EgespClient egesp;
     private final UsuarioRepository usuarios;
+    private final TransactionTemplate transacao;
 
-    public AtualizacaoPeloRh(EgespClient egesp, UsuarioRepository usuarios) {
+    public AtualizacaoPeloRh(EgespClient egesp, UsuarioRepository usuarios,
+                             PlatformTransactionManager gerenciador) {
         this.egesp = egesp;
         this.usuarios = usuarios;
+        // A transacao e aberta a mao, dentro do escopo da edicao: com
+        // @Transactional no metodo ela comecaria antes, na base errada.
+        this.transacao = new TransactionTemplate(gerenciador);
     }
 
     /**
@@ -51,10 +62,10 @@ public class AtualizacaoPeloRh {
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void aoEntrar(LoginPeloSso evento) {
         try {
-            atualizar(evento.email());
+            EdicaoCorrente.executarEm(evento.schemaDaEdicao(),
+                    () -> transacao.executeWithoutResult(status -> atualizar(evento.email())));
         } catch (RuntimeException e) {
             // O nome do claim e o e-mail nao vao para o log: dado pessoal
             // costuma sair do perimetro (coletor, indice, backup).

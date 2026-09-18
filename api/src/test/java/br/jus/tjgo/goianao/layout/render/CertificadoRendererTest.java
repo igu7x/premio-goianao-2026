@@ -112,7 +112,7 @@ class CertificadoRendererTest {
     private LayoutCertificado layout(AreaTexto areaNome) {
         String referencia = storage.salvar(ArteDeTeste.valida(), "png");
         return new LayoutCertificado(
-                new Edicao(2025, "teste"), Selo.OURO, TipoCertificado.MAGISTRADO,
+                new Edicao(2025, "teste", "edicao_2025"), Selo.OURO, TipoCertificado.MAGISTRADO,
                 referencia, ArteDeTeste.LARGURA, ArteDeTeste.ALTURA,
                 areaNome,
                 new AreaTexto(454, 1495, 2600, 110, Alinhamento.CENTRO),

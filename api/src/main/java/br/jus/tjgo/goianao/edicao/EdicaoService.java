@@ -3,8 +3,12 @@ package br.jus.tjgo.goianao.edicao;
 import br.jus.tjgo.goianao.comum.Texto;
 import br.jus.tjgo.goianao.comum.erro.ConflitoException;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
+import br.jus.tjgo.goianao.edicao.base.BaseDaEdicao;
+import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
+import br.jus.tjgo.goianao.edicao.base.NomeDeSchema;
 import br.jus.tjgo.goianao.edicao.dto.AtualizarEdicaoRequisicao;
 import br.jus.tjgo.goianao.edicao.dto.CriarEdicaoRequisicao;
+import br.jus.tjgo.goianao.usuario.SuperadminsDaEdicao;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -15,19 +19,45 @@ public class EdicaoService {
 
     private final EdicaoRepository repositorio;
     private final PreRequisitosPublicacao preRequisitos;
+    private final BaseDaEdicao bases;
+    private final SuperadminsDaEdicao superadmins;
 
-    public EdicaoService(EdicaoRepository repositorio, PreRequisitosPublicacao preRequisitos) {
+    public EdicaoService(EdicaoRepository repositorio, PreRequisitosPublicacao preRequisitos,
+                         BaseDaEdicao bases, SuperadminsDaEdicao superadmins) {
         this.repositorio = repositorio;
         this.preRequisitos = preRequisitos;
+        this.bases = bases;
+        this.superadmins = superadmins;
     }
 
-    @Transactional
+    /**
+     * Cria a edicao <b>e a base dela</b> (011/RF-1, RF-2).
+     *
+     * <p>Nao e transacional, e nao poderia ser: criar o schema e aplicar nele o
+     * changelog sao comandos de estrutura, fora do alcance de um rollback. A
+     * ordem e escolhida por causa disso — a base vem antes da linha no catalogo,
+     * de modo que uma falha no meio deixe no maximo um schema vazio, que a
+     * proxima tentativa reaproveita, e nunca uma edicao apontando para uma base
+     * que nao existe.
+     *
+     * <p>A base nasce vazia: nada da edicao anterior e copiado. A unica coisa que
+     * atravessa sao os superadministradores, sem os quais a edicao nova nao teria
+     * quem a administrasse (011/RF-3).
+     */
     public Edicao criar(CriarEdicaoRequisicao requisicao) {
         if (repositorio.existsByAno(requisicao.ano())) {
             throw new ConflitoException("Já existe uma edição para o ano " + requisicao.ano() + ".");
         }
+
+        String schema = NomeDeSchema.paraAno(requisicao.ano());
+        bases.prepararSchema(schema);
+
         // Toda edicao nasce em RASCUNHO (002/CA-1).
-        return repositorio.save(new Edicao(requisicao.ano(), Texto.aparar(requisicao.descricao())));
+        Edicao nova = repositorio.save(
+                new Edicao(requisicao.ano(), Texto.aparar(requisicao.descricao()), schema));
+
+        superadmins.semear(EdicaoCorrente.schema(), schema);
+        return nova;
     }
 
     @Transactional
@@ -82,6 +112,10 @@ public class EdicaoService {
         repositorio.flush();
 
         edicao.definirVigencia(true);
+
+        // A vigente e a base padrao do sistema: e nela que caem a verificacao
+        // publica, a tela de login e tudo o que chega sem sessao (011).
+        EdicaoCorrente.definirPadrao(edicao.getSchemaDados());
         return edicao;
     }
 

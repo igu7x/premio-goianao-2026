@@ -231,8 +231,10 @@ class ImportacaoResponsaveisIT extends TesteDeIntegracao {
                 .andExpect(jsonPath("$.substituidos").value(1))
                 .andExpect(jsonPath("$.designados").value(1));
 
-        assertThat(unidades.findById(unidade.getId()).orElseThrow().getResponsavel().getEmail())
-                .isEqualTo("novo@tjgo.example");
+        // Compara pelo id: fora de transacao (011) o responsavel e um proxy, e so
+        // o id dele esta disponivel sem ir ao banco.
+        assertThat(unidades.findById(unidade.getId()).orElseThrow().getResponsavel().getId())
+                .isEqualTo(usuarios.findByEmailIgnoreCase("novo@tjgo.example").orElseThrow().getId());
     }
 
     @Test

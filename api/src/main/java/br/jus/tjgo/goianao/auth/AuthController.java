@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.auth;
 
+import br.jus.tjgo.goianao.auth.dto.EdicaoDaSessao;
 import br.jus.tjgo.goianao.auth.dto.IdentidadeResposta;
 import br.jus.tjgo.goianao.auth.dto.LoginRequisicao;
 import br.jus.tjgo.goianao.auth.dto.LoginSenhaRequisicao;
@@ -8,15 +9,13 @@ import br.jus.tjgo.goianao.auth.dto.UsuarioMockResposta;
 import br.jus.tjgo.goianao.auth.sso.SsoProperties;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.config.GoianaoProperties;
-import br.jus.tjgo.goianao.seguranca.JwtService;
-import br.jus.tjgo.goianao.seguranca.Papel;
 import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
 import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Set;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,21 +26,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final IdentityProvider identityProvider;
-    private final PapeisResolver papeisResolver;
-    private final JwtService jwtService;
-    private final LoginPorSenhaService loginPorSenha;
+    private final AcessoPorEdicao acesso;
+    private final MontadorDeSessao sessoes;
     private final GoianaoProperties props;
     private final SsoProperties sso;
 
-    public AuthController(IdentityProvider identityProvider, PapeisResolver papeisResolver,
-                          LoginPorSenhaService loginPorSenha,
-                          JwtService jwtService,
+    public AuthController(IdentityProvider identityProvider,
+                          AcessoPorEdicao acesso,
+                          MontadorDeSessao sessoes,
                           GoianaoProperties props,
                           SsoProperties sso) {
         this.identityProvider = identityProvider;
-        this.papeisResolver = papeisResolver;
-        this.jwtService = jwtService;
-        this.loginPorSenha = loginPorSenha;
+        this.acesso = acesso;
+        this.sessoes = sessoes;
         this.props = props;
         this.sso = sso;
     }
@@ -92,7 +89,7 @@ public class AuthController {
     @PostMapping("/login")
     public SessaoResposta login(@Valid @RequestBody LoginRequisicao requisicao) {
         exigirMockHabilitado();
-        return sessaoDe(identityProvider.autenticar(requisicao.credencial()));
+        return sessoes.paraEntrada(identityProvider.autenticar(requisicao.credencial()));
     }
 
 
@@ -106,21 +103,26 @@ public class AuthController {
     @PostMapping("/login-senha")
     public SessaoResposta loginPorSenha(@Valid @RequestBody LoginSenhaRequisicao requisicao) {
         exigirSenhaHabilitada();
-        IdentidadeAutenticada identidade =
-                loginPorSenha.autenticar(requisicao.email(), requisicao.senha());
-        return sessaoDe(identidade);
+        AcessoPorEdicao.Entrada entrada =
+                acesso.autenticarPorSenha(requisicao.email(), requisicao.senha());
+        return sessoes.montar(entrada.identidade(), entrada.edicao());
     }
 
-    private SessaoResposta sessaoDe(IdentidadeAutenticada identidade) {
-        Set<Papel> papeis = papeisResolver.resolver(identidade.email());
-        UsuarioAutenticado usuario =
-                new UsuarioAutenticado(identidade.email(), identidade.nome(), papeis);
-        return new SessaoResposta(
-                jwtService.gerar(usuario),
-                jwtService.validade().toSeconds(),
-                usuario.email(),
-                usuario.nome(),
-                usuario.papeisComoTexto());
+    /**
+     * Troca a edicao sobre a qual a sessao age (011/RF-6).
+     *
+     * <p>Devolve um token novo porque a edicao esta dentro dele — e com ela os
+     * papeis, que sao os daquela edicao: quem administra 2026 pode ser apenas
+     * servidor em 2027, e a sessao precisa refletir isso no mesmo instante.
+     *
+     * <p>Edicao em que a pessoa nao existe e recusada aqui, e nao apenas omitida
+     * da lista: a lista e conveniencia da interface, a guarda e esta.
+     */
+    @PostMapping("/edicao/{edicaoId}")
+    public SessaoResposta trocarDeEdicao(@PathVariable Long edicaoId) {
+        UsuarioAutenticado atual = UsuarioAtual.obrigatorio();
+        return sessoes.paraEdicao(
+                new IdentidadeAutenticada(atual.email(), atual.nome()), edicaoId);
     }
 
     /**
@@ -136,14 +138,24 @@ public class AuthController {
                 .map(i -> new UsuarioMockResposta(
                         i.email(),
                         i.nome(),
-                        papeisResolver.resolver(i.email()).stream().map(Enum::name).sorted().toList()))
+                        acesso.entradaDe(i.email())
+                                .map(e -> e.papeis().stream().map(Enum::name).sorted().toList())
+                                .orElse(List.of())))
                 .toList();
     }
 
     @GetMapping("/me")
     public IdentidadeResposta me() {
         UsuarioAutenticado usuario = UsuarioAtual.obrigatorio();
-        return new IdentidadeResposta(usuario.email(), usuario.nome(), usuario.papeisComoTexto());
+        List<EdicaoDaSessao> disponiveis = acesso.edicoesDe(usuario.email()).stream()
+                .map(EdicaoDaSessao::de)
+                .toList();
+        EdicaoDaSessao corrente = disponiveis.stream()
+                .filter(e -> e.id().equals(usuario.edicaoId()))
+                .findFirst()
+                .orElse(null);
+        return new IdentidadeResposta(usuario.email(), usuario.nome(),
+                usuario.papeisComoTexto(), corrente, disponiveis);
     }
 
     /**

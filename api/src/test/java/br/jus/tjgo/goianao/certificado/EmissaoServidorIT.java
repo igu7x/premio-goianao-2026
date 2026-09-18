@@ -153,6 +153,9 @@ class EmissaoServidorIT extends TesteDeIntegracao {
         Edicao nova = edicaoComLayouts(2097);
         cadastrarMagistrado(nova.getId(), EMAIL_MAGISTRADO_2, "Helena", UNIDADE_C, Selo.PRATA);
         publicarEVigorar(nova);
+        // O servidor so existe na base de 2096; e nela que a sessao dele entra,
+        // mesmo com 2097 vigente (011/RF-7).
+        usando(anterior);
 
         mvc.perform(get("/api/servidor/certificados/edicoes")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_SERVIDOR)))

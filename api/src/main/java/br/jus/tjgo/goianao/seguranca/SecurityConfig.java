@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.seguranca;
 
 import br.jus.tjgo.goianao.comum.erro.ErroResposta;
+import br.jus.tjgo.goianao.edicao.base.FiltroDaEdicao;
 import br.jus.tjgo.goianao.config.GoianaoProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -31,13 +32,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final FiltroJwt filtroJwt;
+    private final FiltroDaEdicao filtroDaEdicao;
     private final GoianaoProperties props;
     private final ObjectMapper objectMapper;
     private final boolean consoleH2Ligado;
 
-    public SecurityConfig(FiltroJwt filtroJwt, GoianaoProperties props, ObjectMapper objectMapper,
+    public SecurityConfig(FiltroJwt filtroJwt, FiltroDaEdicao filtroDaEdicao,
+                          GoianaoProperties props, ObjectMapper objectMapper,
                           @Value("${spring.h2.console.enabled:false}") boolean consoleH2Ligado) {
         this.filtroJwt = filtroJwt;
+        this.filtroDaEdicao = filtroDaEdicao;
         this.props = props;
         this.objectMapper = objectMapper;
         this.consoleH2Ligado = consoleH2Ligado;
@@ -95,7 +99,11 @@ public class SecurityConfig {
                     .accessDeniedHandler((req, res, e) ->
                             escrever(res, HttpStatus.FORBIDDEN, "acesso_negado",
                                     "Você não tem permissão para esta operação.")))
-            .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class)
+            // Depois do JWT, e nao antes: e o token que diz em qual edicao a
+            // sessao esta, e e essa edicao que decide qual base a requisicao
+            // inteira enxerga (011/RF-4).
+            .addFilterAfter(filtroDaEdicao, FiltroJwt.class);
 
         return http.build();
     }
