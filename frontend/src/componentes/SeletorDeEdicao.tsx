@@ -26,7 +26,10 @@ export function SeletorDeEdicao() {
   const [trocando, setTrocando] = useState(false)
 
   const atual = identidade?.edicao
-  const disponiveis = identidade?.edicoesDisponiveis ?? []
+  // Em ordem de ano, crescente. O servidor manda a vigente primeiro — é a ordem
+  // que decide onde o login entra —, mas numa lista de escolha quem lê procura
+  // pelo ano.
+  const disponiveis = [...(identidade?.edicoesDisponiveis ?? [])].sort((a, b) => a.ano - b.ano)
   if (!atual) {
     return null
   }
