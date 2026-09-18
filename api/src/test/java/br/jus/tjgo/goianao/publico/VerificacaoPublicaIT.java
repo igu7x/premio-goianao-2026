@@ -115,6 +115,24 @@ class VerificacaoPublicaIT extends TesteDeIntegracao {
                 .andExpect(jsonPath("$.nome").value("Rafael Siqueira Bittencourt"));
     }
 
+    /**
+     * 011/CA-6: o certificado mora na base da edicao em que foi emitido. Com
+     * outra edicao vigente — e outra base padrao —, a pagina publica, que nao
+     * tem sessao, ainda precisa acha-lo.
+     */
+    @Test
+    @DisplayName("011/CA-6: certificado de edicao que deixou de ser vigente continua conferivel")
+    void codigoDeEdicaoAnterior() throws Exception {
+        String codigo = emitirCertificado(2105);
+        edicaoVigente(2106);
+
+        mvc.perform(get("/api/public/certificados/" + codigo))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valido").value(true))
+                .andExpect(jsonPath("$.edicaoAno").value(2105))
+                .andExpect(jsonPath("$.nome").value("Rafael Siqueira Bittencourt"));
+    }
+
     private String emitirCertificado(int ano) throws Exception {
         Edicao edicao = cenario(ano);
         UnidadeJudiciaria unidade = unidade(UNIDADE_A);

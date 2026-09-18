@@ -83,6 +83,8 @@ class InclusaoNaVigenteIT extends TesteDeIntegracao {
     void publicadaNaoVigenteBloqueia() throws Exception {
         Edicao anterior = vigenteComUmMagistrado(2123);
         edicaoVigente(2124);
+        // Mexer na anterior exige estar nela (011/RF-6); o congelamento vale mesmo assim.
+        usando(anterior);
 
         mvc.perform(post("/api/edicoes/" + anterior.getId() + "/magistrados")
                         .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN))

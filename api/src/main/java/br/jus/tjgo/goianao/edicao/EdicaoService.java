@@ -71,22 +71,26 @@ public class EdicaoService {
      * RASCUNHO -> PUBLICADA. So procede com os 8 layouts (4 selos x 2 tipos)
      * configurados: e o que garante que qualquer selo incluido depois na vigente
      * (feature 009) tenha layout para emitir (002/RF-3b).
+     *
+     * <p>Nao e transacional: os layouts sao conferidos na base <b>da edicao que
+     * se publica</b>, que pode nao ser a da sessao — a tela de edicoes age sobre
+     * todas (011). Uma transacao aberta aqui prenderia a conferencia a base da
+     * sessao.
      */
-    @Transactional
     public Edicao publicar(Long id) {
         Edicao edicao = buscar(id);
         if (edicao.estaPublicada()) {
             throw new ConflitoException("A edição " + edicao.getAno() + " já está publicada.");
         }
 
-        List<String> pendencias = preRequisitos.pendencias(id);
+        List<String> pendencias = pendenciasParaPublicar(id);
         if (!pendencias.isEmpty()) {
             throw new ConflitoException(
                     "A edição não pode ser publicada: faltam layouts de certificado.", pendencias);
         }
 
         edicao.publicar();
-        return edicao;
+        return repositorio.save(edicao);
     }
 
     /**
@@ -153,10 +157,15 @@ public class EdicaoService {
                 "Nenhuma edição vigente definida. Selecione uma edição."));
     }
 
-    /** Pendencias de layout de uma edicao, para o frontend antecipar o bloqueio. */
-    @Transactional(readOnly = true)
+    /**
+     * Pendencias de layout de uma edicao, para o frontend antecipar o bloqueio.
+     *
+     * <p>Conferidas na base da propria edicao, e por isso fora de transacao:
+     * quem abre a transacao e a consulta, ja dentro do schema certo.
+     */
     public List<String> pendenciasParaPublicar(Long id) {
-        buscar(id);
-        return preRequisitos.pendencias(id);
+        Edicao edicao = buscar(id);
+        return EdicaoCorrente.executarEm(edicao.getSchemaDados(),
+                () -> preRequisitos.pendencias(id));
     }
 }
