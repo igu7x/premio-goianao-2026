@@ -2,6 +2,7 @@ package br.jus.tjgo.goianao.usuario;
 
 import br.jus.tjgo.goianao.comum.Cpf;
 import br.jus.tjgo.goianao.comum.Email;
+import br.jus.tjgo.goianao.config.GoianaoProperties;
 import br.jus.tjgo.goianao.edicao.base.CatalogoDeEdicoes;
 import br.jus.tjgo.goianao.edicao.base.CatalogoDeEdicoes.EdicaoNoCatalogo;
 import br.jus.tjgo.goianao.edicao.base.EdicaoCorrente;
@@ -27,10 +28,14 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p><b>A senha nunca fica no repositorio.</b> Ela vem de
  * {@code GOIANAO_SUPERADMIN_SENHA} e e gravada como hash BCrypt — o valor em
- * claro nao e guardado nem registrado em log. Sem a variavel, nenhum
- * superadministrador e criado e o log diz o que fazer: e melhor subir sem
- * superadmin do que subir com uma senha previsivel que qualquer leitor do
- * codigo conheceria.
+ * claro nao e guardado nem registrado em log. Enquanto o login por senha
+ * estiver ligado, sem a variavel nenhum superadministrador e criado e o log diz
+ * o que fazer: e melhor subir sem superadmin do que subir com uma senha
+ * previsivel que qualquer leitor do codigo conheceria.
+ *
+ * <p><b>Onde so ha SSO — producao —, a senha nao e pedida.</b> Ela nao teria uso:
+ * a pessoa entra pelo tribunal, e o que este cadastro faz e dizer que aquele
+ * e-mail administra o sistema. O usuario e criado sem senha alguma.
  *
  * <p>Desde a feature 011 ele roda <b>em cada edicao</b>: cada uma tem a sua base
  * de usuarios, e uma edicao sem superadministrador nao poderia ser administrada
@@ -46,6 +51,7 @@ public class SuperadminInicial {
     private final PasswordEncoder encoder;
     private final CatalogoDeEdicoes catalogo;
     private final TransactionTemplate transacao;
+    private final boolean loginPorSenha;
     private final String email;
     private final String senha;
     private final String cpf;
@@ -55,6 +61,7 @@ public class SuperadminInicial {
                              PasswordEncoder encoder,
                              CatalogoDeEdicoes catalogo,
                              PlatformTransactionManager gerenciador,
+                             GoianaoProperties props,
                              @Value("${goianao.superadmin.email:}") String email,
                              @Value("${goianao.superadmin.senha:}") String senha,
                              @Value("${goianao.superadmin.cpf:}") String cpf,
@@ -65,6 +72,7 @@ public class SuperadminInicial {
         // A transacao e aberta dentro do escopo de cada edicao: com @Transactional
         // no metodo, ela comecaria antes de se saber de qual base estamos falando.
         this.transacao = new TransactionTemplate(gerenciador);
+        this.loginPorSenha = props.login().senha();
         this.email = email;
         this.senha = senha;
         this.cpf = cpf;
@@ -96,7 +104,8 @@ public class SuperadminInicial {
         } else if (!Email.valido(email)) {
             faltando.add("GOIANAO_SUPERADMIN_EMAIL (o valor informado não é um e-mail válido)");
         }
-        if (senha.isBlank()) {
+        // Com SSO como unica porta de entrada, senha nao faz falta nenhuma.
+        if (senha.isBlank() && loginPorSenha) {
             faltando.add("GOIANAO_SUPERADMIN_SENHA");
         }
         // O CPF e opcional; so atrapalha quando vem preenchido e errado.
@@ -122,10 +131,14 @@ public class SuperadminInicial {
         Usuario superadmin = new Usuario(emailNormalizado, nome,
                 cpf.isBlank() ? null : cpfNormalizado,
                 EnumSet.of(Papel.SUPERADMIN, Papel.ADMINISTRADOR));
-        superadmin.definirSenhaHash(encoder.encode(senha));
+        if (!senha.isBlank()) {
+            superadmin.definirSenhaHash(encoder.encode(senha));
+        }
         usuarios.save(superadmin);
 
-        log.info("Superadministrador inicial criado para {}. Troque a senha no primeiro acesso.",
-                emailNormalizado);
+        log.info("Superadministrador inicial criado para {}. {}", emailNormalizado,
+                senha.isBlank()
+                        ? "Sem senha: o acesso é pelo SSO."
+                        : "Troque a senha no primeiro acesso.");
     }
 }
