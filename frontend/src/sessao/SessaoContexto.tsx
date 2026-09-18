@@ -159,7 +159,13 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
       sair,
       trocarEdicao,
       recarregarIdentidade,
-      tem: (papel) => identidade?.papeis.includes(papel) ?? false,
+      // SUPERADMIN inclui ADMINISTRADOR, como no backend (UsuarioAutenticado).
+      // Sem isto, quem é só superadmin numa edição — o caso de toda edição recém-
+      // criada — perdia o menu de administração, e a tela inicial e a de
+      // certificados se mandavam uma para a outra até a página ficar em branco.
+      tem: (papel) =>
+        (identidade?.papeis.includes(papel) ?? false) ||
+        (papel === 'ADMINISTRADOR' && (identidade?.papeis.includes('SUPERADMIN') ?? false)),
     }),
     [
       identidade,
