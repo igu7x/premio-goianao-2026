@@ -70,3 +70,28 @@ designação passou a vir sempre dele.
 - **Retirar a designação não apaga a lista.** É deliberado: quem foi habilitado
   continua habilitado, e tirar alguém da lista segue sendo ato explícito. Mas
   ninguém pediu isso de um jeito nem de outro — vale confirmar com o negócio.
+
+## Estado ao fim do dia
+
+**No repositório** (`main`), na ordem: `d68e765` o responsável semeia pelo EGESP
+· `3ca7a10` unidade do reconhecimento escolhida digitando · `ec24202` designar
+semeia a lista · `89b6d5b` o CSV foi para "Magistrados reconhecidos" ·
+`f8bfb3f` semeadura em segundo plano e inclusão por busca.
+
+**A conferir em homologação depois do deploy do `f8bfb3f`:**
+
+1. Subir o "Baixar modelo de teste" inteiro (uma linha por unidade). O relatório
+   deve voltar na hora, e o andamento da semeadura aparecer abaixo do botão. Foi
+   isto que falhou antes, com erro de CORS no console que era a rota derrubando
+   a conexão (DI-28).
+2. Em "Servidores por unidade" → Ver lista, incluir alguém pela busca; quem não
+   tem cadastro deve aparecer marcado e o link abrir o cadastro com o e-mail
+   preenchido (DI-29).
+3. A busca em "Usuários do sistema", por nome, e-mail ou lotação.
+
+**Em aberto, para decidir com o negócio:**
+
+- Retirar a designação não apaga a lista já semeada. É deliberado — quem foi
+  habilitado continua habilitado —, mas ninguém pediu de um jeito nem de outro.
+- Quanto tempo a fila leva com as 190 unidades de verdade. Se incomodar, o
+  caminho é o mesmo da atualização da base: disparar e sair da tela.
