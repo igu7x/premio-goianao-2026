@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type {
   ComparacaoServidores,
   Edicao,
@@ -10,6 +10,19 @@ import type {
 import { ProvedorDeAvisos } from '../componentes/Avisos'
 import { instalarApiFalsa } from '../teste/api-falsa'
 import { Sincronizacao } from './Sincronizacao'
+
+// A comparação de servidores usa a edição da sessão (feature 011).
+vi.mock('../sessao/SessaoContexto', () => ({
+  useSessao: () => ({
+    identidade: {
+      email: 'super@tjgo.example',
+      nome: 'Superadministrador',
+      papeis: ['SUPERADMIN'],
+      edicao: { id: 1, ano: 2026, vigente: true, papeis: ['SUPERADMIN'] },
+      edicoesDisponiveis: [],
+    },
+  }),
+}))
 
 const EDICAO: Edicao = {
   id: 1,
@@ -232,7 +245,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     renderizar()
 
-    await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText(/código da unidade/i)).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
     await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 
@@ -264,7 +277,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     renderizar()
 
-    await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText(/código da unidade/i)).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
     await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 
@@ -293,7 +306,7 @@ describe('Tela de sincronização com o RH (feature 010)', () => {
 
     renderizar()
 
-    await waitFor(() => expect(screen.getByRole('combobox', { name: /edição/i })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText(/código da unidade/i)).toBeInTheDocument())
     await userEvent.type(screen.getByLabelText(/código da unidade/i), '1234')
     await userEvent.click(screen.getByRole('button', { name: /^comparar$/i }))
 

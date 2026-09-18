@@ -6,6 +6,7 @@ import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, SituacaoEdicao } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
 import { Trilha } from '../componentes/Trilha'
+import { useSessao } from '../sessao/SessaoContexto'
 import { AbaLayouts } from './abas/AbaLayouts'
 import { AbaMagistrados } from './abas/AbaMagistrados'
 import { AbaServidores } from './abas/AbaServidores'
@@ -22,12 +23,21 @@ const ABAS: Array<{ id: Aba; rotulo: string }> = [
  * Configuração completa de uma edição, na ordem em que o trabalho acontece:
  * primeiro as artes, depois quem foi reconhecido e, por fim, quem pode emitir
  * em cada unidade.
+ *
+ * Layouts, reconhecidos e listas vivem na base da edição (feature 011), e a
+ * base é a da sessão. Aberta uma edição que não é a da sessão, a página
+ * mostra o que é do catálogo — situação, publicar, tornar vigente — e oferece
+ * entrar nela para ver o resto.
  */
 export function EdicaoDetalhe() {
   const { edicaoId } = useParams()
   const navegar = useNavigate()
   const avisos = useAvisos()
+  const { identidade, trocarEdicao } = useSessao()
   const id = Number(edicaoId)
+  const naSessao = identidade?.edicao?.id === id
+  const podeEntrar = identidade?.edicoesDisponiveis.some((e) => e.id === id) ?? false
+  const [entrando, setEntrando] = useState(false)
 
   const [edicao, setEdicao] = useState<Edicao | null>(null)
   const [outras, setOutras] = useState<Edicao[]>([])
@@ -82,6 +92,16 @@ export function EdicaoDetalhe() {
     }
   }
 
+  async function entrar() {
+    setEntrando(true)
+    try {
+      await trocarEdicao(id)
+    } catch (e) {
+      setEntrando(false)
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível entrar nesta edição.')
+    }
+  }
+
   if (!edicao) {
     return erro ? (
       <div className="pagina">
@@ -112,7 +132,11 @@ export function EdicaoDetalhe() {
                   {outras.map((outra) => (
                     <option key={outra.id} value={outra.id}>
                       {outra.ano}
-                      {outra.vigente ? ' · vigente' : outra.status === 'RASCUNHO' ? ' · rascunho' : ''}
+                      {outra.vigente
+                        ? ' · vigente'
+                        : outra.status === 'RASCUNHO'
+                          ? ' · rascunho'
+                          : ''}
                     </option>
                   ))}
                 </select>
@@ -167,25 +191,53 @@ export function EdicaoDetalhe() {
         </div>
       )}
 
-      <nav className="abas">
-        {ABAS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={aba === item.id ? 'aba ativa' : 'aba'}
-            onClick={() => setAba(item.id)}
-          >
-            {item.rotulo}
-          </button>
-        ))}
-      </nav>
+      {!naSessao ? (
+        <Aviso
+          tom="atencao"
+          titulo={`Você está trabalhando na edição ${identidade?.edicao?.ano ?? ''}`}
+        >
+          <p>
+            Cada edição tem a sua própria base: layouts, magistrados reconhecidos e listas de
+            servidores da edição {edicao.ano} ficam nela.
+            {!podeEntrar && ' Você não tem cadastro nesta edição.'}
+          </p>
+          {podeEntrar && (
+            <div className="aviso-acao">
+              <button
+                type="button"
+                className="botao botao-pequeno"
+                disabled={entrando}
+                onClick={() => void entrar()}
+              >
+                {entrando ? <span className="giro" /> : <Icone nome="trocar" tamanho={15} />}
+                Entrar na edição {edicao.ano}
+              </button>
+            </div>
+          )}
+        </Aviso>
+      ) : (
+        <>
+          <nav className="abas">
+            {ABAS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={aba === item.id ? 'aba ativa' : 'aba'}
+                onClick={() => setAba(item.id)}
+              >
+                {item.rotulo}
+              </button>
+            ))}
+          </nav>
 
-      {/* A chave força a remontagem: o conteúdo entra por baixo a cada troca. */}
-      <div className="aba-conteudo" key={`${edicao.id}-${aba}`}>
-        {aba === 'layouts' && <AbaLayouts edicao={edicao} />}
-        {aba === 'magistrados' && <AbaMagistrados edicao={edicao} />}
-        {aba === 'servidores' && <AbaServidores edicao={edicao} />}
-      </div>
+          {/* A chave força a remontagem: o conteúdo entra por baixo a cada troca. */}
+          <div className="aba-conteudo" key={`${edicao.id}-${aba}`}>
+            {aba === 'layouts' && <AbaLayouts edicao={edicao} />}
+            {aba === 'magistrados' && <AbaMagistrados edicao={edicao} />}
+            {aba === 'servidores' && <AbaServidores edicao={edicao} />}
+          </div>
+        </>
+      )}
     </div>
   )
 }

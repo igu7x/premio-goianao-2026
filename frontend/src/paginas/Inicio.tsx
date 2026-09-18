@@ -5,6 +5,7 @@ import type { Edicao, ResumoEdicao } from '../api/tipos'
 import { Anel } from '../componentes/Anel'
 import { Aviso, Carregando, EstadoVazio, SituacaoEdicao } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
+import { useSessao } from '../sessao/SessaoContexto'
 
 /**
  * Visão geral do administrador.
@@ -13,8 +14,13 @@ import { Icone } from '../componentes/Icone'
  * isso a edição vigente abre a página inteira, com o anel de layouts ao lado —
  * a única métrica que efetivamente bloqueia a emissão. Os demais números vêm
  * depois, como apoio.
+ *
+ * A edição em foco é a da sessão, e não a vigente: cada edição tem a sua base
+ * (feature 011), e os números aqui só existem na base em que se está.
  */
 export function Inicio() {
+  const { identidade } = useSessao()
+  const edicaoDaSessao = identidade?.edicao?.id
   const [edicoes, setEdicoes] = useState<Edicao[] | null>(null)
   const [resumo, setResumo] = useState<ResumoEdicao | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -26,7 +32,7 @@ export function Inicio() {
       .then(async (lista) => {
         if (!ativo) return
         setEdicoes(lista)
-        const foco = lista.find((e) => e.vigente) ?? lista[0]
+        const foco = lista.find((e) => e.id === edicaoDaSessao)
         if (foco) {
           const dados = await api.get<ResumoEdicao>(`/api/painel/edicoes/${foco.id}`)
           if (ativo) setResumo(dados)
@@ -36,7 +42,7 @@ export function Inicio() {
     return () => {
       ativo = false
     }
-  }, [])
+  }, [edicaoDaSessao])
 
   if (erro) {
     return (
@@ -69,8 +75,7 @@ export function Inicio() {
     )
   }
 
-  const vigente = edicoes.find((e) => e.vigente)
-  const emFoco = vigente ?? edicoes[0]
+  const emFoco = edicoes.find((e) => e.id === edicaoDaSessao) ?? edicoes[0]
   const pendencias = resumo?.layoutsPendentes ?? []
   const prontaParaEmitir = emFoco.status === 'PUBLICADA' && pendencias.length === 0
 
@@ -79,7 +84,7 @@ export function Inicio() {
       <section className="destaque">
         <div className="destaque-conteudo">
           <span className="rotulo">
-            {vigente ? 'Edição vigente' : 'Edição mais recente'}
+            {emFoco.vigente ? 'Edição vigente' : 'Edição em que você está'}
           </span>
           <h1>Edição {emFoco.ano}</h1>
           <p>

@@ -15,18 +15,36 @@ export type Alinhamento = 'ESQUERDA' | 'CENTRO' | 'DIREITA'
 export type OrigemServidor = 'EGESP' | 'MANUAL'
 
 /** O e-mail corporativo é a chave da pessoa em todo o sistema (DI-24). */
+/**
+ * Uma edição como a sessão a enxerga (feature 011). Cada edição tem a sua
+ * base: os papéis aqui são os que a pessoa tem naquela edição.
+ */
+export interface EdicaoDaSessao {
+  id: number
+  ano: number
+  vigente: boolean
+  papeis: Papel[]
+}
+
 export interface Sessao {
   token: string
   expiraEmSegundos: number
   email: string
   nome: string
   papeis: Papel[]
+  edicao: EdicaoDaSessao | null
+  edicoesDisponiveis: EdicaoDaSessao[]
 }
 
 export interface Identidade {
   email: string
   nome: string
+  /** Papéis na edição da sessão — mudam quando a edição muda. */
   papeis: Papel[]
+  /** Sobre qual edição (e qual base) o sistema inteiro está agindo. */
+  edicao: EdicaoDaSessao | null
+  /** As edições em que esta pessoa existe, a vigente primeiro. */
+  edicoesDisponiveis: EdicaoDaSessao[]
 }
 
 export interface UsuarioMock {

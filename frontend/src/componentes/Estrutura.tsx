@@ -4,6 +4,7 @@ import { api } from '../api/cliente'
 import type { Edicao } from '../api/tipos'
 import { useSessao } from '../sessao/SessaoContexto'
 import { Icone, type NomeDeIcone } from './Icone'
+import { SeletorDeEdicao } from './SeletorDeEdicao'
 import brasao from '../assets/brasao-tjgo.png'
 
 interface ItemDeMenu {
@@ -163,6 +164,9 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
         <header className="topo">
           <div className="topo-contexto">
             <span className="rotulo">{contexto(local.pathname)}</span>
+            {/* Cada edição tem a sua base: a edição da sessão fica sempre à
+                vista, porque tudo abaixo dela é daquela edição (011/RF-4). */}
+            <SeletorDeEdicao />
           </div>
 
           <div className="usuario">

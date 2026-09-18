@@ -655,6 +655,35 @@
   box-shadow: 0 0 0 3px rgba(28, 90, 75, 0.13);
 }
 
+/* Uma edição só: a informação fica, a interação não. */
+.troca-edicao-fixa {
+  color: var(--tinta-2);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.troca-edicao-fixa:hover {
+  border-color: var(--traco);
+  color: var(--tinta-2);
+  box-shadow: none;
+}
+
+/* No topo, o seletor fica ao lado do rótulo da área, separado por um traço. */
+.topo-contexto .troca-edicao {
+  margin-left: var(--e2);
+}
+
+.topo-contexto .troca-edicao::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--e3));
+  top: 50%;
+  width: 1px;
+  height: 16px;
+  background: var(--traco-forte);
+  transform: translateY(-50%);
+}
+
 .navegacao-sub-item.ativo {
   display: flex;
   align-items: center;

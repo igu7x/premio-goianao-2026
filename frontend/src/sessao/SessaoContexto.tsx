@@ -25,7 +25,23 @@ interface ContextoSessao {
   /** Adota um token já emitido — o caminho de volta do SSO. */
   adotarToken: (token: string) => Promise<void>
   sair: () => Promise<void>
+  /**
+   * Passa a agir sobre outra edição. Cada edição tem a sua base, então trocar
+   * é trocar de sessão: o servidor confere que a pessoa existe lá e devolve
+   * um token novo, com os papéis daquela edição.
+   */
+  trocarEdicao: (edicaoId: number) => Promise<void>
   tem: (papel: Papel) => boolean
+}
+
+function identidadeDa(sessao: Sessao): Identidade {
+  return {
+    email: sessao.email,
+    nome: sessao.nome,
+    papeis: sessao.papeis,
+    edicao: sessao.edicao,
+    edicoesDisponiveis: sessao.edicoesDisponiveis,
+  }
 }
 
 const Contexto = createContext<ContextoSessao | null>(null)
@@ -61,13 +77,13 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
   const entrarComSenha = useCallback(async (email: string, senha: string) => {
     const sessao = await api.post<Sessao>('/api/auth/login-senha', { email, senha })
     guardarToken(sessao.token)
-    setIdentidade({ email: sessao.email, nome: sessao.nome, papeis: sessao.papeis })
+    setIdentidade(identidadeDa(sessao))
   }, [])
 
   const entrar = useCallback(async (credencial: string) => {
     const sessao = await api.post<Sessao>('/api/auth/login', { credencial })
     guardarToken(sessao.token)
-    setIdentidade({ email: sessao.email, nome: sessao.nome, papeis: sessao.papeis })
+    setIdentidade(identidadeDa(sessao))
   }, [])
 
   /**
@@ -83,6 +99,18 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
       descartarToken()
       throw e
     }
+  }, [])
+
+  /**
+   * Recarrega a página depois de trocar, em vez de só atualizar o estado:
+   * cada tela aberta guardou dados da base anterior, e recarregar é o único
+   * jeito de garantir que nenhuma continue mostrando o ano errado. O caminho
+   * atual é mantido — quem estava em Usuários vê os usuários da outra edição.
+   */
+  const trocarEdicao = useCallback(async (edicaoId: number) => {
+    const sessao = await api.post<Sessao>(`/api/auth/edicao/${edicaoId}`)
+    guardarToken(sessao.token)
+    window.location.assign(window.location.pathname + window.location.search)
   }, [])
 
   /**
@@ -120,9 +148,10 @@ export function ProvedorDeSessao({ children }: { children: ReactNode }) {
       entrarComSenha,
       adotarToken,
       sair,
+      trocarEdicao,
       tem: (papel) => identidade?.papeis.includes(papel) ?? false,
     }),
-    [identidade, carregando, entrar, entrarComSenha, adotarToken, sair],
+    [identidade, carregando, entrar, entrarComSenha, adotarToken, sair, trocarEdicao],
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>

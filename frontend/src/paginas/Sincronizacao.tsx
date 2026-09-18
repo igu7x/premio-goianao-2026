@@ -3,7 +3,6 @@ import { api, ErroApi } from '../api/cliente'
 import type {
   CadastroEmLote,
   ComparacaoServidores,
-  Edicao,
   ImportacaoDaUnidade,
   ItemSincronizacao,
   ServidorComparado,
@@ -13,6 +12,7 @@ import type {
 import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio, Modal } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
+import { useSessao } from '../sessao/SessaoContexto'
 
 const BASE = '/api/sincronizacao'
 
@@ -78,8 +78,11 @@ function chaveDa(unidade: UnidadeComparada): string {
  */
 export function Sincronizacao() {
   const [situacao, setSituacao] = useState<SituacaoIntegracao | null>(null)
-  const [edicoes, setEdicoes] = useState<Edicao[] | null>(null)
-  const [edicaoId, setEdicaoId] = useState<number | null>(null)
+  // A comparação de servidores é sempre dentro de uma edição, e desde a
+  // feature 011 é a da sessão: as unidades comparadas aqui já são as da base
+  // dela, e misturar outra edição só na lista de habilitados não faria sentido.
+  const { identidade } = useSessao()
+  const edicaoId = identidade?.edicao?.id ?? null
   const [codigo, setCodigo] = useState('')
   /** Nulo enquanto nenhuma comparação foi pedida — diferente de lista vazia. */
   const [unidades, setUnidades] = useState<UnidadeComparada[] | null>(null)
@@ -100,16 +103,6 @@ export function Sincronizacao() {
     api
       .get<SituacaoIntegracao>(`${BASE}/situacao`)
       .then((s) => ativo && setSituacao(s))
-      .catch((e: ErroApi) => ativo && setErro(e.message))
-    api
-      .get<Edicao[]>('/api/edicoes')
-      .then((lista) => {
-        if (!ativo) return
-        setEdicoes(lista)
-        // A comparação de servidores é sempre dentro de uma edição; a vigente é
-        // a que quase sempre se quer, e sem pré-seleção a tela abre inerte.
-        setEdicaoId((lista.find((e) => e.vigente) ?? lista[0])?.id ?? null)
-      })
       .catch((e: ErroApi) => ativo && setErro(e.message))
     return () => {
       ativo = false
@@ -221,7 +214,7 @@ export function Sincronizacao() {
     )
   }
 
-  const edicaoEscolhida = edicoes?.find((e) => e.id === edicaoId) ?? null
+  const edicaoAno = identidade?.edicao?.ano ?? null
 
   /** Busca simples por nome, comarca ou código — sem acento e sem caixa. */
   const alvo = filtro
@@ -361,26 +354,6 @@ export function Sincronizacao() {
                 </span>
               </div>
 
-              <div className="campo">
-                <label htmlFor="edicao-sincronizacao">Edição</label>
-                <select
-                  id="edicao-sincronizacao"
-                  value={edicaoId ?? ''}
-                  onChange={(evento) => setEdicaoId(Number(evento.target.value))}
-                >
-                  {!edicoes && <option value="">Carregando…</option>}
-                  {edicoes?.length === 0 && <option value="">Nenhuma edição cadastrada</option>}
-                  {edicoes?.map((edicao) => (
-                    <option key={edicao.id} value={edicao.id}>
-                      {edicao.ano}
-                      {edicao.vigente ? ' (vigente)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <span className="campo-dica">
-                  A edição define de qual lista de habilitados os servidores são comparados.
-                </span>
-              </div>
 
               <button
                 type="button"
@@ -646,7 +619,7 @@ export function Sincronizacao() {
         <PainelDeServidores
           unidadeId={aberta.unidadeId}
           edicaoId={edicaoId}
-          edicaoAno={edicaoEscolhida?.ano ?? null}
+          edicaoAno={edicaoAno}
           aoFechar={() => setAberta(null)}
         />
       )}

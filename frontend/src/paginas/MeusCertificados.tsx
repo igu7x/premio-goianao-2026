@@ -62,6 +62,10 @@ function PainelDeEmissao({
 }) {
   const [edicoes, setEdicoes] = useState<EdicaoOpcao[] | null>(null)
   const [edicaoId, setEdicaoId] = useState<number | null>(null)
+  // Cada edição tem a sua base (feature 011): outro ano se alcança trocando a
+  // edição no topo da página, e não por um seletor aqui.
+  const { identidade } = useSessao()
+  const temOutrasEdicoes = (identidade?.edicoesDisponiveis.length ?? 0) > 1
   const [opcoes, setOpcoes] = useState<OpcaoEmissao[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [emitindo, setEmitindo] = useState<number | null>(null)
@@ -142,25 +146,6 @@ function PainelDeEmissao({
           <h2 className="titulo-secao">{titulo}</h2>
           <p className="apoio">{descricao}</p>
         </div>
-        {edicoes.length > 0 && (
-          <div className="seletor-edicao">
-            <label className="rotulo" htmlFor={`edicao-${base}`}>
-              Edição
-            </label>
-            <select
-              id={`edicao-${base}`}
-              value={edicaoId ?? ''}
-              onChange={(evento) => setEdicaoId(Number(evento.target.value))}
-            >
-              {edicoes.map((edicao) => (
-                <option key={edicao.id} value={edicao.id}>
-                  {edicao.ano}
-                  {edicao.vigente ? ' (vigente)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {erro && (
@@ -172,14 +157,22 @@ function PainelDeEmissao({
       {edicoes.length === 0 ? (
         <EstadoVazio
           titulo="Nenhum certificado disponível"
-          descricao="Você ainda não consta como reconhecido nem como habilitado em nenhuma edição publicada. Se acredita que deveria constar, procure a administração do prêmio."
+          descricao={
+            temOutrasEdicoes
+              ? `Nesta edição (${identidade?.edicao?.ano ?? ''}) você não tem certificado a emitir. Se o seu é de outro ano, troque a edição no topo da página.`
+              : 'Você ainda não consta como reconhecido nem como habilitado nesta edição publicada. Se acredita que deveria constar, procure a administração do prêmio.'
+          }
         />
       ) : !opcoes ? (
         !erro && <Carregando />
       ) : opcoes.length === 0 ? (
         <EstadoVazio
           titulo="Nada a emitir nesta edição"
-          descricao="Escolha outra edição no seletor acima."
+          descricao={
+            temOutrasEdicoes
+              ? 'Se o seu certificado é de outro ano, troque a edição no topo da página.'
+              : 'Não há unidade reconhecida para você nesta edição.'
+          }
         />
       ) : (
         <div className="grade-certificados">
