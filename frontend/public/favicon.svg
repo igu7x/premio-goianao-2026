@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Medalha: fita nos dois verdes da marca e disco dourado, o mesmo desenho
-       dos selos do sistema. Sem fundo, para assentar em aba clara ou escura.
-       Formas cheias e poucas: na aba ela aparece com 16px. -->
-  <path d="M6.5 1h6.5l5 12.5h-6.5z" fill="#1c5a4b"/>
-  <path d="M25.5 1H19l-5 12.5h6.5z" fill="#2b7a66"/>
-  <circle cx="16" cy="21" r="10" fill="#c9a227"/>
-  <circle cx="16" cy="21" r="7.4" fill="none" stroke="#9a751b" stroke-width="1.4"/>
-  <path d="M16 16.2l1.4 2.9 3.2.4-2.3 2.2.6 3.2-2.9-1.5-2.9 1.5.6-3.2-2.3-2.2 3.2-.4z" fill="#9a751b"/>
-  <path d="M9.6 18.2a7 7 0 0 1 4-3.9" fill="none" stroke="#f0d68a" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Monograma no verde institucional, com o G serifado da marca. A medalha
+       anterior era genérica: fita, disco e estrela é o desenho de qualquer
+       prêmio. Aqui o que identifica é a própria marca do sistema, que é o que
+       a pessoa vê no topo da tela.
+
+       Sem detalhe fino de propósito: na aba isto aparece com 16px, e o brasão
+       do tribunal, colorido e cheio de formas, vira borrão nesse tamanho. -->
+  <rect width="32" height="32" rx="6" fill="#123128"/>
+  <text x="16" y="23.5"
+        text-anchor="middle"
+        font-family="Newsreader, Georgia, 'Times New Roman', serif"
+        font-size="22"
+        fill="#efe9dc">G</text>
 </svg>
