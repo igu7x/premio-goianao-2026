@@ -1,15 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Monograma no verde institucional, com o G serifado da marca. A medalha
-       anterior era genérica: fita, disco e estrela é o desenho de qualquer
-       prêmio. Aqui o que identifica é a própria marca do sistema, que é o que
-       a pessoa vê no topo da tela.
+  <!-- O disco cunhado dos selos, com o G da marca gravado.
+       
+       A medalha anterior tinha fita e estrela: o desenho de qualquer prêmio,
+       de qualquer sistema. Este é o elemento de premiação deste produto — a
+       mesma peça que a tela mostra em Bronze, Prata, Ouro e Diamante —, e o G
+       diz de quem ela é.
 
-       Sem detalhe fino de propósito: na aba isto aparece com 16px, e o brasão
-       do tribunal, colorido e cheio de formas, vira borrão nesse tamanho. -->
+       Poucas formas de propósito: na aba isto vive com 16px. Coroa de louros
+       e o brasão do tribunal foram descartados por isso — folha fina e detalhe
+       colorido viram mancha nesse tamanho. -->
+  <defs>
+    <linearGradient id="liga" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8c766"/>
+      <stop offset="1" stop-color="#b3861d"/>
+    </linearGradient>
+  </defs>
   <rect width="32" height="32" rx="6" fill="#123128"/>
-  <text x="16" y="23.5"
-        text-anchor="middle"
+  <circle cx="16" cy="16" r="10.5" fill="url(#liga)"/>
+  <circle cx="16" cy="16" r="8.6" fill="none" stroke="#8d6a14" stroke-width="1"/>
+  <text x="16" y="21.4" text-anchor="middle"
         font-family="Newsreader, Georgia, 'Times New Roman', serif"
-        font-size="22"
-        fill="#efe9dc">G</text>
+        font-size="15" font-weight="600" fill="#123128">G</text>
 </svg>
