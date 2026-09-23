@@ -251,7 +251,7 @@ export function Entrar() {
                 href={urlDaApi('/api/auth/sso/login')}
               >
                 <Icone nome="sair" tamanho={16} />
-                Entrar com o login do TJGO
+                Entrar com Login Corporativo (SSO)
               </a>
             </>
           )}
