@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useMatch } from 'react-router-dom'
 import { api } from '../api/cliente'
-import type { Edicao } from '../api/tipos'
+import type { Edicao, SituacaoDoAmbiente } from '../api/tipos'
 import { useSessao } from '../sessao/SessaoContexto'
 import { Icone, type NomeDeIcone } from './Icone'
 import { SeletorDeEdicao } from './SeletorDeEdicao'
@@ -48,6 +48,21 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
   // pista, "Edições do prêmio" fica aceso e nada diz em qual delas se está.
   const dentroDaEdicao = useMatch('/edicoes/:edicaoId')
   const [edicaoAberta, setEdicaoAberta] = useState<Edicao | null>(null)
+  // O rodapé só avisa o que é verdade neste ambiente. Em produção, com SSO e
+  // RH de verdade, não há aviso nenhum — e era justamente ali que o texto fixo
+  // dizia "ambiente de homologação, dados de RH mockados".
+  const [ambiente, setAmbiente] = useState<SituacaoDoAmbiente | null>(null)
+
+  useEffect(() => {
+    let ativo = true
+    api
+      .get<SituacaoDoAmbiente>('/api/auth/situacao')
+      .then((s) => ativo && setAmbiente(s))
+      .catch(() => ativo && setAmbiente(null))
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   useEffect(() => {
     const id = dentroDaEdicao?.params.edicaoId
@@ -153,11 +168,19 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="lateral-rodape">
-          Ambiente de homologação
-          <br />
-          Login e dados de RH mockados
-        </div>
+        {ambiente && (ambiente.mock || ambiente.senha || !ambiente.rhReal) && (
+          <div className="lateral-rodape">
+            Ambiente de teste
+            <br />
+            {[
+              ambiente.mock ? 'login de teste' : null,
+              ambiente.senha ? 'login por senha' : null,
+              !ambiente.rhReal ? 'dados de RH mockados' : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
+        )}
       </aside>
 
       <div className="painel">

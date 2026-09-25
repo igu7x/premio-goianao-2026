@@ -62,6 +62,9 @@ class LoginPorAmbienteIT extends TesteDeIntegracao {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.senha").value(false))
                 .andExpect(jsonPath("$.mock").value(false))
-                .andExpect(jsonPath("$.sso").value(false));
+                .andExpect(jsonPath("$.sso").value(false))
+                // O rodape da tela avisa "dados de RH mockados" a partir daqui:
+                // em teste o RH e o mockado, como em desenvolvimento.
+                .andExpect(jsonPath("$.rhReal").value(false));
     }
 }

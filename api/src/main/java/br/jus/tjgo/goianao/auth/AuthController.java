@@ -9,6 +9,7 @@ import br.jus.tjgo.goianao.auth.dto.UsuarioMockResposta;
 import br.jus.tjgo.goianao.auth.sso.SsoProperties;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.config.GoianaoProperties;
+import br.jus.tjgo.goianao.integracao.egesp.connecttj.ConnectTjProperties;
 import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
 import br.jus.tjgo.goianao.seguranca.UsuarioAutenticado;
 import jakarta.validation.Valid;
@@ -30,17 +31,20 @@ public class AuthController {
     private final MontadorDeSessao sessoes;
     private final GoianaoProperties props;
     private final SsoProperties sso;
+    private final ConnectTjProperties rh;
 
     public AuthController(IdentityProvider identityProvider,
                           AcessoPorEdicao acesso,
                           MontadorDeSessao sessoes,
                           GoianaoProperties props,
-                          SsoProperties sso) {
+                          SsoProperties sso,
+                          ConnectTjProperties rh) {
         this.identityProvider = identityProvider;
         this.acesso = acesso;
         this.sessoes = sessoes;
         this.props = props;
         this.sso = sso;
+        this.rh = rh;
     }
 
     /**
@@ -62,8 +66,14 @@ public class AuthController {
         }
     }
 
-    /** Portas de entrada disponiveis neste ambiente. */
-    public record SituacaoLogin(boolean sso, boolean senha, boolean mock) {}
+    /**
+     * O que este ambiente tem: portas de entrada e se o RH e o de verdade.
+     *
+     * <p>O {@code rhReal} existe para a tela poder dizer a verdade sobre onde a
+     * pessoa esta. O rodape avisava "ambiente de homologacao, dados de RH
+     * mockados" em texto fixo — e repetia isso em producao, com o RH ligado.
+     */
+    public record SituacaoLogin(boolean sso, boolean senha, boolean mock, boolean rhReal) {}
 
     /**
      * Diz ao frontend quais portas de entrada existem neste ambiente.
@@ -74,7 +84,8 @@ public class AuthController {
      */
     @GetMapping("/situacao")
     public SituacaoLogin situacao() {
-        return new SituacaoLogin(sso.habilitado(), props.login().senha(), props.login().mock());
+        return new SituacaoLogin(sso.habilitado(), props.login().senha(), props.login().mock(),
+                rh.habilitado());
     }
 
     /**

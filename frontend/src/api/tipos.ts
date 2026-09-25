@@ -47,6 +47,14 @@ export interface Identidade {
   edicoesDisponiveis: EdicaoDaSessao[]
 }
 
+/** O que este ambiente tem: portas de entrada e se o RH é o de verdade. */
+export interface SituacaoDoAmbiente {
+  sso: boolean
+  senha: boolean
+  mock: boolean
+  rhReal: boolean
+}
+
 export interface UsuarioMock {
   email: string
   nome: string
