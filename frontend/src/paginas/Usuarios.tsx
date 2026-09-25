@@ -5,6 +5,7 @@ import type { Papel, Unidade, Usuario } from '../api/tipos'
 import { useAvisos } from '../componentes/Avisos'
 import { Aviso, Carregando, EstadoVazio, Modal, formatarData } from '../componentes/Basicos'
 import { Icone } from '../componentes/Icone'
+import { useAmbiente } from '../sessao/Ambiente'
 import {
   BotaoAtualizarBase,
   ModalAtualizacaoDaBase,
@@ -390,6 +391,9 @@ function ModalUsuario({
     usuario?.papeis.filter((p) => p !== 'SUPERADMIN') ?? ['SERVIDOR'],
   )
   const [senha, setSenha] = useState('')
+  // Onde só se entra pelo SSO — produção —, senha não tem uso: o campo sai da
+  // tela, e o servidor ignora o que chegar nele.
+  const loginPorSenha = useAmbiente()?.senha ?? false
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
@@ -552,21 +556,23 @@ function ModalUsuario({
         </span>
       </div>
 
-      <div className="campo">
-        <label htmlFor="senha-usuario">{usuario ? 'Nova senha (opcional)' : 'Senha'}</label>
-        <input
-          id="senha-usuario"
-          type="password"
-          autoComplete="new-password"
-          value={senha}
-          onChange={(evento) => setSenha(evento.target.value)}
-        />
-        <span className="campo-dica">
-          {usuario
-            ? 'Deixe em branco para manter a senha atual.'
-            : 'Ao menos 8 caracteres. Em branco, o usuário existe mas só entrará pelo SSO.'}
-        </span>
-      </div>
+      {loginPorSenha && (
+        <div className="campo">
+          <label htmlFor="senha-usuario">{usuario ? 'Nova senha (opcional)' : 'Senha'}</label>
+          <input
+            id="senha-usuario"
+            type="password"
+            autoComplete="new-password"
+            value={senha}
+            onChange={(evento) => setSenha(evento.target.value)}
+          />
+          <span className="campo-dica">
+            {usuario
+              ? 'Deixe em branco para manter a senha atual.'
+              : 'Ao menos 8 caracteres. Em branco, o usuário existe mas só entrará pelo SSO.'}
+          </span>
+        </div>
+      )}
     </Modal>
   )
 }

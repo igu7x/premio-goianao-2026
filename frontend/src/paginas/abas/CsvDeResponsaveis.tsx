@@ -9,6 +9,7 @@ import type {
 import { useAvisos } from '../../componentes/Avisos'
 import { Aviso, Modal } from '../../componentes/Basicos'
 import { Icone } from '../../componentes/Icone'
+import { ehDeTeste, useAmbiente } from '../../sessao/Ambiente'
 
 /** Rápido o bastante para a tela parecer viva, sem martelar a API. */
 const ESPERA_ENTRE_PERGUNTAS = 3000
@@ -51,6 +52,7 @@ export function CsvDeResponsaveis({
   const [semeadura, setSemeadura] = useState<SituacaoDaSemeadura | null>(null)
   const arquivo = useRef<HTMLInputElement>(null)
   const avisos = useAvisos()
+  const ambiente = useAmbiente()
 
   /*
    * A semeadura das listas roda em segundo plano: uma planilha do tamanho do
@@ -244,9 +246,13 @@ export function CsvDeResponsaveis({
           {enviando ? <span className="giro" /> : <Icone nome="enviar" tamanho={16} />}
           {enviando ? 'Importando…' : 'Subir CSV de magistrados'}
         </button>
-        <button type="button" className="botao botao-texto botao-pequeno" onClick={baixarModelo}>
-          Baixar modelo de teste
-        </button>
+        {/* Nomes e e-mails fictícios, para exercitar a importação: material de
+            teste, e produção é o ambiente oficial. */}
+        {ehDeTeste(ambiente) && (
+          <button type="button" className="botao botao-texto botao-pequeno" onClick={baixarModelo}>
+            Baixar modelo de teste
+          </button>
+        )}
         <span className="secundaria mono">nome;e-mail;código da unidade;selo</span>
       </div>
 

@@ -41,14 +41,15 @@ function edicao(parcial: Partial<Edicao>): Edicao {
 }
 
 describe('Cadastro de reconhecidos na tela (features 004 e 009)', () => {
-  it('em rascunho, permite incluir, importar em lote e remover', async () => {
+  it('em rascunho, permite incluir e remover', async () => {
     instalarApiFalsa([['/api/edicoes/1/magistrados', { corpo: [MAGISTRADO] }]])
 
     renderizar(edicao({ status: 'RASCUNHO' }))
 
     await screen.findByText('Rafael Siqueira Bittencourt')
     expect(screen.getByRole('button', { name: /novo magistrado/i })).toBeEnabled()
-    expect(screen.getByRole('button', { name: /importar planilha/i })).toBeInTheDocument()
+    // A importação em lote vive na planilha de responsáveis, que faz o mesmo e mais.
+    expect(screen.queryByRole('button', { name: /importar planilha/i })).not.toBeInTheDocument()
     // A remocao so existe em rascunho; e a acao destrutiva da feature 004.
     expect(screen.getByRole('button', { name: '' })).toBeInTheDocument()
   })

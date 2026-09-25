@@ -5,7 +5,6 @@ import type {
   Magistrado,
   PessoaDoRh,
   ResultadoDaBusca,
-  RelatorioImportacao,
   Selo,
   SituacaoDoRh,
   UnidadeCadastrada,
@@ -35,7 +34,6 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
   const [erro, setErro] = useState<string | null>(null)
   const [novo, setNovo] = useState(false)
   const [adicionandoEm, setAdicionandoEm] = useState<Magistrado | null>(null)
-  const [importando, setImportando] = useState(false)
 
   const somenteInclusao = edicao.status === 'PUBLICADA'
   const congelada = !edicao.aceitaInclusoes
@@ -113,16 +111,6 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
             </div>
           </div>
           <div className="acoes">
-            {!somenteInclusao && (
-              <button
-                type="button"
-                className="botao botao-neutro"
-                onClick={() => setImportando(true)}
-              >
-                <Icone nome="planilha" tamanho={16} />
-                Importar planilha
-              </button>
-            )}
             <button
               type="button"
               className="botao"
@@ -233,13 +221,6 @@ export function AbaMagistrados({ edicao }: { edicao: Edicao }) {
         />
       )}
 
-      {importando && (
-        <ModalImportacao
-          edicaoId={edicao.id}
-          aoFechar={() => setImportando(false)}
-          aoImportar={carregar}
-        />
-      )}
     </>
   )
 }
@@ -934,121 +915,6 @@ function ModalNovaUnidade({
           maior dos dois.
         </span>
       </div>
-    </Modal>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Importacao em lote                                                  */
-/* ------------------------------------------------------------------ */
-
-function ModalImportacao({
-  edicaoId,
-  aoFechar,
-  aoImportar,
-}: {
-  edicaoId: number
-  aoFechar: () => void
-  aoImportar: () => Promise<void>
-}) {
-  const [arquivo, setArquivo] = useState<File | null>(null)
-  const [relatorio, setRelatorio] = useState<RelatorioImportacao | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const [enviando, setEnviando] = useState(false)
-
-  async function enviar() {
-    if (!arquivo) return
-    setEnviando(true)
-    setErro(null)
-    try {
-      const dados = new FormData()
-      dados.append('arquivo', arquivo)
-      setRelatorio(
-        await api.enviarArquivo<RelatorioImportacao>(
-          `/api/edicoes/${edicaoId}/magistrados/importar`,
-          dados,
-        ),
-      )
-      await aoImportar()
-    } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : 'Falha ao importar.')
-    } finally {
-      setEnviando(false)
-    }
-  }
-
-  return (
-    <Modal
-      titulo="Importar reconhecidos"
-      descricao="Planilha CSV com as colunas email, nome, unidade e selo — e, se quiser, cpf por último."
-      aoFechar={aoFechar}
-      rodape={
-        <>
-          <button type="button" className="botao botao-neutro" onClick={aoFechar}>
-            Fechar
-          </button>
-          <button
-            type="button"
-            className="botao"
-            disabled={!arquivo || enviando}
-            onClick={() => void enviar()}
-          >
-            {enviando ? 'Importando…' : 'Importar'}
-          </button>
-        </>
-      }
-    >
-      {erro && <Aviso tom="erro">{erro}</Aviso>}
-
-      <div className="campo">
-        <label htmlFor="csv">Arquivo CSV</label>
-        <input
-          id="csv"
-          type="file"
-          accept=".csv,text/csv"
-          onChange={(evento) => setArquivo(evento.target.files?.[0] ?? null)}
-        />
-        <span className="campo-dica">
-          Várias linhas com o mesmo e-mail viram um magistrado com várias unidades. Um magistrado
-          com qualquer linha inválida é recusado inteiro e aparece no relatório; os demais entram.
-        </span>
-      </div>
-
-      {relatorio && (
-        <>
-          <Aviso
-            tom={relatorio.erros.length === 0 ? 'sucesso' : 'atencao'}
-            titulo={`${relatorio.magistradosCriados} magistrado(s) e ${relatorio.reconhecimentosCriados} reconhecimento(s) importados`}
-          >
-            <p>
-              {relatorio.linhasLidas} linha(s) lida(s), {relatorio.erros.length} com problema.
-            </p>
-          </Aviso>
-
-          {relatorio.erros.length > 0 && (
-            <div className="tabela-rolagem" style={{ maxHeight: 260, overflowY: 'auto' }}>
-              <table className="tabela">
-                <thead>
-                  <tr>
-                    <th>Linha</th>
-                    <th>Motivo</th>
-                    <th>Conteúdo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {relatorio.erros.map((linha, indice) => (
-                    <tr key={`${linha.linha}-${indice}`}>
-                      <td className="mono">{linha.linha}</td>
-                      <td>{linha.motivo}</td>
-                      <td className="secundaria mono">{linha.conteudo}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
     </Modal>
   )
 }

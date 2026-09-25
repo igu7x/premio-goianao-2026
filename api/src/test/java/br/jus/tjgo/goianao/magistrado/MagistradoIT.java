@@ -2,7 +2,6 @@ package br.jus.tjgo.goianao.magistrado;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 
 @DisplayName("Cadastro de magistrados reconhecidos (feature 004)")
 class MagistradoIT extends TesteDeIntegracao {
@@ -222,105 +220,6 @@ class MagistradoIT extends TesteDeIntegracao {
                 .andExpect(jsonPath("$.mensagem", Matchers.containsString("EGESP")));
     }
 
-    @Test
-    @DisplayName("CA-6: a importacao agrupa linhas do mesmo e-mail e reporta so as invalidas")
-    void importacaoEmLote() throws Exception {
-        Edicao edicao = novaEdicao(2076);
-
-        String csv = "email;nome;unidade;selo;cpf\n"
-                + EMAIL_MAGISTRADO + ";Rafael Bittencourt;" + UNIDADE_A + ";Ouro;"
-                + CPF_INFORMATIVO + "\n"
-                // Mesmo e-mail em outra caixa: agrupa com a linha de cima.
-                + "Rafael.Bittencourt@TJGO.example;Rafael Bittencourt;" + UNIDADE_B + ";Bronze\n"
-                + EMAIL_MAGISTRADO_2 + ";Helena Aires;Vara Que Nao Existe;Ouro\n"
-                + "nao-e-email;E-mail Ruim;" + UNIDADE_C + ";Ouro\n";
-
-        mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/magistrados/importar")
-                        .file(new MockMultipartFile("arquivo", "lote.csv", "text/csv",
-                                csv.getBytes(StandardCharsets.UTF_8)))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
-                .andExpect(status().isOk())
-                // Rafael entra com as duas unidades; as outras duas linhas viram erro.
-                .andExpect(jsonPath("$.magistradosCriados").value(1))
-                .andExpect(jsonPath("$.reconhecimentosCriados").value(2))
-                .andExpect(jsonPath("$.criados[0]").value(
-                        "Rafael Bittencourt (" + EMAIL_MAGISTRADO + ") - 2 unidade(s)"))
-                .andExpect(jsonPath("$.erros.length()").value(2))
-                .andExpect(jsonPath("$.erros[0].motivo").value("E-mail inválido ou ausente."));
-
-        mvc.perform(get("/api/edicoes/" + edicao.getId() + "/magistrados")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].email").value(EMAIL_MAGISTRADO))
-                .andExpect(jsonPath("$[0].cpfFormatado").value("204.506.702-52"))
-                .andExpect(jsonPath("$[0].reconhecimentos.length()").value(2));
-    }
-
-    @Test
-    @DisplayName("importacao: CPF preenchido e errado recusa a linha; a coluna e opcional")
-    void importacaoRecusaCpfInvalido() throws Exception {
-        Edicao edicao = novaEdicao(2064);
-
-        String csv = "email;nome;unidade;selo;cpf\n"
-                + EMAIL_MAGISTRADO + ";Rafael;" + UNIDADE_A + ";Ouro;11111111111\n"
-                + EMAIL_MAGISTRADO_2 + ";Helena;" + UNIDADE_C + ";Prata;\n";
-
-        mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/magistrados/importar")
-                        .file(new MockMultipartFile("arquivo", "lote.csv", "text/csv",
-                                csv.getBytes(StandardCharsets.UTF_8)))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.magistradosCriados").value(1))
-                .andExpect(jsonPath("$.erros.length()").value(1))
-                .andExpect(jsonPath("$.erros[0].motivo", Matchers.startsWith("CPF inválido")));
-    }
-
-    @Test
-    @DisplayName("importacao: planilha no formato antigo (CPF primeiro) e recusada inteira")
-    void importacaoFormatoAntigo() throws Exception {
-        Edicao edicao = novaEdicao(2063);
-
-        String csv = "cpf;nome;unidade;selo\n" + CPF_INFORMATIVO + ";Rafael;" + UNIDADE_A + ";Ouro\n";
-
-        mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/magistrados/importar")
-                        .file(new MockMultipartFile("arquivo", "lote.csv", "text/csv",
-                                csv.getBytes(StandardCharsets.UTF_8)))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.mensagem", Matchers.containsString("formato antigo")));
-    }
-
-    @Test
-    @DisplayName("RNF-3: magistrado com qualquer linha invalida e rejeitado inteiro")
-    void importacaoNaoDeixaMagistradoPelaMetade() throws Exception {
-        Edicao edicao = novaEdicao(2077);
-
-        String csv = EMAIL_MAGISTRADO + ";Rafael;" + UNIDADE_A + ";Ouro\n"
-                + EMAIL_MAGISTRADO + ";Rafael;" + UNIDADE_A + ";Bronze\n";
-
-        mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/magistrados/importar")
-                        .file(new MockMultipartFile("arquivo", "lote.csv", "text/csv",
-                                csv.getBytes(StandardCharsets.UTF_8)))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.magistradosCriados").value(0))
-                .andExpect(jsonPath("$.erros.length()").value(2));
-    }
-
-    @Test
-    @DisplayName("RF-11: a importacao em lote fica restrita ao rascunho")
-    void importacaoSoEmRascunho() throws Exception {
-        Edicao edicao = edicaoComLayouts(2079);
-        edicoes.tornarVigente(edicoes.publicar(edicao.getId()).getId());
-
-        String csv = EMAIL_MAGISTRADO + ";Rafael;" + UNIDADE_A + ";Ouro\n";
-
-        mvc.perform(multipart("/api/edicoes/" + edicao.getId() + "/magistrados/importar")
-                        .file(new MockMultipartFile("arquivo", "lote.csv", "text/csv",
-                                csv.getBytes(StandardCharsets.UTF_8)))
-                        .header(HttpHeaders.AUTHORIZATION, bearer(EMAIL_ADMIN)))
-                .andExpect(status().isConflict());
-    }
 
     @Test
     @DisplayName("RF-7: editar e remover ficam bloqueados apos publicar")

@@ -951,3 +951,31 @@ defeito antigo, corrigido junto: editar magistrado mantendo a mesma unidade
 dava 409 (o Hibernate inseria antes de apagar).
 
 ---
+
+## DI-31 — Uma importação só, e nada de teste no ambiente oficial
+
+**Contexto.** Havia duas importações em lote de reconhecidos. A antiga
+(004/RF-11, botão "Importar planilha" na aba de magistrados) criava o
+magistrado e o reconhecimento, casando a unidade pelo nome, só em rascunho. A
+nova (DI-27, "Subir CSV de magistrados", na aba de servidores) usa o mesmo
+formato `nome;email;unidade;selo`, aceita o código do SIEDOS, garante o usuário
+com papel de magistrado, designa quem responde pela unidade e ainda semeia a
+lista de servidores a partir do RH.
+
+**Decisão.** A antiga saiu — tela, endpoint `POST /edicoes/{id}/magistrados/
+importar`, serviço e leitor de CSV próprio. A segunda faz o que a primeira
+fazia e mais, e manter as duas significava dois formatos de unidade (nome ×
+código), duas regras de quando valem e dois caminhos para o mesmo dado. A
+inclusão avulsa de magistrado continua, que é o caminho para corrigir um caso
+isolado.
+
+**Nada de teste em produção.** Produção é o ambiente oficial: o que existe para
+testar não aparece lá. Quem decide é o servidor, em `/api/auth/situacao`, que
+passou a informar também se o RH ligado é o corporativo — nenhuma variável nova
+no frontend. Saíram de produção: o rodapé "ambiente de homologação / dados de RH
+mockados" (era texto fixo, e mentia lá), o campo de senha no cadastro de
+usuários e o botão "Baixar modelo de teste" da planilha de responsáveis. O
+servidor ignora senha recebida onde o login por senha está desligado — a tela
+esconder o campo não basta, porque a API é alcançável direto.
+
+---

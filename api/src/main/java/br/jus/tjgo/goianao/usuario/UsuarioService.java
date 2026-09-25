@@ -6,6 +6,7 @@ import br.jus.tjgo.goianao.comum.erro.ConflitoException;
 import br.jus.tjgo.goianao.comum.erro.NaoEncontradoException;
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
 import br.jus.tjgo.goianao.certificado.CertificadoEmitidoRepository;
+import br.jus.tjgo.goianao.config.GoianaoProperties;
 import br.jus.tjgo.goianao.magistrado.MagistradoRepository;
 import br.jus.tjgo.goianao.seguranca.Papel;
 import br.jus.tjgo.goianao.seguranca.UsuarioAtual;
@@ -32,18 +33,28 @@ public class UsuarioService {
     private final MagistradoRepository reconhecidos;
     private final ServidorHabilitadoRepository habilitados;
     private final UnidadeRepository unidades;
+    /**
+     * Onde o login por senha esta desligado — producao —, senha que chegue no
+     * cadastro e ignorada. A tela nem mostra o campo; isto e a guarda do lado de
+     * ca, para que nem por chamada direta a API o ambiente oficial ganhe
+     * credencial que ninguem usaria e que so aumentaria o estrago de um
+     * vazamento do banco.
+     */
+    private final boolean loginPorSenha;
 
     public UsuarioService(UsuarioRepository repositorio, PasswordEncoder encoder,
                           CertificadoEmitidoRepository certificados,
                           MagistradoRepository reconhecidos,
                           ServidorHabilitadoRepository habilitados,
-                          UnidadeRepository unidades) {
+                          UnidadeRepository unidades,
+                          GoianaoProperties props) {
         this.repositorio = repositorio;
         this.encoder = encoder;
         this.certificados = certificados;
         this.reconhecidos = reconhecidos;
         this.habilitados = habilitados;
         this.unidades = unidades;
+        this.loginPorSenha = props.login().senha();
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +72,7 @@ public class UsuarioService {
 
         Usuario usuario = new Usuario(email, dados.nome().trim(), cpf, dados.papeis());
         usuario.definirLotacao(dados.unidadeLotacao(), areaDe(dados.papeis(), dados.areaAtuacao()));
-        if (dados.senha() != null && !dados.senha().isBlank()) {
+        if (loginPorSenha && dados.senha() != null && !dados.senha().isBlank()) {
             usuario.definirSenhaHash(encoder.encode(dados.senha()));
         }
         return repositorio.save(usuario);
@@ -87,7 +98,7 @@ public class UsuarioService {
 
         usuario.alterarDados(dados.nome().trim(), cpf, dados.unidadeLotacao(),
                 areaDe(papeis, dados.areaAtuacao()), papeis);
-        if (dados.senha() != null && !dados.senha().isBlank()) {
+        if (loginPorSenha && dados.senha() != null && !dados.senha().isBlank()) {
             usuario.definirSenhaHash(encoder.encode(dados.senha()));
         }
         return usuario;

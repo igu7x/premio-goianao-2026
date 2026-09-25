@@ -1,7 +1,6 @@
 package br.jus.tjgo.goianao.magistrado;
 
 import br.jus.tjgo.goianao.comum.erro.RegraDeNegocioException;
-import br.jus.tjgo.goianao.magistrado.dto.ImportacaoResposta;
 import br.jus.tjgo.goianao.magistrado.dto.MagistradoRequisicao;
 import br.jus.tjgo.goianao.magistrado.dto.MagistradoResposta;
 import br.jus.tjgo.goianao.magistrado.dto.ReconhecimentoRequisicao;
@@ -31,12 +30,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class MagistradoController {
 
     private final MagistradoService servico;
-    private final ImportacaoMagistradosService importacao;
 
-    public MagistradoController(MagistradoService servico,
-                                ImportacaoMagistradosService importacao) {
+    public MagistradoController(MagistradoService servico) {
         this.servico = servico;
-        this.importacao = importacao;
     }
 
     @GetMapping
@@ -75,16 +71,4 @@ public class MagistradoController {
         servico.remover(edicaoId, magistradoId);
     }
 
-    @PostMapping(path = "/importar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ImportacaoResposta importar(@PathVariable Long edicaoId,
-                                       @RequestPart("arquivo") MultipartFile arquivo) {
-        if (arquivo == null || arquivo.isEmpty()) {
-            throw new RegraDeNegocioException("Envie o arquivo CSV com os reconhecidos.");
-        }
-        try {
-            return importacao.importar(edicaoId, arquivo.getBytes());
-        } catch (IOException e) {
-            throw new UncheckedIOException("Falha ao ler o arquivo enviado.", e);
-        }
-    }
 }

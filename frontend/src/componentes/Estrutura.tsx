@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useMatch } from 'react-router-dom'
 import { api } from '../api/cliente'
-import type { Edicao, SituacaoDoAmbiente } from '../api/tipos'
+import type { Edicao } from '../api/tipos'
+import { useAmbiente } from '../sessao/Ambiente'
 import { useSessao } from '../sessao/SessaoContexto'
 import { Icone, type NomeDeIcone } from './Icone'
 import { SeletorDeEdicao } from './SeletorDeEdicao'
@@ -51,18 +52,7 @@ export function Estrutura({ children }: { children?: React.ReactNode }) {
   // O rodapé só avisa o que é verdade neste ambiente. Em produção, com SSO e
   // RH de verdade, não há aviso nenhum — e era justamente ali que o texto fixo
   // dizia "ambiente de homologação, dados de RH mockados".
-  const [ambiente, setAmbiente] = useState<SituacaoDoAmbiente | null>(null)
-
-  useEffect(() => {
-    let ativo = true
-    api
-      .get<SituacaoDoAmbiente>('/api/auth/situacao')
-      .then((s) => ativo && setAmbiente(s))
-      .catch(() => ativo && setAmbiente(null))
-    return () => {
-      ativo = false
-    }
-  }, [])
+  const ambiente = useAmbiente()
 
   useEffect(() => {
     const id = dentroDaEdicao?.params.edicaoId

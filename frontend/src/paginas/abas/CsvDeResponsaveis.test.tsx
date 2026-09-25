@@ -99,7 +99,12 @@ describe('Planilha de magistrados responsáveis', () => {
   })
 
   it('o modelo de teste usa os códigos reais das unidades cadastradas', async () => {
-    instalarApiFalsa([['/api/unidades/cadastradas', { corpo: UNIDADES }]])
+    // O modelo de exemplo só existe em ambiente de teste (produção é o
+    // ambiente oficial): a situação abaixo é a de homologação.
+    instalarApiFalsa([
+      ['/api/auth/situacao', { corpo: { sso: true, senha: true, mock: false, rhReal: false } }],
+      ['/api/unidades/cadastradas', { corpo: UNIDADES }],
+    ])
 
     // O download é interceptado para conferir o conteúdo gerado.
     let gerado = ''
