@@ -26,6 +26,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Sem isso o sistema nasce sem ninguem que possa cadastrar usuarios, e a
  * unica saida seria inserir a linha a mao no banco.
  *
+ * <p><b>O que a variavel garante e aquele e-mail</b>, e nao "algum
+ * superadministrador". A primeira versao parava assim que encontrava qualquer
+ * superadmin na base — e em producao isso deu no que tinha de dar: a migracao
+ * 009 planta um superadmin de bootstrap, a aplicacao o encontrava, ficava calada,
+ * e o e-mail corporativo configurado nunca era criado. Ninguem conseguia entrar:
+ * a conta plantada so tem senha, e ali o acesso e pelo SSO.
+ *
  * <p><b>A senha nunca fica no repositorio.</b> Ela vem de
  * {@code GOIANAO_SUPERADMIN_SENHA} e e gravada como hash BCrypt — o valor em
  * claro nao e guardado nem registrado em log. Enquanto o login por senha
@@ -91,17 +98,21 @@ public class SuperadminInicial {
     }
 
     private void criarNaBaseCorrente() {
-        boolean jaExiste = !usuarios.superadminsAtivos(Papel.SUPERADMIN).isEmpty();
-        if (jaExiste) {
+        // Sem e-mail configurado nao ha o que garantir: so avisa se a base ficou
+        // sem nenhum superadministrador, que e o estado em que ninguem administra.
+        if (email.isBlank()) {
+            if (usuarios.superadminsAtivos(Papel.SUPERADMIN).isEmpty()) {
+                log.warn("Nenhum superadministrador cadastrado. Defina "
+                        + "GOIANAO_SUPERADMIN_EMAIL (e GOIANAO_SUPERADMIN_SENHA, onde houver "
+                        + "login por senha) e reinicie para criar o primeiro acesso.");
+            }
             return;
         }
 
         // Todas de uma vez: avisar de uma e so cobrar a proxima na subida
         // seguinte faz a pessoa descobrir o que falta em duas tentativas.
         List<String> faltando = new ArrayList<>();
-        if (email.isBlank()) {
-            faltando.add("GOIANAO_SUPERADMIN_EMAIL");
-        } else if (!Email.valido(email)) {
+        if (!Email.valido(email)) {
             faltando.add("GOIANAO_SUPERADMIN_EMAIL (o valor informado não é um e-mail válido)");
         }
         // Com SSO como unica porta de entrada, senha nao faz falta nenhuma.
@@ -122,9 +133,24 @@ public class SuperadminInicial {
         }
 
         String emailNormalizado = Email.normalizar(email);
-        if (usuarios.existsByEmailIgnoreCase(emailNormalizado)) {
-            log.warn("Já existe usuário com o e-mail do superadministrador inicial, mas sem o "
-                    + "papel. Promova-o pelo cadastro de usuários.");
+
+        // Ja cadastrado: garante o papel e o acesso, em vez de mandar promover a
+        // mao — quem promove e o superadministrador, e e justamente ele que falta.
+        Usuario existente = usuarios.findByEmailIgnoreCase(emailNormalizado).orElse(null);
+        if (existente != null) {
+            boolean mudou = false;
+            if (!existente.getPapeis().contains(Papel.SUPERADMIN)) {
+                existente.concederPapel(Papel.SUPERADMIN);
+                mudou = true;
+            }
+            if (!existente.isAtivo()) {
+                existente.ativar();
+                mudou = true;
+            }
+            if (mudou) {
+                usuarios.save(existente);
+                log.info("Superadministrador garantido para {}.", emailNormalizado);
+            }
             return;
         }
 
