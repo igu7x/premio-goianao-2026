@@ -97,13 +97,26 @@ goianao:
     claims-email: ${OPENSHIFT_SSO_CLAIMS_EMAIL:email,preferred_username}
     claim-nome: ${OPENSHIFT_SSO_CLAIMS_NAME:name}
   # API corporativa do TJGO (ConnectTJ), que le o SIEDOS e o cadastro de
-  # pessoal. Vazio ate o client existir: sem as quatro propriedades a
-  # integracao fica desligada e valem os dados mockados -- o mesmo criterio do
-  # SSO. O token e obtido por client_credentials e vale 5 minutos.
+  # pessoal. Sem client e credencial a integracao fica desligada e valem os
+  # dados mockados -- o mesmo criterio do SSO. O token e obtido por
+  # client_credentials, assinado com a chave privada do client (DI-32).
+  #
+  # Enderecos: o padrao e PRODUCAO, como no guia do ConnectTJ -- la a infra
+  # entrega so a chave e o client. Homologacao define os dois (realm DG-TST).
+  #
+  # O client do ConnectTJ NAO cai em OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID: aqui
+  # esse nome ja e o client do LOGIN das pessoas, que troca o codigo por
+  # segredo. Um client so nao serve aos dois, e emprestar o id do login so
+  # produziria um invalid_client sem explicacao.
   connecttj:
-    url: ${GOIANAO_CONNECTTJ_URL:}
-    token-url: ${GOIANAO_CONNECTTJ_TOKEN_URL:}
+    url: ${GOIANAO_CONNECTTJ_URL:${OPENSHIFT_API_URL_CONNECTTJ:https://connecttj-api.tjgo.jus.br}}
+    token-url: ${GOIANAO_CONNECTTJ_TOKEN_URL:https://sso.tjgo.jus.br/auth/realms/tjgo.jus.br-2fa/protocol/openid-connect/token}
     client-id: ${GOIANAO_CONNECTTJ_CLIENT_ID:}
+    # PKCS#8 em PEM, Ed25519 (producao) ou RSA (homologacao). Nome padrao do
+    # tribunal, aceito tambem com o prefixo do sistema.
+    chave-privada: ${GOIANAO_CONNECTTJ_PRIVATE_KEY:${OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY:}}
+    # Modelo antigo, por segredo: so vale sem chave. Fica enquanto
+    # homologacao nao troca de client.
     client-secret: ${GOIANAO_CONNECTTJ_SECRET:}
     # Quantos lotados por pagina ao varrer uma unidade.
     tamanho-pagina: ${GOIANAO_CONNECTTJ_TAMANHO_PAGINA:100}

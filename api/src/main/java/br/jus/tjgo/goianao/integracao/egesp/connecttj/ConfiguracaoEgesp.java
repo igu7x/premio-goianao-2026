@@ -15,7 +15,9 @@ import org.springframework.web.client.RestClient;
  *
  * <p>A escolha e explicita, e nao uma condicao espalhada por anotacoes, porque
  * ela precisa ir para o log: "esta pegando dados de onde?" e a primeira
- * pergunta quando a lista de uma unidade vem diferente do esperado.
+ * pergunta quando a lista de uma unidade vem diferente do esperado. O log diz
+ * tambem <i>como</i> o sistema se identifica — chave ou segredo —, porque e a
+ * pergunta seguinte quando o Keycloak recusa o client.
  */
 @Configuration
 public class ConfiguracaoEgesp {
@@ -26,12 +28,20 @@ public class ConfiguracaoEgesp {
     @Primary
     public EgespClient egespClient(ConnectTjProperties props, RestClient.Builder builder,
                                    MockEgespClient mock) {
-        if (props.habilitado()) {
-            log.info("RH: integracao com a API corporativa habilitada.");
-            return new ConnectTjEgespClient(props, builder);
+        if (!props.habilitado()) {
+            log.warn("RH: integracao corporativa nao configurada; valem os dados mockados. "
+                    + "Falta: {}.", String.join(", ", props.faltando()));
+            return mock;
         }
-        log.warn("RH: integracao corporativa nao configurada; valem os dados mockados. "
-                + "Defina GOIANAO_CONNECTTJ_URL, _TOKEN_URL, _CLIENT_ID e _SECRET para ligar.");
-        return mock;
+        ConnectTjEgespClient cliente = new ConnectTjEgespClient(props, builder);
+        if (props.usaChave()) {
+            log.info("RH: integracao com a API corporativa habilitada ({}, client {}, "
+                    + "assinatura {}).", props.url(), props.clientId(), cliente.algoritmo());
+        } else {
+            log.warn("RH: integracao com a API corporativa habilitada ({}, client {}) pelo "
+                    + "SEGREDO compartilhado, modelo que o tribunal esta abandonando. Troque "
+                    + "por OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY (DI-32).", props.url(), props.clientId());
+        }
+        return cliente;
     }
 }

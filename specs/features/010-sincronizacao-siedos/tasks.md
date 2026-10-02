@@ -25,9 +25,33 @@
 - [x] **T-008** — Tela de sincronização no frontend. _(satisfaz: RF-3, RF-10)_
 - [x] **T-009** — Variáveis novas em `specs/deploy/variaveis-de-ambiente.md` e
       DI-25 + diário. _(satisfaz: RNF-1)_
+- [x] **T-010** — Token por Signed JWT: `AssercaoDoClient` (Ed25519/EdDSA e
+      RSA/RS256 pelo tipo da chave), `TokenConnectTj` com assertion e segredo
+      só como modelo antigo, endereços de produção como padrão. DI-32.
+      _(satisfaz: RF-1, RNF-1, CA-9)_
+- [x] **T-011** — Falhas de credencial e de autorização com motivo: recusa do
+      Keycloak, 403 por recurso (sem query string) e 502 na resposta.
+      _(satisfaz: RNF-2)_
+- [ ] **T-012** — Client de produção (infra) e cadastro no ConnectTJ de
+      produção com `UNIDADES`, `SERVIDORES` e `AD` (admin do ConnectTJ).
+      _(satisfaz: RF-1)_
 
 ## Definição de pronto (Definition of Done)
 
 - [x] Critérios de aceitação da spec verificados (menos os que dependem da API real: falta o client)
 - [x] `mvn -o test` (206) e `npm test` (19) verdes
 - [x] Nada de credencial versionado
+
+## Implementação
+
+**2026-10-02 — Signed JWT (DI-32).** O ConnectTJ abandonou o segredo
+compartilhado: cada sistema tem o próprio client e assina a prova de
+identidade com a chave privada dele. O contrato da feature não muda — RF-1
+continua sendo "autenticar-se por conta própria" —; muda o como, que está na
+DI-32. Código em `integracao/egesp/connecttj/`: `AssercaoDoClient` (nova),
+`TokenConnectTj`, `ConnectTjProperties` (`chavePrivada`, `faltando()`) e
+`ConfiguracaoEgesp` (o log diz o que falta e como o sistema se identifica).
+O 502 com o motivo está em `TratadorDeErros`.
+
+O client de homologação é `ces-goianao-service-stag`, no realm `DG-TST`.
+A chave dele **não** está no repositório.

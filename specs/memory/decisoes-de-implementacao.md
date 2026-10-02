@@ -979,3 +979,61 @@ servidor ignora senha recebida onde o login por senha está desligado — a tela
 esconder o campo não basta, porque a API é alcançável direto.
 
 ---
+
+## DI-32 — O sistema se identifica ao ConnectTJ por chave, não por segredo
+
+**Contexto.** Em 2026-10 a equipe do ConnectTJ mudou o padrão de autenticação
+(guia "Integrando com o ConnectTJ usando Signed JWT", 2026-10-01). O
+`client_secret` compartilhado (`api-connect`, o mesmo para vários sistemas)
+saiu: cada sistema tem o **próprio client**, do tipo *service account*, e prova
+quem é assinando um JWT curto com a **chave privada** dele (RFC 7523). O
+ConnectTJ passou também a conferir, pelo `azp` do token, se aquele client tem o
+**recurso** da rota (`UNIDADES`, `SERVIDORES`, `AD`), cadastrado por ambiente.
+
+**Decisão.** O token continua sendo pedido por `client_credentials`; muda só a
+credencial. `AssercaoDoClient` monta a assertion — `iss` e `sub` são o client,
+`aud` é o endereço do token, `jti` novo a cada pedido, validade de 120 s — e
+assina. O algoritmo sai do **tipo da chave**: Ed25519 assina com EdDSA
+(produção, chave gerada pela infra), RSA com RS256 (homologação). A mesma imagem
+serve aos dois ambientes sem variável de algoritmo para esquecer na promoção.
+
+- **Os endereços têm produção como padrão**, como no guia. Lá a infra entrega
+  só o client e a chave; homologação define URL e token do `DG-TST`.
+- **O client do ConnectTJ tem variável própria**, `GOIANAO_CONNECTTJ_CLIENT_ID`.
+  O guia o entrega em `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID`, mas aqui esse nome já
+  é o client do **login** (DI-15), que troca o código por segredo. Um client
+  autenticado por Signed JWT não serve ao login por segredo; ler o mesmo nome
+  obrigaria a infra a sobrescrever um com o outro, e o SSO pararia. Não há
+  sequer fallback para ele: emprestar o id do login só produziria um
+  `invalid_client` sem explicação.
+- **A chave aceita o nome padrão do tribunal**,
+  `OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY` (que não colide com nada), e também
+  `GOIANAO_CONNECTTJ_PRIVATE_KEY`. É lida como a infra conseguir colar: com
+  quebras, numa linha, com `\n` literal ou sem marcadores.
+- **Chave presente e ilegível impede a subida**, com o motivo e sem a chave no
+  log. Chave ausente continua valendo o mock (DI-25): ausência é "ainda não
+  configurado", ilegível é erro de configuração, e cair no mock em silêncio
+  esconderia o erro até alguém estranhar os dados.
+- **O segredo continua aceito, só sem chave**, e o log avisa que é o modelo
+  antigo. Homologação usa segredo até trocar de client; tirá-lo agora deixaria
+  stag no mock no próximo push.
+- **Falha da API vira 502 com o motivo**, e não "erro inesperado". O Keycloak
+  responde `invalid_client` para qualquer defeito do client, e a mensagem diz
+  que foi ele, e onde olhar. O 403 do ConnectTJ leva a mensagem dele ("Cliente
+  não autorizado", "Acesso não autorizado ao recurso X") e a rota **sem a query
+  string**, que no AD carrega CPF. Quem vê é o superadministrador, que não lê o
+  log do pod.
+
+**Alternativa descartada.** Usar o mesmo client para o login e para o ConnectTJ,
+lendo `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID` como manda o guia. Exigiria passar o
+login também para Signed JWT — mudança no fluxo de entrada de todo mundo, por
+causa de uma integração que só o superadministrador usa.
+
+**Consequência.** Produção precisa de duas variáveis, homologação de quatro
+(`specs/deploy/variaveis-de-ambiente.md`). Além delas, o client tem de estar
+cadastrado no ConnectTJ **de cada ambiente** com `UNIDADES`, `SERVIDORES` e
+`AD`. Verificado em `AssercaoDoClientTest` (assinatura conferida com a chave
+pública, nos dois algoritmos) e `ConnectTjEgespClientTest`; contra o `DG-TST`,
+em `ConnectTjRealIT`.
+
+---

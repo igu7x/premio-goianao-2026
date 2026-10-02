@@ -7,10 +7,12 @@ import br.jus.tjgo.goianao.integracao.egesp.LotadoEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.ResponsavelEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.ServidorEgesp;
 import br.jus.tjgo.goianao.integracao.egesp.UnidadeEgesp;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -31,17 +33,29 @@ import org.springframework.web.client.RestClient;
 public class ConnectTjEgespClient implements EgespClient {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectTjEgespClient.class);
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final ConnectTjProperties props;
     private final RestClient http;
     private final TokenConnectTj token;
     private final RitmoDeChamadas ritmo;
+    private final AssercaoDoClient assercao;
 
+    /**
+     * Com chave, ela e lida aqui — na subida, porque o bean nasce com o
+     * contexto: chave ilegivel impede o pod de subir (DI-32).
+     */
     public ConnectTjEgespClient(ConnectTjProperties props, RestClient.Builder builder) {
         this.props = props;
         this.http = builder.build();
-        this.token = new TokenConnectTj(props, this.http);
+        this.assercao = props.usaChave() ? new AssercaoDoClient(props.chavePrivada()) : null;
+        this.token = new TokenConnectTj(props, this.http, assercao);
         this.ritmo = new RitmoDeChamadas(props.requisicoesPorSegundo());
+    }
+
+    /** "EdDSA", "RS256" ou, no modelo antigo, "segredo". So para o log. */
+    String algoritmo() {
+        return assercao == null ? "segredo" : assercao.algoritmo();
     }
 
     @Override
@@ -297,12 +311,20 @@ public class ConnectTjEgespClient implements EgespClient {
             token.invalidar();
             try {
                 return chamar(caminho, tipo);
+            } catch (ConnectTjException falha) {
+                throw falha;
             } catch (RuntimeException falha) {
                 throw new ConnectTjException(
                         "A API corporativa recusou as credenciais do sistema.", falha);
             }
+        } catch (HttpClientErrorException.Forbidden e) {
+            throw new ConnectTjException(negado(caminho, e), e);
         } catch (HttpClientErrorException.NotFound e) {
             return null;
+        } catch (ConnectTjException e) {
+            // Ja vem com o motivo (o Keycloak recusou o client); embrulhar de
+            // novo trocaria a causa por "falha ao consultar".
+            throw e;
         } catch (RuntimeException e) {
             throw new ConnectTjException("Falha ao consultar a API corporativa.", e);
         }
@@ -315,6 +337,27 @@ public class ConnectTjEgespClient implements EgespClient {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.obter())
                 .retrieve()
                 .body(tipo);
+    }
+
+    /**
+     * No modelo novo o token valido nao basta: o ConnectTJ confere se o client
+     * tem o <b>recurso</b> da rota (SERVIDORES, UNIDADES, AD) e responde 403
+     * dizendo qual falta. A mensagem dele vai junto, porque e ela que diz o que
+     * pedir ao administrador do ConnectTJ. A query string fica de fora: a do AD
+     * leva CPF, e esta mensagem vai para o log.
+     */
+    private static String negado(String caminho, HttpClientErrorException e) {
+        String rota = caminho.contains("?") ? caminho.substring(0, caminho.indexOf('?')) : caminho;
+        String motivo = null;
+        try {
+            Object mensagem = JSON.readValue(e.getResponseBodyAsString(), Map.class).get("message");
+            motivo = mensagem == null ? null : mensagem.toString();
+        } catch (Exception corpoSemJson) {
+            // Sem corpo legivel, fica so a rota.
+        }
+        return "A API corporativa negou acesso a " + rota
+                + (motivo == null ? "" : " (" + motivo + ")")
+                + ". O client do sistema precisa ter esse recurso liberado no ConnectTJ.";
     }
 
     /** Usado só para valores que vão na query string. */

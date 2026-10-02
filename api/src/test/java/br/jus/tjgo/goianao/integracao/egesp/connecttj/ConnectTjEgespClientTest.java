@@ -1,6 +1,7 @@
 package br.jus.tjgo.goianao.integracao.egesp.connecttj;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -41,7 +43,7 @@ class ConnectTjEgespClientTest {
         builder = RestClient.builder();
         servidor = MockRestServiceServer.bindTo(builder).build();
         cliente = new ConnectTjEgespClient(
-                new ConnectTjProperties(API, TOKEN_URL, "goianao", "segredo", 2, "tjgo.jus.br", 50),
+                new ConnectTjProperties(API, TOKEN_URL, "goianao", null, "segredo", 2, "tjgo.jus.br", 50),
                 builder);
     }
 
@@ -175,6 +177,75 @@ class ConnectTjEgespClientTest {
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         assertThat(cliente.servidorPorMatricula(9)).isEmpty();
+        servidor.verify();
+    }
+
+    @Test
+    @DisplayName("com chave, o token e pedido por assertion assinada e o segredo nunca sai")
+    void tokenPorAssercao() {
+        RestClient.Builder comChave = RestClient.builder();
+        MockRestServiceServer keycloak = MockRestServiceServer.bindTo(comChave).build();
+        ConnectTjEgespClient assinado = new ConnectTjEgespClient(
+                new ConnectTjProperties(API, TOKEN_URL, "ces-goianao",
+                        ChavesDeTeste.pem(ChavesDeTeste.ed25519()), "segredo-antigo",
+                        2, "tjgo.jus.br", 50),
+                comChave);
+        keycloak.expect(requestTo(TOKEN_URL))
+                .andExpect(requisicao -> {
+                    String corpo = ((MockClientHttpRequest) requisicao).getBodyAsString();
+                    assertThat(corpo)
+                            .contains("grant_type=client_credentials")
+                            .contains("client_id=ces-goianao")
+                            .contains("client_assertion_type=urn%3Aietf%3Aparams%3Aoauth"
+                                    + "%3Aclient-assertion-type%3Ajwt-bearer")
+                            .contains("client_assertion=ey")
+                            .doesNotContain("client_secret")
+                            .doesNotContain("segredo-antigo");
+                })
+                .andRespond(withSuccess("{\"access_token\":\"abc\",\"expires_in\":300}",
+                        MediaType.APPLICATION_JSON));
+        keycloak.expect(requestTo(API + "/api/v1/servidores/buscar-por-matricula?matricula=9"))
+                .andExpect(header("Authorization", "Bearer abc"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        assertThat(assinado.algoritmo()).isEqualTo("EdDSA");
+        assertThat(assinado.servidorPorMatricula(9)).isEmpty();
+        keycloak.verify();
+    }
+
+    @Test
+    @DisplayName("Keycloak recusando o client vira mensagem que aponta o Keycloak, sem insistir")
+    void keycloakRecusa() {
+        servidor.expect(requestTo(TOKEN_URL))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .body("{\"error\":\"invalid_client\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> cliente.servidorPorMatricula(5))
+                .isInstanceOf(ConnectTjException.class)
+                .hasMessageContaining("O Keycloak recusou o client goianao")
+                .hasMessageContaining("HTTP 401");
+        // Um pedido de token so: o verify falharia com uma segunda tentativa.
+        servidor.verify();
+    }
+
+    @Test
+    @DisplayName("403 por recurso nao liberado diz qual, e a query (que pode ter CPF) fica fora")
+    void recursoNaoLiberado() {
+        esperarToken();
+        servidor.expect(requestTo(API + "/api/v1/servidores/buscar-por-matricula?matricula=5"))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .body("""
+                                {"status":403,"code":"FORBIDDEN",
+                                 "message":"Acesso não autorizado ao recurso SERVIDORES"}
+                                """)
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> cliente.servidorPorMatricula(5))
+                .isInstanceOf(ConnectTjException.class)
+                .hasMessageContaining("/api/v1/servidores/buscar-por-matricula")
+                .hasMessageContaining("Acesso não autorizado ao recurso SERVIDORES")
+                .hasMessageNotContaining("matricula=5");
         servidor.verify();
     }
 }

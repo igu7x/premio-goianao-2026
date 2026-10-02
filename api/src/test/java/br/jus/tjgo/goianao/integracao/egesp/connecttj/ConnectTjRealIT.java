@@ -14,7 +14,7 @@ import org.springframework.web.client.RestClient;
 /**
  * Conversa com a API corporativa <b>de verdade</b>.
  *
- * <p>Fica desligado por padrao e so roda quando as quatro variaveis existem no
+ * <p>Fica desligado por padrao e so roda quando client e credencial existem no
  * ambiente — nenhuma credencial entra no repositorio, que e publico. E o teste
  * que responde "a integracao funciona mesmo?", coisa que mock nenhum responde:
  * ele exercita token, paginacao e a resolucao do e-mail pela matricula contra o
@@ -25,10 +25,14 @@ import org.springframework.web.client.RestClient;
  * <pre>
  * $env:GOIANAO_CONNECTTJ_URL="https://connecttj-api-stag.tjgo.jus.br"
  * $env:GOIANAO_CONNECTTJ_TOKEN_URL="https://sso.tjgo.jus.br/auth/realms/DG-TST/protocol/openid-connect/token"
- * $env:GOIANAO_CONNECTTJ_CLIENT_ID="..."
- * $env:GOIANAO_CONNECTTJ_SECRET="..."
+ * $env:GOIANAO_CONNECTTJ_CLIENT_ID="ces-goianao-stag"
+ * $env:GOIANAO_CONNECTTJ_PRIVATE_KEY=Get-Content -Raw C:caminhooradoepositoriochave.pem
  * mvn -o test -Dtest=ConnectTjRealIT
  * </pre>
+ *
+ * <p>A chave fica <b>fora</b> do repositorio, sempre — inclusive a de
+ * homologacao. Sem ela, {@code GOIANAO_CONNECTTJ_SECRET} ainda serve ao modelo
+ * antigo.
  */
 @DisplayName("API corporativa de verdade (so com credenciais no ambiente)")
 @EnabledIfEnvironmentVariable(named = "GOIANAO_CONNECTTJ_CLIENT_ID", matches = ".+")
@@ -42,14 +46,23 @@ class ConnectTjRealIT {
                 System.getenv("GOIANAO_CONNECTTJ_URL"),
                 System.getenv("GOIANAO_CONNECTTJ_TOKEN_URL"),
                 System.getenv("GOIANAO_CONNECTTJ_CLIENT_ID"),
+                chave(),
                 System.getenv("GOIANAO_CONNECTTJ_SECRET"),
                 100,
                 "tjgo.jus.br",
                 6);
         assertThat(props.habilitado())
-                .as("as quatro variaveis precisam estar definidas")
+                .as("faltam variaveis: %s", props.faltando())
                 .isTrue();
         return new ConnectTjEgespClient(props, RestClient.builder());
+    }
+
+    /** Os mesmos dois nomes que a aplicacao aceita (application.yml). */
+    private static String chave() {
+        String propria = System.getenv("GOIANAO_CONNECTTJ_PRIVATE_KEY");
+        return propria != null && !propria.isBlank()
+                ? propria
+                : System.getenv("OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY");
     }
 
     @Test

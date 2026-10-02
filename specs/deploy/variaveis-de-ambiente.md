@@ -304,33 +304,48 @@ superadministrador foi cadastrado. Como o login por senha depende de alguém
 existir no cadastro, sem elas não há como entrar em homologação a não ser pelo
 SSO.
 
-## API corporativa do TJGO — ConnectTJ (2026-09-14)
+## API corporativa do TJGO — ConnectTJ (2026-09-14; Signed JWT desde 2026-10-02)
 
 A integração com o RH (unidades, lotações e dados cadastrais) fala com a API
-ConnectTJ, que lê o SIEDOS. **As quatro primeiras são obrigatórias juntas:**
-faltando qualquer uma, a integração se declara desligada, o sistema usa os dados
-mockados e o log diz o que falta — a aplicação não deixa de subir por isso.
+ConnectTJ, que lê o SIEDOS. **Liga com o client e a chave privada:** faltando
+qualquer um, a integração se declara desligada, o sistema usa os dados mockados
+e o log diz o que falta — a aplicação não deixa de subir por isso. Chave
+**presente e ilegível**, ao contrário, impede a subida, com o motivo no log
+(DI-32).
 
 | Variável | Obrigatória | O que é |
 | --- | --- | --- |
-| `GOIANAO_CONNECTTJ_URL` | não¹ | Base da API, com esquema (homologação: `https://connecttj-api-stag.tjgo.jus.br`). |
-| `GOIANAO_CONNECTTJ_TOKEN_URL` | não¹ | Endereço do token no Keycloak. Em homologação, realm `DG-TST`: `https://sso.tjgo.jus.br/auth/realms/DG-TST/protocol/openid-connect/token`. O token é obtido por `client_credentials` e vale 5 minutos. |
-| `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão na API. |
-| `GOIANAO_CONNECTTJ_SECRET` | não¹ | Segredo do client. **Secret, nunca ConfigMap.** |
+| `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão no Keycloak, do tipo *service account*. Homologação: `ces-goianao-service-stag`. **Não** é o `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID`: esse é o client do login das pessoas, e os dois não podem ser o mesmo (ver abaixo). |
+| `OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY` | não¹ | Chave privada do client, PKCS#8 em PEM sem senha (`BEGIN PRIVATE KEY`). Ed25519 em produção, gerada pela infra; RSA em homologação. **Secret, nunca ConfigMap.** Aceita também como `GOIANAO_CONNECTTJ_PRIVATE_KEY`. Pode vir com quebras de linha, numa linha só ou sem os marcadores. |
+| `GOIANAO_CONNECTTJ_URL` | não | Base da API. Padrão: produção, `https://connecttj-api.tjgo.jus.br` (aceita também `OPENSHIFT_API_URL_CONNECTTJ`). Homologação: `https://connecttj-api-stag.tjgo.jus.br`. |
+| `GOIANAO_CONNECTTJ_TOKEN_URL` | não | Endereço do token, que é também o `aud` da assertion. Padrão: produção, realm `tjgo.jus.br-2fa`. Homologação: `https://sso.tjgo.jus.br/auth/realms/DG-TST/protocol/openid-connect/token`. |
+| `GOIANAO_CONNECTTJ_SECRET` | não | **Modelo antigo**, por segredo compartilhado. Só é usado quando não há chave, e o log avisa. Sai quando homologação tiver trocado de client. |
 | `GOIANAO_CONNECTTJ_TAMANHO_PAGINA` | não | Lotados por página ao varrer uma unidade. Padrão `100`. |
 | `GOIANAO_CONNECTTJ_DOMINIO_EMAIL` | não | Padrão `tjgo.jus.br`. Boa parte dos lotados vem do RH sem e-mail; para esses, o login do AD mais este domínio reconstrói o endereço. |
 | `GOIANAO_CONNECTTJ_REQUISICOES_POR_SEGUNDO` | não | Teto de chamadas à API, combinado com a equipe dela. Padrão `6`. Comparar ou importar uma unidade dispara uma chamada por pessoa; o freio espaça as chamadas em vez de mandá-las em rajada. |
 
-¹ Juntas: sem as quatro, valem os dados mockados.
+¹ Juntas: sem client e chave (ou, no modelo antigo, segredo), valem os dados
+mockados.
 
-**Sobre o realm:** é `DG-TST` por enquanto (informado em 2026-09-15), **ainda
-não é o definitivo** — é um realm diferente do `tjgo.gov-tst`, usado no login
-das pessoas. Por isso o endereço do token é variável, e não montado no código a
-partir do realm do SSO: quando sair a versão definitiva, troca-se a variável e
-reinicia, sem build novo.
+**Produção precisa de duas:** `GOIANAO_CONNECTTJ_CLIENT_ID` e
+`OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY`. Os endereços já têm produção como
+padrão. **Homologação** precisa das quatro: as duas, mais `_URL` e
+`_TOKEN_URL` apontando para o `DG-TST`.
 
-**O que ainda falta pedir:** o client (id e secret). Sem token, a API responde
-401 até em homologação.
+**Por que o client não vem em `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID`**, como no
+guia do ConnectTJ: neste sistema esse nome já existe e é o client do **login**,
+que troca o código de autorização por segredo. O client do ConnectTJ é outro —
+*service account*, autenticado por Signed JWT —, e um client com Signed JWT não
+autentica o login por segredo. Se a infra entregar o client do ConnectTJ com
+aquele nome, ela **substitui** o do login e o SSO para de funcionar. Por isso o
+pedido à infra é entregar o id em `GOIANAO_CONNECTTJ_CLIENT_ID` e não tocar no
+`OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID`.
+
+**Autorização no ConnectTJ.** Token válido não basta: um administrador do
+ConnectTJ cadastra o client com os recursos `UNIDADES`, `SERVIDORES` e
+`AD`, **em cada ambiente**. Sem o cadastro, a API responde 403 "Cliente não
+autorizado"; sem um recurso, 403 "Acesso não autorizado ao recurso X". As duas
+mensagens aparecem na tela e no log, com a rota.
 
 **Como conferir sem acesso ao cluster:** `GET <api>/api/sincronizacao/situacao`
 (exige superadministrador) responde `"ligada": true` quando a integração está

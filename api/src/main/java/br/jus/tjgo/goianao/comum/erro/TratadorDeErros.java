@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.comum.erro;
 
+import br.jus.tjgo.goianao.integracao.egesp.connecttj.ConnectTjException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
@@ -175,6 +176,20 @@ public class TratadorDeErros {
         log.warn("Violacao de integridade: {}", e.getMostSpecificCause().getMessage());
         return resposta(HttpStatus.CONFLICT, "conflito",
                 "A operação viola uma restrição de unicidade ou integridade.", List.of());
+    }
+
+    /**
+     * Falha da API corporativa e erro de <b>terceiro</b>: 502, com a mensagem
+     * dela. As falhas que sobram depois de configurado sao de cadastro no
+     * Keycloak ou no ConnectTJ ("Cliente nao autorizado", recurso nao
+     * liberado), e quem as ve na tela e o superadministrador, que nao tem acesso
+     * ao log do pod — "erro inesperado" o deixaria sem o que repassar a equipe
+     * da API. As mensagens nao levam credencial nem dado pessoal.
+     */
+    @ExceptionHandler(ConnectTjException.class)
+    public ResponseEntity<ErroResposta> rhIndisponivel(ConnectTjException e) {
+        log.warn("API corporativa: {}", e.getMessage(), e);
+        return resposta(HttpStatus.BAD_GATEWAY, "rh_indisponivel", e.getMessage(), List.of());
     }
 
     @ExceptionHandler(Exception.class)
