@@ -316,7 +316,7 @@ e o log diz o que falta — a aplicação não deixa de subir por isso. Chave
 
 | Variável | Obrigatória | O que é |
 | --- | --- | --- |
-| `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão no Keycloak, do tipo *service account*. Homologação: `ces-goianao-service-stag`. **Não** é o `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID`: esse é o client do login das pessoas, e os dois não podem ser o mesmo (ver abaixo). |
+| `GOIANAO_CONNECTTJ_CLIENT_ID` | não¹ | Client do Goianão no Keycloak, do tipo *service account*. Padrão da infra: `goianao-service-stag` e `goianao-service-prd`, no realm dos usuários, com *Service accounts roles* ligado. **Não** é o `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID`: esse é o client do login das pessoas, e os dois não podem ser o mesmo (ver abaixo). |
 | `OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY` | não¹ | Chave privada do client, PKCS#8 em PEM sem senha (`BEGIN PRIVATE KEY`). Ed25519 em produção, gerada pela infra; RSA em homologação. **Secret, nunca ConfigMap.** Aceita também como `GOIANAO_CONNECTTJ_PRIVATE_KEY`. Pode vir com quebras de linha, numa linha só ou sem os marcadores. |
 | `GOIANAO_CONNECTTJ_URL` | não | Base da API. Padrão: produção, `https://connecttj-api.tjgo.jus.br` (aceita também `OPENSHIFT_API_URL_CONNECTTJ`). Homologação: `https://connecttj-api-stag.tjgo.jus.br`. |
 | `GOIANAO_CONNECTTJ_TOKEN_URL` | não | Endereço do token, que é também o `aud` da assertion. Padrão: produção, realm `tjgo.jus.br-2fa`. Homologação: `https://sso.tjgo.jus.br/auth/realms/DG-TST/protocol/openid-connect/token`. |
@@ -327,6 +327,8 @@ e o log diz o que falta — a aplicação não deixa de subir por isso. Chave
 
 ¹ Juntas: sem client e chave (ou, no modelo antigo, segredo), valem os dados
 mockados.
+
+**Trocar a chave exige reiniciar o pod:** o OpenShift não reinicia a aplicação quando só o conteúdo do Secret muda.
 
 **Produção precisa de duas:** `GOIANAO_CONNECTTJ_CLIENT_ID` e
 `OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY`. Os endereços já têm produção como

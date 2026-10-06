@@ -44,3 +44,31 @@ e lá só se entra por SSO: ninguém conseguia acessar.
   das máquinas do domínio, o navegador bloqueia. A rota `/api` no host público
   continua pendente com a infra.
 - Instalar a raiz da AC TJGO no notebook novo (arquivo com a infra).
+
+## O ConnectTJ no padrão da infra, validado em stag
+
+No mesmo dia, a infra definiu o padrão dos clients JWT: `goianao-service-stag`
+e `goianao-service-prd`, no **realm dos usuários** (`tjgo.gov-tst` e
+`tjgo.jus.br-2fa`), com chave **Ed25519** gerada por eles — e não o
+`ces-goianao-service-stag` do `DG-TST` que a equipe do ConnectTJ tinha criado
+(DI-32). O código não mudou; mudaram as variáveis de stag.
+
+Três tropeços até funcionar, cada um com a mensagem do Keycloak na tela
+(commit "Recusa do Keycloak mostra o motivo que ele devolve"):
+
+1. `Invalid signature algorithm` — o Secret ainda tinha a chave RSA antiga; a
+   Ed25519 foi colocada pela infra e o pod reiniciado.
+2. `unauthorized_client — Client not enabled to retrieve service account` — o
+   client não tinha *Service accounts roles* ligado.
+3. Nenhum: com o ConnectTJ de homologação aceitando o `tjgo.gov-tst` numa
+   janela de teste aberta pela equipe dele, a comparação da SGJT (`901190605`)
+   trouxe 190 unidades do RH.
+
+Depois do teste a equipe do ConnectTJ volta a aceitar só o `DG-TST` em
+homologação, e o RH de stag deixa de responder. É esperado: o teste provou o
+caminho de produção.
+
+**Para produção, pedir de uma vez:** `goianao-service-prd` no
+`tjgo.jus.br-2fa`, Ed25519, *Service accounts roles* ligado; a chave em
+`OPENSHIFT_SSO_KEYCLOACK_PRIVATE_KEY` com o pod reiniciado; e a pipeline de
+produção do ConnectTJ. Endereços de token e da API já são o padrão do sistema.
