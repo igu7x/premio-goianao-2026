@@ -31,14 +31,16 @@ e lá só se entra por SSO: ninguém conseguia acessar.
 - **Contra o Keycloak real:** uma URL de autorização com `code_challenge` S256
   é aceita por `goianao-stag` e `goianao-prd` — o Keycloak serve a tela de
   login, em vez do erro.
-- A troca do código com o verifier só se confere num login de verdade, em stag,
-  depois do deploy.
+- **Login de verdade pelo SSO, com o PKCE exigido pelo Keycloak:** em stag e,
+  depois do MR `stag` → `main`, em produção. O login de produção voltou no
+  mesmo dia.
 
 ## Pendências
 
-- Publicar em stag e testar o login pelo SSO; depois, levar a produção pelo MR
-  `stag` → `main`.
 - Responder à equipe do SSO: o login do Goianão é feito pela API, não por SPA.
   Com PKCE na API, eles podem manter a exigência; o segredo pode sair se o
   client virar público.
+- Produção chama a API pelo endereço interno, de certificado da AC TJGO: fora
+  das máquinas do domínio, o navegador bloqueia. A rota `/api` no host público
+  continua pendente com a infra.
 - Instalar a raiz da AC TJGO no notebook novo (arquivo com a infra).
