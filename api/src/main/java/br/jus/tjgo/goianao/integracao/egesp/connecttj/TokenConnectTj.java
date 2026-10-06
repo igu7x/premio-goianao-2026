@@ -1,5 +1,6 @@
 package br.jus.tjgo.goianao.integracao.egesp.connecttj;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -24,6 +25,8 @@ class TokenConnectTj {
 
     /** Margem para o token nao vencer entre a conferencia e a chegada da requisicao. */
     private static final Duration MARGEM = Duration.ofSeconds(30);
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final String TIPO_ASSERCAO =
             "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
@@ -96,9 +99,31 @@ class TokenConnectTj {
      * aponta onde olhar.
      */
     private String recusa(RestClientResponseException e) {
+        String motivo = motivoDoKeycloak(e);
         return "O Keycloak recusou o client " + props.clientId() + " (HTTP "
-                + e.getStatusCode().value() + "). Confira o client id, a chave pública "
-                + "cadastrada no client e o relógio do servidor; o motivo exato só aparece "
-                + "no log do Keycloak.";
+                + e.getStatusCode().value() + (motivo == null ? "" : ": " + motivo)
+                + "). Confira o client id, o realm do endereço do token, a chave pública "
+                + "cadastrada no client e o relógio do servidor.";
+    }
+
+    /**
+     * O {@code error} e o {@code error_description} que o Keycloak devolve no
+     * corpo. Sem eles, um 400 de "service account desligado" e um de "chave
+     * errada" chegavam a tela iguais, e descobrir qual era custava uma ida ao
+     * log do Keycloak — que nem a infra do Goianao le. Nao ha credencial nesses
+     * campos: sao mensagens do proprio servidor sobre o pedido.
+     */
+    private static String motivoDoKeycloak(RestClientResponseException e) {
+        try {
+            Map<?, ?> corpo = JSON.readValue(e.getResponseBodyAsString(), Map.class);
+            Object erro = corpo.get("error");
+            Object descricao = corpo.get("error_description");
+            if (erro == null && descricao == null) {
+                return null;
+            }
+            return (erro == null ? "" : erro) + (descricao == null ? "" : " — " + descricao);
+        } catch (Exception semJson) {
+            return null;
+        }
     }
 }

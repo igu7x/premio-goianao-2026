@@ -218,13 +218,16 @@ class ConnectTjEgespClientTest {
     void keycloakRecusa() {
         servidor.expect(requestTo(TOKEN_URL))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
-                        .body("{\"error\":\"invalid_client\"}")
+                        .body("{\"error\":\"unauthorized_client\",\"error_description\":"
+                                + "\"Client not enabled to retrieve service account\"}")
                         .contentType(MediaType.APPLICATION_JSON));
 
         assertThatThrownBy(() -> cliente.servidorPorMatricula(5))
                 .isInstanceOf(ConnectTjException.class)
                 .hasMessageContaining("O Keycloak recusou o client goianao")
-                .hasMessageContaining("HTTP 401");
+                .hasMessageContaining("HTTP 401")
+                // O motivo do Keycloak chega a tela: e ele que diz o que pedir a infra.
+                .hasMessageContaining("unauthorized_client — Client not enabled to retrieve service account");
         // Um pedido de token so: o verify falharia com uma segunda tentativa.
         servidor.verify();
     }
