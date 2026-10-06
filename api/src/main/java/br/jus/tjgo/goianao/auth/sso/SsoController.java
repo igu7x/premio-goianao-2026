@@ -9,12 +9,16 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,6 +43,16 @@ public class SsoController {
 
     private static final Logger log = LoggerFactory.getLogger(SsoController.class);
     private static final SecureRandom ALEATORIO = new SecureRandom();
+
+    /**
+     * Guarda, entre a ida e a volta do Keycloak, o verifier do PKCE e o
+     * aleatorio do state desta tentativa (DI-33). Fica no navegador porque a
+     * API nao tem estado compartilhado entre replicas; HttpOnly porque nenhum
+     * script precisa le-lo; restrito a {@code /api/auth/sso} porque so o
+     * callback o usa. Dez minutos bastam para digitar a senha e o segundo fator.
+     */
+    static final String COOKIE = "goianao_sso";
+    private static final Duration VALIDADE_COOKIE = Duration.ofMinutes(10);
 
     private final SsoProperties props;
     private final ClienteKeycloak keycloak;
@@ -70,8 +84,11 @@ public class SsoController {
         }
 
         String state = novoState(destino);
+        DesafioPkce pkce = DesafioPkce.novo();
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(keycloak.urlDeAutorizacao(state)))
+                .header(HttpHeaders.SET_COOKIE,
+                        cookie(nonceDo(state) + "." + pkce.verifier(), VALIDADE_COOKIE))
+                .location(URI.create(keycloak.urlDeAutorizacao(state, pkce.challenge())))
                 .build();
     }
 
@@ -87,7 +104,8 @@ public class SsoController {
             @RequestParam(name = "code", required = false) String codigo,
             @RequestParam(name = "state", required = false) String state,
             @RequestParam(name = "error", required = false) String erro,
-            @RequestParam(name = "error_description", required = false) String descricao) {
+            @RequestParam(name = "error_description", required = false) String descricao,
+            @CookieValue(name = COOKIE, required = false) String guardado) {
 
         if (!props.habilitado()) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
@@ -101,8 +119,15 @@ public class SsoController {
             return paraFrontend("erro=" + enc("Retorno do login sem código de autorização."), state);
         }
 
+        String verifier = verifierDaTentativa(guardado, state);
+        if (verifier == null) {
+            log.warn("Retorno do SSO sem a tentativa de login correspondente neste navegador.");
+            return paraFrontend("erro=" + enc("A tentativa de login expirou ou foi iniciada "
+                    + "em outra janela. Clique em entrar de novo."), state);
+        }
+
         try {
-            IdentidadeAutenticada identidade = keycloak.autenticar(codigo);
+            IdentidadeAutenticada identidade = keycloak.autenticar(codigo, verifier);
 
             // A identidade veio do Keycloak; em qual edicao ela entra e outra
             // pergunta, e quem responde e o cadastro de cada base (011/RF-7).
@@ -147,12 +172,11 @@ public class SsoController {
     /**
      * O {@code state} carrega o destino pos-login e um valor aleatorio.
      *
-     * O aleatorio existe para o parametro nao ser previsivel; a validacao
-     * completa contra CSRF exige guardar o state entre as duas requisicoes, o
-     * que num sistema de varias replicas pede estado compartilhado. Como o
-     * callback so produz um token para uma identidade que o proprio Keycloak
-     * assinou, a janela e estreita — mas fica registrado como ponto a fechar
-     * quando houver Redis.
+     * <p>O aleatorio vai tambem no cookie da tentativa, e o callback confere os
+     * dois: um codigo que chegue a este navegador sem ter saido dele — o login
+     * forjado do CSRF — nao tem o cookie correspondente e e recusado. Era o
+     * ponto que esperava "quando houver Redis"; o cookie resolveu sem estado
+     * no servidor (DI-33).
      */
     private String novoState(String destino) {
         byte[] ruido = new byte[16];
@@ -161,6 +185,42 @@ public class SsoController {
         String limpo = (destino == null || !destino.startsWith("/")) ? "/" : destino;
         return nonce + "|" + Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(limpo.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String nonceDo(String state) {
+        return state.substring(0, state.indexOf('|'));
+    }
+
+    /**
+     * O verifier guardado, se o cookie for desta tentativa. Sem cookie, ou com
+     * cookie de outra tentativa (duas janelas de login, a segunda sobrescreve),
+     * nao ha troca possivel: o Keycloak recusaria o verifier errado com uma
+     * mensagem que nao ajudaria ninguem.
+     */
+    private static String verifierDaTentativa(String guardado, String state) {
+        if (guardado == null || state == null || !state.contains("|")
+                || !guardado.contains(".")) {
+            return null;
+        }
+        String nonce = guardado.substring(0, guardado.indexOf('.'));
+        String verifier = guardado.substring(guardado.indexOf('.') + 1);
+        return nonce.equals(nonceDo(state)) && !verifier.isBlank() ? verifier : null;
+    }
+
+    /**
+     * Secure quando o callback e HTTPS. Nao da para perguntar a requisicao:
+     * no OpenShift o TLS termina na Route, e a API recebe HTTP.
+     */
+    private String cookie(String valor, Duration validade) {
+        boolean https = props.redirectUri() != null && props.redirectUri().startsWith("https://");
+        return ResponseCookie.from(COOKIE, valor)
+                .httpOnly(true)
+                .secure(https)
+                .sameSite("Lax")
+                .path("/api/auth/sso")
+                .maxAge(validade)
+                .build()
+                .toString();
     }
 
     private String destinoDoState(String state) {
@@ -181,7 +241,9 @@ public class SsoController {
     private ResponseEntity<Void> paraFrontend(String fragmento, String state) {
         String base = props.urlFrontend() == null ? "" : props.urlFrontend();
         String destino = destinoDoState(state);
+        // A tentativa termina aqui, com sucesso ou nao: o cookie sai junto.
         return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO))
                 .location(URI.create(base + "/entrar#" + fragmento
                         + "&destino=" + enc(destino)))
                 .build();

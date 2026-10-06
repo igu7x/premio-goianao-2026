@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import br.jus.tjgo.goianao.suporte.TesteDeIntegracao;
+import jakarta.servlet.http.Cookie;
+import java.security.MessageDigest;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -141,6 +143,79 @@ class SsoLigadoIT extends TesteDeIntegracao {
                         org.hamcrest.Matchers.containsString("post_logout_redirect_uri=")))
                 .andExpect(jsonPath("$.url").value(
                         org.hamcrest.Matchers.containsString("&redirect_uri=")));
+    }
+
+    @Test
+    @DisplayName("o login manda o desafio PKCE S256 e guarda o verifier num cookie HttpOnly")
+    void pkceNaIda() throws Exception {
+        var resposta = mvc.perform(get("/api/auth/sso/login"))
+                .andExpect(status().isFound())
+                .andReturn().getResponse();
+        String local = resposta.getHeader(HttpHeaders.LOCATION);
+        String cookie = resposta.getHeader(HttpHeaders.SET_COOKIE);
+
+        assertThat(local).contains("code_challenge_method=S256").contains("code_challenge=");
+        assertThat(cookie)
+                .startsWith("goianao_sso=")
+                .contains("HttpOnly")
+                .contains("Secure")
+                .contains("SameSite=Lax")
+                .contains("Path=/api/auth/sso");
+
+        // O desafio da URL e o SHA-256 do verifier guardado: e isso que o
+        // Keycloak confere na troca.
+        String guardado = cookie.substring("goianao_sso=".length(), cookie.indexOf(';'));
+        String verifier = guardado.substring(guardado.indexOf('.') + 1);
+        String challenge = parametro(local, "code_challenge");
+        String esperado = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                MessageDigest.getInstance("SHA-256")
+                        .digest(verifier.getBytes(StandardCharsets.US_ASCII)));
+        assertThat(challenge).isEqualTo(esperado);
+        // O verifier nunca vai ao Keycloak na ida.
+        assertThat(local).doesNotContain(verifier);
+    }
+
+    @Test
+    @DisplayName("codigo que volta sem o cookie da tentativa e recusado antes de ir ao Keycloak")
+    void semCookieNaoTroca() throws Exception {
+        String state = extrairState(mvc.perform(get("/api/auth/sso/login"))
+                .andReturn().getResponse().getHeader(HttpHeaders.LOCATION));
+
+        String volta = mvc.perform(get("/api/auth/sso/callback")
+                        .param("code", "abc")
+                        .param("state", state))
+                .andExpect(status().isFound())
+                .andReturn().getResponse().getHeader(HttpHeaders.LOCATION);
+
+        assertThat(volta).contains("/entrar#erro=").contains(enc("expirou"));
+    }
+
+    @Test
+    @DisplayName("cookie de outra tentativa nao serve: e o login forjado do CSRF")
+    void cookieDeOutraTentativa() throws Exception {
+        String state = extrairState(mvc.perform(get("/api/auth/sso/login"))
+                .andReturn().getResponse().getHeader(HttpHeaders.LOCATION));
+
+        var resposta = mvc.perform(get("/api/auth/sso/callback")
+                        .param("code", "abc")
+                        .param("state", state)
+                        .cookie(new Cookie("goianao_sso", "outrononce.verifierqualquer")))
+                .andExpect(status().isFound())
+                .andReturn().getResponse();
+
+        assertThat(resposta.getHeader(HttpHeaders.LOCATION)).contains("/entrar#erro=");
+        // A tentativa acaba ali: o cookie e apagado.
+        assertThat(resposta.getHeader(HttpHeaders.SET_COOKIE)).contains("Max-Age=0");
+    }
+
+    private static String parametro(String url, String nome) {
+        for (String par : url.substring(url.indexOf('?') + 1).split("&")) {
+            if (par.startsWith(nome + "=")) {
+                return java.net.URLDecoder.decode(par.substring(nome.length() + 1),
+                        StandardCharsets.UTF_8);
+            }
+        }
+        return null;
     }
 
     private static String extrairState(String url) {

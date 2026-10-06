@@ -90,3 +90,13 @@ de rota), `componentes/Estrutura.tsx` (menus pela **união** dos papéis) e
   local; sem isso o Spring Boot gera e loga uma senha aleatória a cada boot.
 - O papel MAGISTRADO é resolvido por `MagistradoLookup`, uma porta implementada
   no pacote `magistrado` — o pacote de autenticação não depende dele.
+
+## Implementação (2026-10-06) — PKCE no login
+
+O Keycloak do tribunal passou a exigir PKCE S256 nos clients de login
+(`goianao-stag` e `goianao-prd`), sem aviso prévio de data, e o login parou
+nos dois ambientes com `Missing parameter: code_challenge_method`. A API passou
+a fazer PKCE: `DesafioPkce` gera o par, `SsoController` guarda o verifier
+num cookie HttpOnly da tentativa e `ClienteKeycloak` o envia na troca. O
+mesmo cookie fecha a conferência do `state` contra CSRF, que estava anotada
+como pendente. O segredo do client passou a opcional. Decisão na DI-33.

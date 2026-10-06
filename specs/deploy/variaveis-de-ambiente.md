@@ -22,15 +22,16 @@
 | `OPENSHIFT_SSO_KEYCLOACK_URL` | não¹ | Inclui `/auth` no fim — o Keycloak do tribunal é anterior à v17. |
 | `OPENSHIFT_SSO_KEYCLOACK_REALM` | não¹ | |
 | `OPENSHIFT_SSO_KEYCLOACK_CLIENT_ID` | não¹ | |
-| `OPENSHIFT_SSO_KEYCLOACK_SECRET` | não¹ | |
+| `OPENSHIFT_SSO_KEYCLOACK_SECRET` | não | Só para client **confidencial**. Desde 2026-10 o tribunal passou os clients de login a públicos, com PKCE S256 obrigatório (DI-33): nesse caso a variável fica vazia ou é removida. Se existir, é enviada na troca do código. |
 | `OPENSHIFT_SSO_KEYCLOACK_REDIRECT_URI` | não¹ | |
 | `OPENSHIFT_SSO_CLAIMS_EMAIL` | não | Lista separada por vírgula, tentada em ordem até achar um e-mail válido. Padrão `email,preferred_username`, que atende o realm do tribunal — **não precisa ser definida**. O e-mail é a chave da pessoa em todo o sistema (DI-24). |
 | ~~`OPENSHIFT_SSO_CLAIMS_CPF`~~ | — | Não é mais lida desde 2026-09-10 (DI-24). Se existir no ambiente, é ignorada. |
 | `OPENSHIFT_SSO_CLAIMS_NAME` | não | Padrão `name`. |
 | `GOIANAO_SUPERADMIN_EMAIL` / `_SENHA` / `_NOME` | 1ª subida | Cria o primeiro superadministrador quando não existe nenhum. A senha é gravada como hash BCrypt e **não fica no repositório**. Podem ser removidas depois da primeira subida. `_CPF` é opcional. |
 
-¹ As cinco de SSO são obrigatórias **juntas**: faltando qualquer uma, o SSO fica
-desligado e vale o login mockado. É por isso que a aplicação aceita também a
+¹ As quatro de SSO são obrigatórias **juntas**: faltando qualquer uma, o SSO fica
+desligado e vale o login mockado. O segredo ficou de fora da conta em 2026-10
+(DI-33): com client público ele não existe. É por isso que a aplicação aceita também a
 grafia `KEYCLOAK` (sem o C): uma variável com o nome trocado não quebraria a
 subida — deixaria o sistema aberto com login de mentira, que é bem pior.
 

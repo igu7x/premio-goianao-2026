@@ -70,8 +70,10 @@ goianao:
     cpf: ${GOIANAO_SUPERADMIN_CPF:}
     nome: ${GOIANAO_SUPERADMIN_NOME:Superadministrador}
 
-  # SSO corporativo (Keycloak do TJGO). Vazio ate o client existir: sem as
-  # cinco primeiras propriedades o SSO fica desligado e vale o login mockado.
+  # SSO corporativo (Keycloak do TJGO). Vazio ate o client existir: sem url,
+  # realm, client-id e redirect-uri o SSO fica desligado e vale o login
+  # mockado. O segredo e opcional desde 2026-10 (DI-33): o tribunal passou os
+  # clients de login a publicos, com PKCE S256 obrigatorio, que a API faz.
   #
   # ATENCAO na url: o Keycloak do tribunal e anterior a v17, entao o caminho
   # inclui /auth -- https://<host-do-keycloak>/auth, nao https://<host-do-keycloak>.

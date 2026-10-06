@@ -38,7 +38,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param url          base do Keycloak, <b>incluindo</b> {@code /auth}
  * @param realm        realm do tribunal
  * @param clientId     identificador do client
- * @param clientSecret segredo do client (vem de Secret, nunca versionado)
+ * @param clientSecret segredo do client (vem de Secret, nunca versionado).
+ *                     Opcional desde 2026-10 (DI-33): o tribunal passou os
+ *                     clients de login a publicos, com PKCE, e um client
+ *                     publico nao tem segredo
  * @param redirectUri  URI de callback registrada no client
  * @param urlFrontend  para onde devolver o navegador apos autenticar
  * @param claimsEmail  claims tentados, em ordem, ate achar um e-mail valido
@@ -99,10 +102,20 @@ public record SsoProperties(
      * sistema segue no login mockado em vez de subir quebrado — um pod que nao
      * inicia por causa de uma variavel ausente e pior de diagnosticar do que um
      * endpoint que responde "SSO nao configurado".
+     *
+     * <p>O segredo nao entra na conta (DI-33): com client publico ele nao
+     * existe, e exigi-lo deixaria o SSO desligado justamente quando a infra
+     * fizesse o certo e apagasse a variavel. Client confidencial sem segredo
+     * falha na troca do codigo, com o motivo no log.
      */
     public boolean habilitado() {
         return preenchido(url) && preenchido(realm) && preenchido(clientId)
-                && preenchido(clientSecret) && preenchido(redirectUri);
+                && preenchido(redirectUri);
+    }
+
+    /** Client confidencial: manda o segredo na troca do codigo. */
+    public boolean temSegredo() {
+        return preenchido(clientSecret);
     }
 
     public String issuer() {

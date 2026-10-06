@@ -67,4 +67,15 @@ class SsoPropertiesTest {
         assertThat(props.redirectUri()).isEmpty();
         assertThat(props.habilitado()).isFalse();
     }
+
+    @Test
+    @DisplayName("client publico, sem segredo, liga o SSO: o tribunal tirou o segredo do login")
+    void clientPublicoSemSegredo() {
+        SsoProperties publico = new SsoProperties("https://sso.tjgo.jus.br/auth", "tjgo.gov-tst",
+                "goianao-stag", null, "https://goianao-api.tjgo.jus.br/api/auth/sso/callback",
+                null, List.of(), null);
+
+        assertThat(publico.habilitado()).isTrue();
+        assertThat(publico.temSegredo()).isFalse();
+    }
 }

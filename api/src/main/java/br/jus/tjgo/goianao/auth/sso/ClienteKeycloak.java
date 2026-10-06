@@ -40,13 +40,18 @@ public class ClienteKeycloak {
         this.http = builder.build();
     }
 
-    /** URL para onde o navegador e redirecionado, com o {@code state} opaco. */
-    public String urlDeAutorizacao(String state) {
+    /**
+     * URL para onde o navegador e redirecionado, com o desafio do PKCE e o
+     * {@code state} opaco. O verifier nao vai: ele fica com a API ate a troca.
+     */
+    public String urlDeAutorizacao(String state, String challenge) {
         return props.urlAutorizacao()
                 + "?client_id=" + enc(props.clientId())
                 + "&redirect_uri=" + enc(props.redirectUri())
                 + "&response_type=code"
                 + "&scope=openid"
+                + "&code_challenge=" + enc(challenge)
+                + "&code_challenge_method=" + DesafioPkce.METODO
                 + "&state=" + enc(state);
     }
 
@@ -58,8 +63,8 @@ public class ClienteKeycloak {
      *                      nao passa na verificacao ou quando o e-mail nao vem
      *                      em nenhum dos claims configurados
      */
-    public IdentidadeAutenticada autenticar(String codigo) {
-        Map<String, Object> resposta = trocarCodigo(codigo);
+    public IdentidadeAutenticada autenticar(String codigo, String verifier) {
+        Map<String, Object> resposta = trocarCodigo(codigo, verifier);
 
         Object bruto = resposta.get("id_token");
         if (bruto == null) {
@@ -73,13 +78,17 @@ public class ClienteKeycloak {
         return identidadeDe(token);
     }
 
-    private Map<String, Object> trocarCodigo(String codigo) {
+    private Map<String, Object> trocarCodigo(String codigo, String verifier) {
         MultiValueMap<String, String> corpo = new LinkedMultiValueMap<>();
         corpo.add("grant_type", "authorization_code");
         corpo.add("code", codigo);
         corpo.add("redirect_uri", props.redirectUri());
         corpo.add("client_id", props.clientId());
-        corpo.add("client_secret", props.clientSecret());
+        corpo.add("code_verifier", verifier);
+        // Client publico nao tem segredo (DI-33); confidencial manda o seu.
+        if (props.temSegredo()) {
+            corpo.add("client_secret", props.clientSecret());
+        }
 
         try {
             @SuppressWarnings("unchecked")

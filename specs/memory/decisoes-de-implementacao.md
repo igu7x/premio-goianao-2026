@@ -1037,3 +1037,47 @@ pública, nos dois algoritmos) e `ConnectTjEgespClientTest`; contra o `DG-TST`,
 em `ConnectTjRealIT`.
 
 ---
+
+## DI-33 — O login faz PKCE, e o segredo do client deixa de ser obrigatório
+
+**Contexto.** Em 2026-10-06 a equipe do SSO aplicou aos clients de login do
+Goianão (`goianao-stag` e `goianao-prd`) o padrão novo do tribunal: PKCE S256
+obrigatório e, na visão deles, client público — eles supunham um frontend SPA
+falando com o Keycloak. O login do Goianão não é assim: é a **API** que manda o
+navegador ao Keycloak, recebe o código no callback e o troca no servidor
+(DI-15). Sem `code_challenge` na ida, o Keycloak passou a recusar o login com
+`invalid_request — Missing parameter: code_challenge_method`, nos dois
+ambientes. Produção, que só entra por SSO, ficou sem login.
+
+**Decisão.** A API faz PKCE, e continua sendo ela quem faz o login.
+
+- **Na ida**, `DesafioPkce` gera um verifier de 32 bytes aleatórios e manda ao
+  Keycloak só o desafio (`SHA-256`, base64url). **Na volta**, o verifier vai na
+  troca do código.
+- **O verifier fica num cookie** HttpOnly, `SameSite=Lax`, restrito a
+  `/api/auth/sso`, válido por 10 minutos e apagado no callback. A API não tem
+  estado compartilhado entre réplicas, e o cookie dispensa ter.
+- **O mesmo cookie confere o `state`.** Ele leva o aleatório do state, e o
+  callback só troca o código se os dois baterem. Era o ponto contra CSRF que o
+  código deixava "para quando houver Redis".
+- **O segredo do client ficou opcional.** Client público não tem segredo; se a
+  variável existir, vai na troca, como antes. O SSO liga com url, realm, client
+  e redirect.
+
+**Alternativa descartada.** Levar o verifier dentro do `state`, sem cookie. O
+state passa pela URL e pelo Keycloak junto com o código; quem interceptasse um
+teria o outro, e o PKCE não protegeria nada.
+
+**Alternativa descartada.** Virar SPA de verdade — o frontend falando com o
+Keycloak, como a equipe do SSO supunha. Mudaria a sessão do sistema inteiro
+(hoje um JWT próprio de 8h, emitido pela API) para atender a uma mudança de
+configuração, e poria o token do Keycloak no navegador.
+
+**Consequência.** Funciona com o client confidencial (com segredo) e com o
+público (sem), então a ordem das mudanças entre a equipe do SSO e nós deixa de
+importar. Conferido contra o Keycloak real: a URL de autorização com PKCE é
+aceita por `goianao-stag` e `goianao-prd`. Testes em `SsoLigadoIT`
+(desafio, cookie, recusa sem o cookie da tentativa) e `ClienteKeycloakTest`
+(verifier na troca, segredo só quando existe, vetor da RFC 7636).
+
+---
